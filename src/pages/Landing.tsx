@@ -878,6 +878,27 @@ export default function Landing() {
             </a>
           </div>
 
+          <hr
+            style={{
+              border: 'none',
+              borderTop: '1px solid rgba(255,255,255,0.05)',
+              margin: '0.75rem 0',
+            }}
+          />
+          <div
+            className="footer-links"
+            style={{ fontSize: '0.8rem', gap: '16px' }}
+          >
+            <a
+              href="/login"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#64748b' }}
+            >
+              🔐 Admin
+            </a>
+          </div>
+
           {/* Social media */}
           <div className="footer-links">
             {instagram && (
