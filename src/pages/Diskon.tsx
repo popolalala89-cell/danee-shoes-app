@@ -165,7 +165,7 @@ const Diskon: React.FC = () => {
       </div>
 
       {/* Action button */}
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+      <div className="page-header-actions" style={{ marginBottom: 'var(--space-md)' }}>
         <button className="btn btn-primary" onClick={openTambah}>
           + Tambah Event Diskon
         </button>
@@ -197,7 +197,7 @@ const Diskon: React.FC = () => {
             <tbody>
               {data.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                  <td colSpan={7} className="text-center text-muted">
                     Belum ada event diskon.
                   </td>
                 </tr>
@@ -210,22 +210,13 @@ const Diskon: React.FC = () => {
                     <td>{tipeLabels[item.Tipe] || item.Tipe}</td>
                     <td>{item.TargetLayanan || '-'}</td>
                     <td>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '2px 10px',
-                          borderRadius: '12px',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          color: '#fff',
-                          backgroundColor: item.Status === 'Aktif' ? '#10b981' : '#ef4444',
-                        }}
+                      <span className={`badge ${item.Status === 'Aktif' ? 'badge-selesai' : 'badge-batal'}`}
                       >
                         {item.Status}
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div className="aksi-group">
                         <button
                           className="btn btn-sm btn-outline"
                           onClick={() => openEdit(item)}

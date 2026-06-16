@@ -139,63 +139,55 @@ const Cashflow: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          alignItems: 'flex-end',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <div className="form-group" style={{ marginBottom: 0, minWidth: '140px' }}>
-          <label htmlFor="cf-start">Dari Tanggal</label>
-          <input
-            id="cf-start"
-            type="date"
-            className="form-control"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </div>
-        <div className="form-group" style={{ marginBottom: 0, minWidth: '140px' }}>
-          <label htmlFor="cf-end">Sampai Tanggal</label>
-          <input
-            id="cf-end"
-            type="date"
-            className="form-control"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </div>
-        <div className="form-group" style={{ marginBottom: 0, minWidth: '140px' }}>
-          <label htmlFor="cf-tipe">Tipe</label>
-          <select
-            id="cf-tipe"
-            className="form-control"
-            value={filterTipe}
-            onChange={(e) => setFilterTipe(e.target.value)}
+      <div className="page-header">
+        <div className="page-header-actions">
+          <div className="form-group" style={{ marginBottom: 0, minWidth: '140px' }}>
+            <label htmlFor="cf-start">Dari Tanggal</label>
+            <input
+              id="cf-start"
+              type="date"
+              className="form-control"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0, minWidth: '140px' }}>
+            <label htmlFor="cf-end">Sampai Tanggal</label>
+            <input
+              id="cf-end"
+              type="date"
+              className="form-control"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0, minWidth: '140px' }}>
+            <label htmlFor="cf-tipe">Tipe</label>
+            <select
+              id="cf-tipe"
+              className="form-control"
+              value={filterTipe}
+              onChange={(e) => setFilterTipe(e.target.value)}
+            >
+              <option value="Semua">Semua</option>
+              <option value="Pemasukan">Pemasukan</option>
+              <option value="Pengeluaran">Pengeluaran</option>
+            </select>
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={handleFilter}
+            disabled={fetching}
           >
-            <option value="Semua">Semua</option>
-            <option value="Pemasukan">Pemasukan</option>
-            <option value="Pengeluaran">Pengeluaran</option>
-          </select>
+            {fetching ? 'Memuat...' : 'Filter'}
+          </button>
+          <button
+            className="btn btn-outline"
+            onClick={openModal}
+          >
+            + Tambah Manual
+          </button>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={handleFilter}
-          disabled={fetching}
-          style={{ marginBottom: 0 }}
-        >
-          {fetching ? 'Memuat...' : 'Filter'}
-        </button>
-        <button
-          className="btn btn-outline"
-          onClick={openModal}
-          style={{ marginBottom: 0 }}
-        >
-          + Tambah Manual
-        </button>
       </div>
 
       {/* Loading */}
@@ -209,55 +201,25 @@ const Cashflow: React.FC = () => {
       {!loading && (
         <>
           {/* Summary Cards */}
-          <div className="cf-summary" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-            <div
-              className="cf-card cf-in"
-              style={{
-                flex: '1 1 200px',
-                background: '#fff',
-                borderRadius: '8px',
-                padding: '1.25rem',
-                borderLeft: '4px solid #10b981',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-              }}
-            >
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Total Pemasukan</p>
-              <p style={{ margin: '0.25rem 0 0', fontSize: '1.35rem', fontWeight: 700, color: '#10b981' }}>
+          <div className="cf-summary">
+            <div className="cf-card cf-in">
+              <p>Total Pemasukan</p>
+              <p style={{ color: 'var(--success)' }}>
                 {formatCurrency(totalPemasukan)}
               </p>
             </div>
-            <div
-              className="cf-card cf-out"
-              style={{
-                flex: '1 1 200px',
-                background: '#fff',
-                borderRadius: '8px',
-                padding: '1.25rem',
-                borderLeft: '4px solid #ef4444',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-              }}
-            >
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Total Pengeluaran</p>
-              <p style={{ margin: '0.25rem 0 0', fontSize: '1.35rem', fontWeight: 700, color: '#ef4444' }}>
+            <div className="cf-card cf-out">
+              <p>Total Pengeluaran</p>
+              <p style={{ color: 'var(--danger)' }}>
                 {formatCurrency(totalPengeluaran)}
               </p>
             </div>
-            <div
-              className="cf-card cf-laba-rugi"
-              style={{
-                flex: '1 1 200px',
-                background: '#fff',
-                borderRadius: '8px',
-                padding: '1.25rem',
-                borderLeft: '4px solid #3b82f6',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-              }}
-            >
-              <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Analisa Laba/Rugi</p>
-              <p style={{ margin: '0.25rem 0 0', fontSize: '1.35rem', fontWeight: 700, color: isProfit ? '#10b981' : '#ef4444' }}>
+            <div className="cf-card cf-laba-rugi">
+              <p>Analisa Laba/Rugi</p>
+              <p style={{ color: isProfit ? 'var(--success)' : 'var(--danger)' }}>
                 {isProfit ? 'Laba' : 'Rugi'} {formatCurrency(Math.abs(netAmount))}
               </p>
-              <p style={{ margin: '0.15rem 0 0', fontSize: '0.85rem', fontWeight: 600, color: isProfit ? '#10b981' : '#ef4444' }}>
+              <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', fontWeight: 600, color: isProfit ? 'var(--success)' : 'var(--danger)' }}>
                 ({isProfit ? '+' : '-'}{marginPct}%)
               </p>
             </div>
@@ -290,20 +252,12 @@ const Cashflow: React.FC = () => {
                     return (
                       <tr key={item.ID}>
                         <td>{item.ID}</td>
-                        <td style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                        <td style={{ color: 'var(--text-gray)' }}>
                           {item.Tanggal ? formatDate(item.Tanggal) : '-'}
                         </td>
                         <td>
                           <span
-                            style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              fontSize: '0.8rem',
-                              fontWeight: 600,
-                              background: isPemasukan ? '#d1fae5' : '#fee2e2',
-                              color: isPemasukan ? '#065f46' : '#991b1b',
-                            }}
+                            className={`badge ${isPemasukan ? 'badge-selesai' : 'badge-batal'}`}
                           >
                             {item.Tipe}
                           </span>

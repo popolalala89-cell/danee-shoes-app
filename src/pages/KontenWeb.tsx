@@ -180,15 +180,15 @@ const KontenWeb: React.FC = () => {
       </div>
 
       {/* Sub-tabs */}
-      <div className="sub-tabs" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+      <div className="tab-btns">
         <button
-          className={`btn ${activeTab === 'konten' ? 'btn-primary' : 'btn-white'}`}
+          className={`tab-btn ${activeTab === 'konten' ? 'active' : ''}`}
           onClick={() => setActiveTab('konten')}
         >
           Konten
         </button>
         <button
-          className={`btn ${activeTab === 'theme' ? 'btn-primary' : 'btn-white'}`}
+          className={`tab-btn ${activeTab === 'theme' ? 'active' : ''}`}
           onClick={() => setActiveTab('theme')}
         >
           Theme
@@ -199,37 +199,30 @@ const KontenWeb: React.FC = () => {
       {activeTab === 'konten' && (
         <>
           {/* Filter & Add bar */}
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '0.75rem',
-              alignItems: 'flex-end',
-              marginBottom: '1.5rem',
-            }}
-          >
-            <div className="form-group" style={{ marginBottom: 0, minWidth: '160px' }}>
-              <label htmlFor="kw-filter">Filter Kategori</label>
-              <select
-                id="kw-filter"
-                className="form-control"
-                value={filterKategori}
-                onChange={(e) => setFilterKategori(e.target.value)}
+          <div className="page-header">
+            <div className="page-header-actions">
+              <div className="form-group" style={{ marginBottom: 0, minWidth: '160px' }}>
+                <label htmlFor="kw-filter">Filter Kategori</label>
+                <select
+                  id="kw-filter"
+                  className="form-control"
+                  value={filterKategori}
+                  onChange={(e) => setFilterKategori(e.target.value)}
+                >
+                  {KONTEN_FILTERS.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                className="btn btn-outline"
+                onClick={openAddModal}
               >
-                {KONTEN_FILTERS.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
+                + Tambah Konten
+              </button>
             </div>
-            <button
-              className="btn btn-outline"
-              onClick={openAddModal}
-              style={{ marginBottom: 0 }}
-            >
-              + Tambah Konten
-            </button>
           </div>
 
           {/* Loading */}
@@ -256,7 +249,7 @@ const KontenWeb: React.FC = () => {
                 <tbody>
                   {filteredKonten.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                      <td colSpan={5} className="text-center text-muted">
                         Belum ada konten web.
                       </td>
                     </tr>
@@ -267,16 +260,7 @@ const KontenWeb: React.FC = () => {
                         <tr key={item.ID}>
                           <td>{item.ID}</td>
                           <td>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                                background: '#e0f2fe',
-                                color: '#075985',
-                              }}
+                            <span className="badge badge-proses"
                             >
                               {item.Kategori}
                             </span>
@@ -285,22 +269,13 @@ const KontenWeb: React.FC = () => {
                             {item.Keterangan || '-'}
                           </td>
                           <td>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                                background: isAktif ? '#d1fae5' : '#fef3c7',
-                                color: isAktif ? '#065f46' : '#92400e',
-                              }}
+                            <span className={`badge ${isAktif ? 'badge-selesai' : 'badge-waiting'}`}
                             >
                               {item.Status}
                             </span>
                           </td>
                           <td>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <div className="aksi-group">
                               <button
                                 className="btn btn-sm btn-primary"
                                 onClick={() => openEditModal(item)}
@@ -379,16 +354,8 @@ const KontenWeb: React.FC = () => {
               </div>
 
               {/* Preview */}
-              <div
-                style={{
-                  marginTop: '1.5rem',
-                  padding: '1.5rem',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  background: '#fff',
-                }}
-              >
-                <h4 style={{ margin: '0 0 1rem', fontWeight: 600 }}>Preview</h4>
+              <div className="card">
+                <h4 style={{ margin: '0 0 var(--space-md)', fontWeight: 600 }}>Preview</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   <button
                     style={{

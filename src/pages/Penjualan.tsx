@@ -77,14 +77,25 @@ const Penjualan: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="penjualan-loading">
-        <p>Memuat data penjualan...</p>
+      <div className="admin-main">
+        <div className="loading-overlay" style={{ minHeight: '300px' }}>
+          <div className="loading-spinner" />
+          <p style={{ color: 'var(--text-gray)', marginTop: '0.75rem' }}>
+            Memuat data penjualan...
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="penjualan-container">
+    <div className="admin-main">
+      {/* Header */}
+      <div className="admin-topbar">
+        <h1>💰 Penjualan</h1>
+      </div>
+
+      <div className="penjualan-container">
       {/* Left Column: Input Penjualan Form */}
       <div className="penjualan-left">
         <h2>Input Penjualan</h2>
@@ -93,6 +104,7 @@ const Penjualan: React.FC = () => {
             <label htmlFor="produk">Produk</label>
             <select
               id="produk"
+              className="form-control"
               value={selectedProductId}
               onChange={handleProductChange}
               required
@@ -111,6 +123,7 @@ const Penjualan: React.FC = () => {
             <input
               id="harga"
               type="text"
+              className="form-control"
               value={hargaSatuan ? formatCurrency(hargaSatuan) : ''}
               readOnly
               disabled
@@ -122,6 +135,7 @@ const Penjualan: React.FC = () => {
             <input
               id="qty"
               type="number"
+              className="form-control"
               min={1}
               value={qty}
               onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
@@ -134,6 +148,7 @@ const Penjualan: React.FC = () => {
             <input
               id="nama_pembeli"
               type="text"
+              className="form-control"
               value={namaPembeli}
               onChange={(e) => setNamaPembeli(e.target.value)}
               placeholder="Masukkan nama pembeli"
@@ -142,10 +157,11 @@ const Penjualan: React.FC = () => {
 
           <button
             type="submit"
-            className="btn-penjualan"
+            className="btn btn-primary"
+            style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }}
             disabled={submitting || !selectedProductId || qty < 1}
           >
-            {submitting ? 'Menyimpan...' : 'Catat Penjualan'}
+            {submitting ? 'Menyimpan...' : '💰 Catat Penjualan'}
           </button>
         </form>
       </div>
@@ -178,13 +194,14 @@ const Penjualan: React.FC = () => {
                     <td>{formatDate(sale.Tanggal)}</td>
                     <td>{sale.NamaProduk || '-'}</td>
                     <td>{sale.Qty}</td>
-                    <td>{formatCurrency(sale.Total)}</td>
+                    <td>{formatCurrency(sale.Total ?? 0)}</td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

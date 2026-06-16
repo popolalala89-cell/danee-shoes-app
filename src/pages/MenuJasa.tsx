@@ -105,9 +105,9 @@ const MenuJasa: React.FC = () => {
 
   return (
     <div className="menu-jasa-page">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <p className="mb-0 text-muted">Kelola layanan jasa cuci &amp; repair</p>
-        <button className="btn btn-gold btn-sm" onClick={openAdd}>
+      <div className="admin-topbar">
+        <h1>Menu Jasa</h1>
+        <button className="btn btn-gold" onClick={openAdd}>
           + Tambah Layanan
         </button>
       </div>
@@ -132,7 +132,7 @@ const MenuJasa: React.FC = () => {
             <tbody>
               {data.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">
+                  <td colSpan={6} className="text-center text-muted">
                     Belum ada layanan jasa.
                   </td>
                 </tr>
@@ -142,11 +142,11 @@ const MenuJasa: React.FC = () => {
                     <td>{item.ID}</td>
                     <td>{item.NamaLayanan}</td>
                     <td>{item.Kategori}</td>
-                    <td>{formatCurrency(item.Harga)}</td>
+                    <td>{formatCurrency(item.Harga ?? 0)}</td>
                     <td>{statusBadge(item.Status)}</td>
                     <td>
                       <button
-                        className="btn btn-outline btn-sm me-1"
+                        className="btn btn-sm btn-outline"
                         onClick={() => openEdit(item)}
                       >
                         Edit
@@ -170,7 +170,7 @@ const MenuJasa: React.FC = () => {
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h5 className="mb-0">{form.ID ? 'Edit Layanan' : 'Tambah Layanan'}</h5>
+              <h3>{form.ID ? 'Edit Layanan' : 'Tambah Layanan'}</h3>
               <button className="modal-close" onClick={closeModal}>
                 &times;
               </button>
@@ -263,17 +263,25 @@ const MenuJasa: React.FC = () => {
                     onChange={handleChange}
                   />
                 </div>
-
-                <div className="d-flex justify-content-end mt-3">
-                  <button
-                    type="submit"
-                    className="btn btn-gold"
-                    disabled={saving}
-                  >
-                    {saving ? 'Menyimpan...' : 'Simpan'}
-                  </button>
-                </div>
               </form>
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-white"
+                onClick={closeModal}
+                disabled={saving}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="btn btn-gold"
+                disabled={saving}
+                onClick={handleSubmit}
+              >
+                {saving ? 'Menyimpan...' : 'Simpan'}
+              </button>
             </div>
           </div>
         </div>

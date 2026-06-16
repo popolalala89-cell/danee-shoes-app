@@ -89,104 +89,74 @@ const MenuStore: React.FC = () => {
   };
 
   const statusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      Aktif: 'bg-green-100 text-green-800',
-      Nonaktif: 'bg-red-100 text-red-800',
-    };
-    return (
-      <span
-        className={`px-2 py-1 text-xs font-semibold rounded-full ${
-          colors[status] || 'bg-gray-100 text-gray-800'
-        }`}
-      >
-        {status}
-      </span>
-    );
+    const cls = status === 'Aktif' ? 'badge badge-selesai' : 'badge badge-batal';
+    return <span className={cls}>{status}</span>;
   };
 
   return (
-    <div className="p-6">
+    <div className="admin-main">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Menu Store</h1>
-        <button
-          onClick={openAdd}
-          style={{ backgroundColor: '#D4AF37' }}
-          className="px-4 py-2 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
-        >
+      <div className="admin-topbar">
+        <h1>Menu Store</h1>
+        <button className="btn btn-gold" onClick={openAdd}>
           + Tambah Produk
         </button>
       </div>
 
       {/* Loading */}
       {loading && (
-        <div className="flex justify-center py-12">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="loading-overlay">
+          <div className="loading-spinner" />
+          <p>Memuat data produk...</p>
         </div>
       )}
 
       {/* Table */}
       {!loading && (
-        <div className="overflow-x-auto bg-white rounded-lg shadow">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="table-wrap">
+          <table>
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Nama Produk
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Kategori
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Harga
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stok
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Aksi
-                </th>
+                <th>ID</th>
+                <th>Nama Produk</th>
+                <th>Kategori</th>
+                <th>Harga</th>
+                <th>Stok</th>
+                <th>Status</th>
+                <th>Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={7} className="text-center text-muted">
                     Belum ada produk.
                   </td>
                 </tr>
               )}
               {items.map((item) => (
-                <tr key={item.ID} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-sm text-gray-900">{item.ID}</td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                    {item.NamaProduk}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{item.Kategori}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
-                    {formatCurrency(item.Harga)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{item.Stok}</td>
-                  <td className="px-4 py-3 text-sm">{statusBadge(item.Status)}</td>
-                  <td className="px-4 py-3 text-sm space-x-2">
-                    <button
-                      onClick={() => openEdit(item)}
-                      className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleNonaktifkan(item.ID)}
-                      className="px-3 py-1 text-xs font-medium text-red-600 bg-red-50 rounded hover:bg-red-100 transition-colors"
-                    >
-                      Nonaktifkan
-                    </button>
+                <tr key={item.ID}>
+                  <td>{item.ID}</td>
+                  <td style={{ fontWeight: 600 }}>{item.NamaProduk}</td>
+                  <td>{item.Kategori}</td>
+                  <td>{formatCurrency(item.Harga ?? 0)}</td>
+                  <td>{item.Stok}</td>
+                  <td>{statusBadge(item.Status)}</td>
+                  <td>
+                    <div className="aksi-group">
+                      <button
+                        className="btn btn-sm btn-outline"
+                        onClick={() => openEdit(item)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => handleNonaktifkan(item.ID)}
+                      >
+                        Nonaktifkan
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -197,157 +167,128 @@ const MenuStore: React.FC = () => {
 
       {/* Modal Overlay */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-800">
-                {form.ID ? 'Edit Produk' : 'Tambah Produk'}
-              </h2>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-              >
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{form.ID ? 'Edit Produk' : 'Tambah Produk'}</h3>
+              <button className="modal-close" onClick={closeModal}>
                 &times;
               </button>
             </div>
-            <form onSubmit={handleSave} className="px-6 py-4 space-y-4">
-              {/* Hidden ID */}
-              <input type="hidden" name="ID" value={form.ID} />
+            <form onSubmit={handleSave}>
+              <div className="modal-body">
+                {/* Hidden ID */}
+                <input type="hidden" name="ID" value={form.ID} />
 
-              {/* NamaProduk */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nama Produk
-                </label>
-                <input
-                  type="text"
-                  name="NamaProduk"
-                  value={form.NamaProduk}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                <div className="form-group">
+                  <label>Nama Produk</label>
+                  <input
+                    type="text"
+                    name="NamaProduk"
+                    className="form-control"
+                    value={form.NamaProduk}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Kategori</label>
+                  <input
+                    type="text"
+                    name="Kategori"
+                    className="form-control"
+                    value={form.Kategori}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Harga</label>
+                  <input
+                    type="number"
+                    name="Harga"
+                    className="form-control"
+                    value={form.Harga}
+                    onChange={handleChange}
+                    required
+                    min={0}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Stok</label>
+                  <input
+                    type="number"
+                    name="Stok"
+                    className="form-control"
+                    value={form.Stok}
+                    onChange={handleChange}
+                    required
+                    min={0}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Status</label>
+                  <select
+                    name="Status"
+                    className="form-control"
+                    value={form.Status}
+                    onChange={handleChange}
+                  >
+                    <option value="Aktif">Aktif</option>
+                    <option value="Nonaktif">Nonaktif</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Deskripsi</label>
+                  <textarea
+                    name="Deskripsi"
+                    className="form-control"
+                    value={form.Deskripsi}
+                    onChange={handleChange}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Link Foto</label>
+                  <input
+                    type="text"
+                    name="LinkFoto"
+                    className="form-control"
+                    value={form.LinkFoto}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Link Marketplace</label>
+                  <input
+                    type="text"
+                    name="LinkMarketplace"
+                    className="form-control"
+                    value={form.LinkMarketplace}
+                    onChange={handleChange}
+                  />
+                </div>
               </div>
-
-              {/* Kategori */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Kategori
-                </label>
-                <input
-                  type="text"
-                  name="Kategori"
-                  value={form.Kategori}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Harga */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Harga
-                </label>
-                <input
-                  type="number"
-                  name="Harga"
-                  value={form.Harga}
-                  onChange={handleChange}
-                  required
-                  min={0}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Stok */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Stok
-                </label>
-                <input
-                  type="number"
-                  name="Stok"
-                  value={form.Stok}
-                  onChange={handleChange}
-                  required
-                  min={0}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  name="Status"
-                  value={form.Status}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="Aktif">Aktif</option>
-                  <option value="Nonaktif">Nonaktif</option>
-                </select>
-              </div>
-
-              {/* Deskripsi */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Deskripsi
-                </label>
-                <textarea
-                  name="Deskripsi"
-                  value={form.Deskripsi}
-                  onChange={handleChange}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* LinkFoto */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Link Foto
-                </label>
-                <input
-                  type="text"
-                  name="LinkFoto"
-                  value={form.LinkFoto}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* LinkMarketplace */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Link Marketplace
-                </label>
-                <input
-                  type="text"
-                  name="LinkMarketplace"
-                  value={form.LinkMarketplace}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex justify-end space-x-3 pt-2">
+              <div className="modal-footer">
                 <button
                   type="button"
+                  className="btn btn-white"
                   onClick={closeModal}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={saving}
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
+                  className="btn btn-gold"
                   disabled={saving}
-                  style={{ backgroundColor: '#D4AF37' }}
-                  className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {saving ? 'Menyimpan...' : 'Simpan'}
                 </button>

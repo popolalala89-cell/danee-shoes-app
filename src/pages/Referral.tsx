@@ -129,17 +129,7 @@ function Referral() {
   function renderStatusBadge(status: string) {
     const isActive = status === 'Aktif';
     return (
-      <span
-        style={{
-          display: 'inline-block',
-          padding: '0.2rem 0.6rem',
-          borderRadius: '12px',
-          fontSize: '0.8rem',
-          fontWeight: 600,
-          background: isActive ? '#d1fae5' : '#fee2e2',
-          color: isActive ? '#065f46' : '#991b1b',
-        }}
-      >
+      <span className={`badge ${isActive ? 'badge-selesai' : 'badge-batal'}`}>
         {status}
       </span>
     );
@@ -148,26 +138,8 @@ function Referral() {
   return (
     <div className="admin-main">
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-        }}
-      >
-        <h2
-          style={{
-            margin: 0,
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            color: 'var(--text-dark)',
-          }}
-        >
-          🔗 Referral Management
-        </h2>
+      <div className="admin-topbar">
+        <h1>🔗 Referral Management</h1>
         <button className="btn btn-primary" onClick={handleAdd}>
           + Tambah Kode Referral
         </button>
@@ -185,17 +157,11 @@ function Referral() {
 
       {/* Error state */}
       {!loading && error && (
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '2rem 1rem',
-            marginBottom: '1.5rem',
-          }}
-        >
+        <div className="card" style={{ padding: '2rem 1rem', textAlign: 'center', marginBottom: '1.5rem' }}>
           <p style={{ color: 'var(--danger)', marginBottom: '1rem', fontWeight: 600 }}>
             {error}
           </p>
-          <button className="btn btn-primary" onClick={loadReferrals}>
+          <button className="btn btn-outline" onClick={loadReferrals}>
             Coba Lagi
           </button>
         </div>
@@ -244,23 +210,15 @@ function Referral() {
                         {formatDate(item.Dibuat)}
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div className="aksi-group">
                           <button
-                            className="btn btn-primary"
-                            style={{ fontSize: '0.8rem', padding: '0.3rem 0.75rem' }}
+                            className="btn btn-sm btn-primary"
                             onClick={() => handleEdit(item)}
                           >
                             Edit
                           </button>
                           <button
-                            className="btn btn-danger"
-                            style={{
-                              fontSize: '0.8rem',
-                              padding: '0.3rem 0.75rem',
-                              background: '#fee2e2',
-                              color: '#991b1b',
-                              border: '1px solid #fca5a5',
-                            }}
+                            className="btn btn-sm btn-danger"
                             onClick={() => handleDelete(item.ID, item.Kode)}
                           >
                             Nonaktifkan
@@ -278,135 +236,59 @@ function Referral() {
 
       {/* Modal Form */}
       {showModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem',
-          }}
-          onClick={handleCloseModal}
-        >
-          <div
-            className="card"
-            style={{
-              width: '100%',
-              maxWidth: '480px',
-              padding: '1.5rem',
-              background: 'white',
-              borderRadius: '12px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3
-              style={{
-                fontSize: '1.1rem',
-                fontWeight: 700,
-                marginBottom: '1.25rem',
-                color: 'var(--text-dark)',
-              }}
-            >
-              {form.ID ? 'Edit Kode Referral' : 'Tambah Kode Referral'}
-            </h3>
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
+                {form.ID ? 'Edit Kode Referral' : 'Tambah Kode Referral'}
+              </h2>
+              <button className="modal-close" onClick={handleCloseModal}>×</button>
+            </div>
 
-            <form onSubmit={handleSave}>
+            <form onSubmit={handleSave} style={{ padding: '1.5rem' }}>
               {/* Hidden ID */}
               {form.ID && (
                 <input type="hidden" name="ID" value={form.ID} />
               )}
 
               {/* Kode */}
-              <div style={{ marginBottom: '1rem' }}>
-                <label
-                  htmlFor="Kode"
-                  style={{
-                    display: 'block',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    marginBottom: '0.35rem',
-                    color: 'var(--text-dark)',
-                  }}
-                >
-                  Kode Referral
-                </label>
+              <div className="form-group">
+                <label htmlFor="Kode">Kode Referral</label>
                 <input
                   id="Kode"
                   name="Kode"
                   type="text"
+                  className="form-control"
                   value={form.Kode}
                   onChange={handleChange}
                   placeholder="Contoh: RAFLI10"
                   required
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '0.95rem',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
                 />
               </div>
 
               {/* NamaReferral */}
-              <div style={{ marginBottom: '1rem' }}>
-                <label
-                  htmlFor="NamaReferral"
-                  style={{
-                    display: 'block',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    marginBottom: '0.35rem',
-                    color: 'var(--text-dark)',
-                  }}
-                >
-                  Nama Referral
-                </label>
+              <div className="form-group">
+                <label htmlFor="NamaReferral">Nama Referral</label>
                 <input
                   id="NamaReferral"
                   name="NamaReferral"
                   type="text"
+                  className="form-control"
                   value={form.NamaReferral}
                   onChange={handleChange}
                   placeholder="Nama lengkap referral"
                   required
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '0.95rem',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
                 />
               </div>
 
               {/* KomisiPct */}
-              <div style={{ marginBottom: '1rem' }}>
-                <label
-                  htmlFor="KomisiPct"
-                  style={{
-                    display: 'block',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    marginBottom: '0.35rem',
-                    color: 'var(--text-dark)',
-                  }}
-                >
-                  Komisi (%)
-                </label>
+              <div className="form-group">
+                <label htmlFor="KomisiPct">Komisi (%)</label>
                 <input
                   id="KomisiPct"
                   name="KomisiPct"
                   type="number"
+                  className="form-control"
                   value={form.KomisiPct}
                   onChange={handleChange}
                   placeholder="10"
@@ -414,47 +296,18 @@ function Referral() {
                   max="100"
                   step="0.1"
                   required
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '0.95rem',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
                 />
               </div>
 
               {/* Status */}
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label
-                  htmlFor="Status"
-                  style={{
-                    display: 'block',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    marginBottom: '0.35rem',
-                    color: 'var(--text-dark)',
-                  }}
-                >
-                  Status
-                </label>
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label htmlFor="Status">Status</label>
                 <select
                   id="Status"
                   name="Status"
+                  className="form-control"
                   value={form.Status}
                   onChange={handleChange}
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    fontSize: '0.95rem',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    background: 'white',
-                  }}
                 >
                   <option value="Aktif">Aktif</option>
                   <option value="Nonaktif">Nonaktif</option>
@@ -462,40 +315,11 @@ function Referral() {
               </div>
 
               {/* Actions */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.75rem',
-                }}
-              >
-                <button
-                  type="button"
-                  className="btn"
-                  style={{
-                    padding: '0.6rem 1.25rem',
-                    borderRadius: '8px',
-                    border: '1px solid #d1d5db',
-                    background: 'white',
-                    color: 'var(--text-dark)',
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                  }}
-                  onClick={handleCloseModal}
-                >
+              <div className="modal-footer" style={{ borderTop: 'none', padding: 0, paddingTop: '1rem' }}>
+                <button type="button" className="btn btn-outline" onClick={handleCloseModal}>
                   Batal
                 </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={saving}
-                  style={{
-                    padding: '0.6rem 1.25rem',
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                  }}
-                >
+                <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? 'Menyimpan...' : 'Simpan'}
                 </button>
               </div>

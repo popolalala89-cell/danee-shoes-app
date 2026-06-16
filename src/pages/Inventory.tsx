@@ -312,7 +312,7 @@ const Inventory: React.FC = () => {
       {activeTab === 'dagangan' && (
         <div>
           {/* Action buttons */}
-          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+          <div className="page-header-actions" style={{ marginBottom: 'var(--space-md)' }}>
             <button className="btn btn-primary" onClick={openBeliStok}>
               Beli Stok
             </button>
@@ -346,7 +346,7 @@ const Inventory: React.FC = () => {
                 <tbody>
                   {daganganData.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                      <td colSpan={6} className="text-center text-muted">
                         Belum ada data dagangan.
                       </td>
                     </tr>
@@ -358,7 +358,7 @@ const Inventory: React.FC = () => {
                         <td>{item.StokSistem}</td>
                         <td>{item.StokFisik ?? '-'}</td>
                         <td>{renderSelisih(item.StokSistem, item.StokFisik)}</td>
-                        <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                        <td style={{ color: 'var(--text-gray)' }}>
                           {item.Update ? formatDate(item.Update) : '-'}
                         </td>
                       </tr>
@@ -471,7 +471,7 @@ const Inventory: React.FC = () => {
                         <tbody>
                           {stockOpnameItems.length === 0 ? (
                             <tr>
-                              <td colSpan={3} style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8' }}>
+                              <td colSpan={3} className="text-center text-muted">
                                 Tidak ada item.
                               </td>
                             </tr>
@@ -534,7 +534,7 @@ const Inventory: React.FC = () => {
       {activeTab === 'bahan' && (
         <div>
           {/* Action buttons */}
-          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+          <div className="page-header-actions" style={{ marginBottom: 'var(--space-md)' }}>
             <button className="btn btn-primary" onClick={openTambahBahan}>
               Tambah Bahan
             </button>
@@ -572,7 +572,7 @@ const Inventory: React.FC = () => {
                 <tbody>
                   {bahanData.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                      <td colSpan={7} className="text-center text-muted">
                         Belum ada data bahan baku.
                       </td>
                     </tr>
@@ -585,7 +585,7 @@ const Inventory: React.FC = () => {
                         <td>{item.StokSistem}</td>
                         <td>{item.StokFisik ?? '-'}</td>
                         <td>{renderSelisih(item.StokSistem, item.StokFisik)}</td>
-                        <td style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                        <td style={{ color: 'var(--text-gray)' }}>
                           {item.Update ? formatDate(item.Update) : '-'}
                         </td>
                       </tr>
@@ -784,7 +784,7 @@ const Inventory: React.FC = () => {
                         <tbody>
                           {stockOpnameBahanItems.length === 0 ? (
                             <tr>
-                              <td colSpan={4} style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8' }}>
+                              <td colSpan={4} className="text-center text-muted">
                                 Tidak ada item.
                               </td>
                             </tr>

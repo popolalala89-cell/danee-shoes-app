@@ -18,6 +18,17 @@ const ORDER_STATUSES = [
 const TERMINAL_STATUSES = ['Selesai', 'Batal'];
 const PROSES_PREFIXES = ['Proses Repair', 'Proses Cleaning', 'Proses Pengeringan'];
 
+const STATUS_CONFIG: Record<string, { icon: string; cls: string }> = {
+  'Waiting': { icon: '⏳', cls: 'badge-waiting' },
+  'Checking': { icon: '🔍', cls: 'badge-waiting' },
+  'Proses Repair': { icon: '🔧', cls: 'badge-proses' },
+  'Proses Cleaning': { icon: '🧹', cls: 'badge-proses' },
+  'Proses Pengeringan': { icon: '💨', cls: 'badge-proses' },
+  'Ready': { icon: '✅', cls: 'badge-ready' },
+  'Selesai': { icon: '✅', cls: 'badge-selesai' },
+  'Batal': { icon: '❌', cls: 'badge-batal' },
+};
+
 function isTerminal(status: string): boolean {
   return TERMINAL_STATUSES.includes(status);
 }
@@ -140,9 +151,9 @@ export default function Orders() {
         <button
           key="proses"
           className="btn btn-sm btn-primary"
-          onClick={() => handleStatusUpdate(order.id, 'Proses Repair')}
+          onClick={() => handleStatusUpdate(order.OrderID, 'Proses Repair')}
         >
-          Proses
+          ▶ Proses
         </button>
       );
     }
@@ -152,9 +163,9 @@ export default function Orders() {
         <button
           key="selesai"
           className="btn btn-sm btn-success"
-          onClick={() => handleStatusUpdate(order.id, 'Selesai')}
+          onClick={() => handleStatusUpdate(order.OrderID, 'Selesai')}
         >
-          Selesai
+          ✓ Selesai
         </button>
       );
     }
@@ -164,9 +175,9 @@ export default function Orders() {
         <button
           key="selesai"
           className="btn btn-sm btn-success"
-          onClick={() => handleStatusUpdate(order.id, 'Selesai')}
+          onClick={() => handleStatusUpdate(order.OrderID, 'Selesai')}
         >
-          Selesai
+          ✓ Selesai
         </button>
       );
     }
@@ -176,9 +187,9 @@ export default function Orders() {
         <button
           key="batal"
           className="btn btn-sm btn-danger"
-          onClick={() => handleStatusUpdate(order.id, 'Batal')}
+          onClick={() => handleStatusUpdate(order.OrderID, 'Batal')}
         >
-          Batal
+          ✕ Batal
         </button>
       );
     }
@@ -279,19 +290,16 @@ export default function Orders() {
               </tr>
             ) : (
               filteredOrders.map((order) => (
-                <tr key={order.id}>
-                  <td>{order.id}</td>
+                <tr key={order.OrderID}>
+                  <td>{order.OrderID}</td>
                   <td>{formatDate(order.Tanggal || order.createdAt)}</td>
                   <td>{order.NamaPelanggan}</td>
                   <td>{order.KontakWA}</td>
                   <td>{order.Layanan}</td>
-                  <td>{formatCurrency(order.Harga)}</td>
+                  <td>{formatCurrency(order.Harga ?? 0)}</td>
                   <td>
-                    <span
-                      className="status-badge"
-                      style={{ backgroundColor: getStatusColor(order.Status) }}
-                    >
-                      {order.Status}
+                    <span className={`status-badge badge ${STATUS_CONFIG[order.Status]?.cls || ''}`}>
+                      {STATUS_CONFIG[order.Status]?.icon || ''} {order.Status}
                     </span>
                   </td>
                   <td>{renderActionButtons(order)}</td>
@@ -307,10 +315,10 @@ export default function Orders() {
 
       {/* ─── Tambah Order Modal ─────────────────────────── */}
       {showModal && (
-        <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Tambah Order</h2>
+              <h3>Tambah Order</h3>
               <button className="modal-close" onClick={closeModal}>
                 &times;
               </button>
