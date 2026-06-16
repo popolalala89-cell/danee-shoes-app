@@ -119,6 +119,10 @@ export async function updateOrderStatus(orderId: string, newStatus: string) {
   return callGAS('updateOrderStatus', { orderId, newStatus });
 }
 
+export async function updateOrder(orderId: string, data: Partial<Order>) {
+  return callGAS('updateOrder', { orderId, data });
+}
+
 export async function trackOrder(keyword: string) {
   return callGAS<Order[]>('trackOrder', { keyword });
 }

@@ -58,6 +58,16 @@ const Icons = {
       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
     </svg>
   ),
+  target: (
+    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+    </svg>
+  ),
+  trendUp: (
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+    </svg>
+  ),
 };
 
 // ── Dompet item config ───────────────────────────────────────
@@ -238,6 +248,104 @@ function ProfitSharing() {
     );
   }
 
+  // ── Target progress bar (NEW) ──────────────────────────────
+  function getTargetBarColor(pct: number): string {
+    if (pct >= 100) return '#10b981';
+    if (pct >= 50) return '#f59e0b';
+    return '#ef4444';
+  }
+
+  function getTargetBgColor(pct: number): string {
+    if (pct >= 100) return '#d1fae5';
+    if (pct >= 50) return '#fef3c7';
+    return '#fee2e2';
+  }
+
+  function getTargetTextColor(pct: number): string {
+    if (pct >= 100) return '#065f46';
+    if (pct >= 50) return '#92400e';
+    return '#991b1b';
+  }
+
+  function renderTargetCard(omsetNett: number, target: number) {
+    const targetVal = target ?? 0;
+    const nettVal = omsetNett ?? 0;
+    const pct = targetVal > 0 ? Math.min((nettVal / targetVal) * 100, 150) : 0;
+    const barColor = getTargetBarColor(pct);
+    const bgBadge = getTargetBgColor(pct);
+    const textBadge = getTargetTextColor(pct);
+
+    return (
+      <div className="ps-section card ps-target-card">
+        <div className="ps-section-header" style={{ borderBottom: '1px solid #f1f5f9' }}>
+          <div className="ps-section-title-group">
+            <span className="ps-section-icon" style={{ background: bgBadge, color: barColor }}>
+              {Icons.target}
+            </span>
+            <h3 className="ps-section-title">Target Bulanan</h3>
+          </div>
+          {renderStatusTarget(nettVal, targetVal)}
+        </div>
+        <div className="ps-target-body">
+          <div className="ps-target-figures">
+            <div className="ps-target-fig-item">
+              <span className="ps-target-fig-label">Omset Bersih</span>
+              <span className="ps-target-fig-value" style={{ color: barColor }}>{formatCurrency(nettVal)}</span>
+            </div>
+            <div className="ps-target-fig-divider">
+              <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="#cbd5e1" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+            <div className="ps-target-fig-item">
+              <span className="ps-target-fig-label">Target</span>
+              <span className="ps-target-fig-value">{formatCurrency(targetVal)}</span>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          {targetVal > 0 && (
+            <div className="ps-target-progress-wrap">
+              <div className="ps-target-progress-header">
+                <span className="ps-target-progress-pct" style={{ color: barColor }}>
+                  {((nettVal / targetVal) * 100).toFixed(1)}%
+                </span>
+                <span className="ps-target-progress-label">
+                  {nettVal >= targetVal ? 'Target tercapai! 🎉' : `${formatCurrency(targetVal - nettVal)} lagi`}
+                </span>
+              </div>
+              <div className="ps-target-progress-bar">
+                <div
+                  className="ps-target-progress-fill"
+                  style={{
+                    width: `${Math.min(pct, 100)}%`,
+                    background: `linear-gradient(90deg, ${barColor}dd, ${barColor})`,
+                  }}
+                />
+              </div>
+              {/* Tick marks */}
+              <div className="ps-target-progress-ticks">
+                <span style={{ color: pct >= 50 ? barColor : '#cbd5e1' }}>50%</span>
+                <span style={{ color: barColor }}>100%</span>
+              </div>
+            </div>
+          )}
+          {targetVal <= 0 && (
+            <div className="ps-target-no-target">
+              <span className="text-muted" style={{ fontSize: '0.875rem' }}>Tidak ada target bulan ini</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Compute komisi breakdown total ─────────────────────────
+  function getKomisiTotal(): number {
+    const items = profitData?.komisiBreakdown || [];
+    return items.reduce((sum, item) => sum + (item.nominal ?? 0), 0);
+  }
+
   // ── Main render ────────────────────────────────────────────
   return (
     <div className="admin-main">
@@ -342,6 +450,9 @@ function ProfitSharing() {
             </div>
           </div>
 
+          {/* ── Target Progress Card (NEW) ─────────────── */}
+          {renderTargetCard(profitData.omsetNett ?? 0, profitData.target ?? 0)}
+
           {/* ── Dompet Breakdown ──────────────────────── */}
           <div className="ps-section card">
             <div className="ps-section-header">
@@ -406,6 +517,16 @@ function ProfitSharing() {
                             <td className="ps-date">{item.tanggal}</td>
                           </tr>
                         ))}
+                        {/* Summary/Total Row (NEW) */}
+                        <tr className="ps-komisi-total-row">
+                          <td colSpan={5} style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.8125rem', color: 'var(--text-dark)', background: '#f0f4ff', borderRadius: '0 0 0 var(--radius)' }}>
+                            TOTAL ({(profitData.komisiBreakdown || []).length} transaksi)
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 800, fontSize: '0.9375rem', color: 'var(--primary)', background: '#f0f4ff' }}>
+                            {formatCurrency(getKomisiTotal())}
+                          </td>
+                          <td style={{ background: '#f0f4ff', borderRadius: '0 0 var(--radius) 0' }} />
+                        </tr>
                       </tbody>
                     </table>
                   </div>
@@ -489,7 +610,7 @@ function ProfitSharing() {
                       <td style={{ textAlign: 'right', fontWeight: 700 }}>
                         {formatCurrency(item.nett ?? 0)}
                       </td>
-                      <td>{renderStatusTarget(item.nett, item.target)}</td>
+                      <td>{renderStatusTarget(item.nett ?? 0, item.target ?? 0)}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {formatGrowth(item)}
                       </td>
@@ -660,6 +781,107 @@ function ProfitSharing() {
           word-break: break-word;
         }
 
+        /* ── Target Card (NEW) ───────────────────────────── */
+        .ps-target-card {
+          margin-bottom: var(--space-lg);
+          padding: 0;
+          overflow: hidden;
+        }
+        .ps-target-body {
+          padding: var(--space-md);
+        }
+        .ps-target-figures {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--space-md);
+          margin-bottom: var(--space-md);
+        }
+        .ps-target-fig-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          flex: 1;
+        }
+        .ps-target-fig-label {
+          font-size: 0.6875rem;
+          color: var(--text-gray);
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .ps-target-fig-value {
+          font-size: 1.125rem;
+          font-weight: 700;
+          color: var(--text-dark);
+        }
+        .ps-target-fig-divider {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .ps-target-progress-wrap {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .ps-target-progress-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .ps-target-progress-pct {
+          font-size: 1rem;
+          font-weight: 800;
+        }
+        .ps-target-progress-label {
+          font-size: 0.75rem;
+          color: var(--text-gray);
+          font-weight: 500;
+        }
+        .ps-target-progress-bar {
+          width: 100%;
+          height: 10px;
+          background: #f1f5f9;
+          border-radius: 5px;
+          overflow: hidden;
+          position: relative;
+        }
+        .ps-target-progress-fill {
+          height: 100%;
+          border-radius: 5px;
+          transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+        }
+        .ps-target-progress-fill::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
+          animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .ps-target-progress-ticks {
+          display: flex;
+          justify-content: space-between;
+          padding: 0 2px;
+          font-size: 0.625rem;
+          font-weight: 600;
+          color: var(--text-gray);
+        }
+        .ps-target-no-target {
+          text-align: center;
+          padding: var(--space-md) 0;
+        }
+
         /* ── Section Cards ───────────────────────────────── */
         .ps-section {
           margin-bottom: var(--space-lg);
@@ -791,6 +1013,13 @@ function ProfitSharing() {
           width: fit-content;
         }
 
+        /* ── Komisi Total Row (NEW) ──────────────────────── */
+        .ps-komisi-total-row td {
+          border-top: 2px solid var(--primary);
+          border-bottom: none !important;
+          padding: 12px;
+        }
+
         /* ── Table Enhancements ───────────────────────────── */
         .ps-mono {
           font-family: 'Roboto Mono', monospace;
@@ -874,6 +1103,13 @@ function ProfitSharing() {
           }
           .dompet-grid {
             grid-template-columns: 1fr;
+          }
+          .ps-target-figures {
+            flex-direction: column;
+            gap: var(--space-sm);
+          }
+          .ps-target-fig-divider {
+            transform: rotate(90deg);
           }
         }
         @media (min-width: 600px) {
