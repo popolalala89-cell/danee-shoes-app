@@ -13,6 +13,16 @@ function getWebAppUrl() {
   return url.replace(/\/dev$/, '/exec');
 }
 
+function doOptions(e) {
+  return ContentService
+    .createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT)
+    .setHeader('Access-Control-Allow-Origin', '*')
+    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    .setHeader('Access-Control-Max-Age', '3600');
+}
+
 function doPost(e) {
   var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : '';
   if (!action) return doGet(e);

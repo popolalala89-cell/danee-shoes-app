@@ -38,7 +38,7 @@ async function callGAS<T = any>(
   const options: RequestInit = {
     method,
     redirect: 'follow',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain' },
   };
 
   if (method === 'POST') {
