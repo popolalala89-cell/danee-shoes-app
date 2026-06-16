@@ -1,0 +1,15 @@
+**/node_modules/**
+**/.git/**
+**/android/**
+**/dist/**
+**/src/**
+**/public/**
+.eslint*
+.gitignore
+package.json
+package-lock.json
+tsconfig*.json
+vite.config.ts
+postcss.config.js
+tailwind.config.js
+capacitor.config.ts
