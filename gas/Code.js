@@ -1326,7 +1326,7 @@ function getProfitSharingData(token, startDate, endDate) {
     // omsetNettBulanan sudah include pemotongan komisi (dipotong di nettItem)
     omsetNettBulanan = Math.round(omsetNettBulanan);
 
-    return { success: true, omsetGross: omsetGrossBulanan, alokasiHPP: alokasiHPPBulanan, totalKomisi: totalKomisiBulanan, omsetNett: omsetNettBulanan, target: targetOmset, dompet: dompet, komisiBreakdown: komisiBreakdown };
+    return { success: true, data: { omsetGross: omsetGrossBulanan, alokasiHPP: alokasiHPPBulanan, totalKomisi: totalKomisiBulanan, omsetNett: omsetNettBulanan, target: targetOmset, dompet: dompet, komisiBreakdown: komisiBreakdown } };
 
   } catch(e) { return { success: false, message: 'Kesalahan Engine Profit: ' + e.toString() }; }
 }
@@ -1352,10 +1352,10 @@ function getProfitHistorySummary(token) {
        var lastDay = y + '-' + m + '-' + String(new Date(y, d.getMonth() + 1, 0).getDate());
 
        var res = getProfitSharingData(token, firstDay, lastDay); 
-       var rNett = (res && res.success) ? res.omsetNett : 0;
-       var rGross = (res && res.success) ? res.omsetGross : 0;
-       var rHpp = (res && res.success) ? res.alokasiHPP : 0;
-       var rTarget = (res && res.success) ? res.target : 0;
+       var rNett = (res && res.success && res.data) ? res.data.omsetNett : 0;
+       var rGross = (res && res.success && res.data) ? res.data.omsetGross : 0;
+       var rHpp = (res && res.success && res.data) ? res.data.alokasiHPP : 0;
+       var rTarget = (res && res.success && res.data) ? res.data.target : 0;
 
        tempResults.push({
           bulan: namaBulan[d.getMonth()] + ' ' + y,
@@ -1402,11 +1402,13 @@ function getThemeSettings() {
     var p = PropertiesService.getScriptProperties();
     return {
       success: true,
-      primary: p.getProperty('THEME_PRIMARY') || '#034BB9', // Default warna zoom logo baru
-      hover: p.getProperty('THEME_HOVER') || '#023C94'
+      data: {
+        primary: p.getProperty('THEME_PRIMARY') || '#034BB9',
+        hover: p.getProperty('THEME_HOVER') || '#023C94'
+      }
     };
   } catch(e) { 
-    return { success: false, primary: '#034BB9', hover: '#023C94', message: e.toString() }; 
+    return { success: false, data: { primary: '#034BB9', hover: '#023C94' }, message: e.toString() };
   }
 }
 
