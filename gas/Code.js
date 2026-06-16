@@ -1033,7 +1033,7 @@ function getDashboardSummary(token, period) {
       }
     } catch(e) {} 
 
-    return { success: true, todayIncome: todayIncome, activeOrders: activeOrders, lowStock: lowStock, topLayanan: topLayanan.slice(0, 5), topProduk: topProduk.slice(0, 5) };
+    return { success: true, data: { todayIncome: todayIncome, activeOrders: activeOrders, lowStock: lowStock, topLayanan: topLayanan.slice(0, 5), topProduk: topProduk.slice(0, 5) } };
   } catch(e) { return { success: false, message: e.toString() }; }
 }
 
