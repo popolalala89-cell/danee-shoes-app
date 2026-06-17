@@ -366,12 +366,14 @@ export default function Landing() {
         }
         .shopee-topbar-logo span { font-size: 1.3rem; }
         .shopee-search {
-          flex: 1;
+          flex: 1 1 60px;
           position: relative;
-          max-width: 400px;
+          min-width: 0;
+          max-width: 180px;
         }
         .shopee-search input {
           width: 100%;
+          min-width: 0;
           padding: 9px 36px 9px 14px;
           border: none;
           border-radius: 20px;
@@ -379,6 +381,7 @@ export default function Landing() {
           font-size: 0.85rem;
           outline: none;
           color: var(--text-dark);
+          box-sizing: border-box;
         }
         .shopee-search input::placeholder { color: #9aa0a6; }
         .shopee-search input:focus { background: #e8eaed; }
@@ -983,16 +986,22 @@ export default function Landing() {
         }
 
         /* ===== Bottom Navigation (Android App style) ===== */
+        .app-layout {
+          display: flex;
+          flex-direction: column;
+          height: 100dvh;
+          overflow: hidden;
+        }
         .tab-content {
-          padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-          min-height: 100vh;
+          flex: 1;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
           overscroll-behavior: contain;
+          padding: 0 0 0;
+          min-height: 0;
         }
         .bottom-nav-shopee {
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
+          flex-shrink: 0;
           height: calc(64px + env(safe-area-inset-bottom, 0px));
           padding-bottom: env(safe-area-inset-bottom, 0px);
           box-sizing: border-box;
@@ -1119,6 +1128,7 @@ export default function Landing() {
         }
       `}</style>
 
+      <div className="app-layout">
       {/* ===== 1. TOP BAR ===== */}
       <header className="shopee-topbar">
         <button
@@ -1732,6 +1742,8 @@ export default function Landing() {
           <span className="bn-label">Produk</span>
         </button>
       </nav>
+
+      </div>{/* /app-layout */}
 
       {/* ===== LIGHTBOX OVERLAY ===== */}
       {lightboxImage && (
