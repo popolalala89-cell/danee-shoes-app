@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getAll as getOrders, create as createOrder, updateStatus as updateOrderStatus, update as updateOrder, trackOrder } from '../lib/services/order-service';
-import { getAllDiskon } from '../lib/services/konten-service';
+import { getAllDiskon, getAllReferral } from '../lib/services/konten-service';
 import { getAll as getMenuJasa } from '../lib/services/menu-jasa-service';
 import { formatCurrency, formatDate } from '../lib/utils';
-import type { OrderRow, OrderStatus, DiskonEventRow, MenuJasaRow } from '../lib/types-supabase';
+import type { OrderRow, OrderStatus, DiskonEventRow, MenuJasaRow, ReferralRow } from '../lib/types-supabase';
 
 const ORDER_STATUSES = ['Semua', 'Waiting', 'Checking', 'Proses Cleaning', 'Proses Repair', 'Proses Pengeringan', 'Ready', 'Selesai', 'Batal'] as const;
 const TERMINAL_STATUSES = ['Selesai', 'Batal'];
@@ -102,6 +102,8 @@ function Orders() {
   // Layanan list
   const [layananList, setLayananList] = useState<MenuJasaRow[]>([]);
   const [layananLoading, setLayananLoading] = useState(false);
+  const [referralList, setReferralList] = useState<ReferralRow[]>([]);
+  const [referralLoading, setReferralLoading] = useState(false);
 
   // Detail modal
   const [detailOrder, setDetailOrder] = useState<OrderRow | null>(null);
@@ -133,6 +135,12 @@ function Orders() {
           setLayananList(res.data || []);
         }
       }).finally(() => setLayananLoading(false));
+      setReferralLoading(true);
+      getAllReferral().then((res) => {
+        if (res.success) {
+          setReferralList(res.data || []);
+        }
+      }).finally(() => setReferralLoading(false));
     }
   }, [showAddModal]);
 
@@ -868,7 +876,20 @@ function Orders() {
                     <option value="Bayar di Akhir">Bayar di Akhir</option>
                   </select>
                 </div>
-                <div className="form-group"><label>Referral Code (opsional)</label><input type="text" className="form-control" value={addReferral} onChange={(e) => setAddReferral(e.target.value)} /></div>
+                <div className="form-group"><label>Referral <span style={{fontSize:'0.75rem',color:'#94a3b8'}}>(opsional)</span></label>
+                  <select className="form-control" value={addReferral} onChange={(e) => setAddReferral(e.target.value)}>
+                    <option value="">-- Tanpa Referral --</option>
+                    {referralLoading ? (
+                      <option value="" disabled>Memuat...</option>
+                    ) : (
+                      referralList.filter((r) => r.status === 'Aktif').map((ref) => (
+                        <option key={ref.id} value={ref.kode}>
+                          {ref.kode} — {ref.nama_referral}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
               </div>
               <div className="modal-footer" style={{ display: 'flex', gap: 'var(--space-xs)', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-white" onClick={() => closeAddModal()} disabled={submitting}>Tutup</button>
