@@ -312,7 +312,7 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
   top: 0;
   left: 0;
   right: 0;
-  height: calc(var(--topbar-height) + var(--safe-top));
+  height: var(--topbar-height);
   padding-top: var(--safe-top);
   box-sizing: content-box;
   background: var(--primary);
