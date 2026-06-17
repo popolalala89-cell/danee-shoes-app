@@ -3,6 +3,7 @@ import { getAll as getOrders, create as createOrder, updateStatus as updateOrder
 import { getAllDiskon, getAllReferral } from '../lib/services/konten-service';
 import { getAll as getMenuJasa } from '../lib/services/menu-jasa-service';
 import { formatCurrency, formatDate } from '../lib/utils';
+import { getSetting, saveSetting } from '../lib/services/settings-service';
 import type { OrderRow, OrderStatus, DiskonEventRow, MenuJasaRow, ReferralRow } from '../lib/types-supabase';
 
 const ORDER_STATUSES = ['Semua', 'Waiting', 'Checking', 'Proses Cleaning', 'Proses Repair', 'Proses Pengeringan', 'Ready', 'Selesai', 'Batal'] as const;
@@ -85,7 +86,7 @@ function Orders() {
   // Add order modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [showQRISModal, setShowQRISModal] = useState(false);
-  const [qrisImage, setQrisImage] = useState<string>(() => localStorage.getItem('danee_qris_image') || '');
+  const [qrisImage, setQrisImage] = useState<string>('');
   const [addNama, setAddNama] = useState('');
   const [addWa, setAddWa] = useState('');
   const [addCatatan, setAddCatatan] = useState('');
@@ -134,6 +135,15 @@ function Orders() {
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   useEffect(() => { fetchOrders(); }, []);
+
+  // Load QRIS image from database settings
+  useEffect(() => {
+    getSetting('qris_image').then((res) => {
+      if (res.success && res.data) {
+        setQrisImage(res.data);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Fetch diskon events + layanan when add modal opens
   useEffect(() => {
@@ -595,7 +605,7 @@ function Orders() {
     if (url && url.trim()) {
       const trimmed = url.trim();
       setQrisImage(trimmed);
-      localStorage.setItem('danee_qris_image', trimmed);
+      saveSetting('qris_image', trimmed).catch(() => {});
     }
   }
 

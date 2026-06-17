@@ -6,6 +6,7 @@ import { getWaNumber, getSetting } from '../lib/services/settings-service';
 import { trackOrder } from '../lib/services/order-service';
 import { formatCurrency } from '../lib/utils';
 import Settings from './Settings';
+import { useAuth } from '../lib/auth';
 import type { MenuJasaRow, MenuStoreRow, KontenWebRow, OrderRow, DiskonEventRow } from '../lib/types-supabase';
 
 /* ── Helpers ─────────────────────────────────────────────────── */
@@ -45,6 +46,7 @@ function useCarousel(length: number, interval = 4000) {
 
 /* ── Main Component ─────────────────────────────────────────── */
 export default function Landing() {
+  const { user } = useAuth();
   /* ── State ─────────────────────────────────────────────── */
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1133,14 +1135,16 @@ export default function Landing() {
       <div className="app-layout">
       {/* ===== 1. TOP BAR ===== */}
       <header className="shopee-topbar">
-        <button
-          className="hamburger-landing"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label={menuOpen ? 'Tutup menu' : 'Buka menu'}
-          title="Menu"
-        >
-          {menuOpen ? '✕' : '⚙️'}
-        </button>
+        {user && (
+          <button
+            className="hamburger-landing"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? 'Tutup menu' : 'Buka menu'}
+            title="Menu"
+          >
+            {menuOpen ? '✕' : '⚙️'}
+          </button>
+        )}
         <div className="shopee-topbar-logo">
           <span>👟</span> Danee
         </div>
@@ -1164,7 +1168,7 @@ export default function Landing() {
         </div>
 
         {/* Settings popup menu */}
-        {menuOpen && (
+        {user && menuOpen && (
           <div
             style={{
               position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)',
@@ -1173,17 +1177,19 @@ export default function Landing() {
             onClick={() => setMenuOpen(false)}
           />
         )}
-        <div className={`settings-popup${menuOpen ? ' open' : ''}`}>
-          <button onClick={() => {
-            setMenuOpen(false);
-            setActiveTab('settings');
-          }}>
-            <span style={{ fontSize: '1.1rem' }}>⚙️</span> Pengaturan
-          </button>
-          <a href={WA_BASE} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>
-            <span style={{ fontSize: '1.1rem' }}>💬</span> WhatsApp
-          </a>
-        </div>
+        {user && (
+          <div className={`settings-popup${menuOpen ? ' open' : ''}`}>
+            <button onClick={() => {
+              setMenuOpen(false);
+              setActiveTab('settings');
+            }}>
+              <span style={{ fontSize: '1.1rem' }}>⚙️</span> Pengaturan
+            </button>
+            <a href={WA_BASE} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>
+              <span style={{ fontSize: '1.1rem' }}>💬</span> WhatsApp
+            </a>
+          </div>
+        )}
       </header>
 
       <div className="tab-content">
@@ -1453,9 +1459,11 @@ export default function Landing() {
           <a href="https://maps.google.com/?q=Danee+Shoes+Care+Purwakarta" target="_blank" rel="noopener noreferrer">
             📍 Maps
           </a>
-          <a href="/login">
-            🔐 Admin
-          </a>
+          {user && (
+            <a href="/login">
+              🔐 Admin
+            </a>
+          )}
         </div>
         <div className="fm-copy">
           &copy; {new Date().getFullYear()} Danee Shoes Care

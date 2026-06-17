@@ -5,13 +5,15 @@ import ProtectedRoute from './routes/ProtectedRoute';
 import AdminLayout from './pages/AdminLayout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
+import EntryScreen from './pages/EntryScreen';
 
 function App() {
   return (
     <AuthProvider>
       <SnackbarProvider>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<EntryScreen />} />
+          <Route path="/home" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route
             path="/admin/*"
@@ -21,7 +23,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </SnackbarProvider>
     </AuthProvider>
