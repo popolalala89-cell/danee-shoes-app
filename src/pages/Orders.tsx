@@ -9,17 +9,30 @@ const ORDER_STATUSES = ['Semua', 'Waiting', 'Checking', 'Proses Cleaning', 'Pros
 const TERMINAL_STATUSES = ['Selesai', 'Batal'];
 
 const STATUS_CONFIG: Record<string, { icon: string; cls: string }> = {
-  Waiting: { icon: '⏳', cls: 'badge-waiting' },
-  Checking: { icon: '🔍', cls: 'badge-waiting' },
-  'Proses Repair': { icon: '🔧', cls: 'badge-proses' },
-  'Proses Cleaning': { icon: '🧹', cls: 'badge-proses' },
-  'Proses Pengeringan': { icon: '💨', cls: 'badge-proses' },
-  Ready: { icon: '✅', cls: 'badge-ready' },
-  Selesai: { icon: '✅', cls: 'badge-selesai' },
-  Batal: { icon: '❌', cls: 'badge-batal' },
+  Waiting: { icon: 'hourglass_empty', cls: 'oc-status-waiting' },
+  Checking: { icon: 'search', cls: 'oc-status-checking' },
+  'Proses Repair': { icon: 'build', cls: 'oc-status-proses' },
+  'Proses Cleaning': { icon: 'cleaning_services', cls: 'oc-status-proses' },
+  'Proses Pengeringan': { icon: 'air', cls: 'oc-status-proses' },
+  Ready: { icon: 'check_circle', cls: 'oc-status-ready' },
+  Selesai: { icon: 'task_alt', cls: 'oc-status-selesai' },
+  Batal: { icon: 'cancel', cls: 'oc-status-batal' },
 };
 
 function isTerminal(status: string): boolean { return TERMINAL_STATUSES.includes(status); }
+
+function getActionIcon(targetStatus: string): string {
+  switch (targetStatus) {
+    case 'Checking': return 'search';
+    case 'Proses Cleaning': return 'cleaning_services';
+    case 'Proses Repair': return 'build';
+    case 'Proses Pengeringan': return 'air';
+    case 'Ready': return 'check_circle';
+    case 'Selesai': return 'task_alt';
+    case 'Batal': return 'cancel';
+    default: return 'arrow_forward';
+  }
+}
 
 function getNextStatuses(status: string): { label: string; target: string; variant: string }[] {
   switch (status) {
@@ -586,24 +599,10 @@ function Orders() {
     }
   }
 
-  function renderActionButtons(order: OrderRow) {
-    const next = getNextStatuses(order.status);
-    if (next.length === 0) return <span className="text-muted">—</span>;
-    return (
-      <div className="aksi-group">
-        {next.map((btn) => (
-          <button key={btn.target} className={`btn btn-sm ${btn.variant}`} onClick={() => handleStatusUpdate(order.id, btn.target as OrderStatus)}>
-            {btn.label}
-          </button>
-        ))}
-      </div>
-    );
-  }
-
   if (loading && orders.length === 0) {
     return (
       <div className="admin-main">
-        <div className="admin-topbar"><h1>Pesanan</h1></div>
+        <div className="page-header-md3"><h1>Pesanan</h1></div>
         <div className="loading-overlay"><div className="loading-spinner" /></div>
       </div>
     );
@@ -611,59 +610,107 @@ function Orders() {
 
   return (
     <div className="admin-main">
-      <div className="admin-topbar">
+      {/* Page Header — MD3 Simplified */}
+      <div className="page-header-md3">
         <h1>Pesanan</h1>
-        <div className="admin-topbar-actions">
-          <input type="text" className="form-control" placeholder="Cari kode/nama/wa..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: 180 }} />
-          <button className="btn btn-success" onClick={openQRIS} title="QRIS Payment">💳 QRIS</button>
-          <button className="btn btn-primary" onClick={() => { resetAddForm(); setShowAddModal(true); }}>+ Tambah Order</button>
+        <div className="page-actions">
+          <button onClick={openQRIS} title="QRIS">
+            <span className="mat-icon">qr_code_scanner</span>
+          </button>
+          <button onClick={() => { resetAddForm(); setShowAddModal(true); }} title="Tambah Order">
+            <span className="mat-icon filled">add</span>
+          </button>
         </div>
+      </div>
+
+      {/* Search Bar — MD3 */}
+      <div className="search-bar-md3">
+        <span className="mat-icon">search</span>
+        <input type="text" placeholder="Cari kode, nama, atau WA..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
       </div>
 
       {error && (
         <div className="alert alert-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-sm)' }}>
-          <span>{error}</span>
-          <button className="btn btn-sm btn-white" onClick={() => setError(null)} style={{ marginLeft: 8 }}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="mat-icon" style={{ fontSize: 18 }}>error_outline</span>
+            <span>{error}</span>
+          </div>
+          <button className="btn btn-sm btn-white" onClick={() => setError(null)} style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 8, minHeight: 28 }}>
+            <span className="mat-icon" style={{ fontSize: 16 }}>close</span>
+          </button>
         </div>
       )}
 
-      {/* Filter tabs */}
-      <div className="filter-tabs" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 'var(--space-sm)' }}>
-        {ORDER_STATUSES.map((s) => (
-          <button key={s} className={`btn btn-sm ${filter === s ? 'btn-primary' : 'btn-white'}`} onClick={() => setFilter(s)}>
-            {s}
-          </button>
-        ))}
+      {/* Filter Chips — MD3 */}
+      <div className="filter-chips">
+        {ORDER_STATUSES.map((s) => {
+          const cfg = STATUS_CONFIG[s];
+          const isActive = filter === s;
+          const chipIcon = s === 'Semua' ? 'list' : (cfg?.icon || '');
+          return (
+            <button key={s} className={`filter-chip${isActive ? ' active' : ''}`} onClick={() => setFilter(s)}>
+              {chipIcon && <span className="mat-icon">{chipIcon}</span>}
+              {s === 'Semua' ? 'Semua' : s}
+            </button>
+          );
+        })}
       </div>
 
       {searching && <div className="loading-overlay"><div className="loading-spinner" /></div>}
 
-      {/* Orders list */}
+      {/* Order list — MD3 Cards */}
       {filteredOrders.length === 0 ? (
-        <div className="empty-state">
-          <p>Tidak ada pesanan.</p>
+        <div className="empty-state-md3">
+          <span className="mat-icon">receipt_long</span>
+          <p>Tidak ada pesanan</p>
         </div>
       ) : (
-        <div className="card-grid">
-          {filteredOrders.map((order) => (
-            <div key={order.id} className="card order-card" onClick={() => setDetailOrder(order)}>
-              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <strong>{order.kode || order.id?.slice(0, 8)}</strong>
-                <span className={`badge ${STATUS_CONFIG[order.status]?.cls || ''}`}>
-                  {STATUS_CONFIG[order.status]?.icon || ''} {order.status}
-                </span>
+        <div className="order-list">
+          {filteredOrders.map((order) => {
+            const cfg = STATUS_CONFIG[order.status] || { icon: '', cls: '' };
+            const stts = order.status === 'Proses Cleaning' || order.status === 'Proses Repair' || order.status === 'Proses Pengeringan' ? 'Proses' : order.status;
+            return (
+              <div key={order.id} className="order-card-md3" onClick={() => setDetailOrder(order)}>
+                {/* Header: Kode + Status */}
+                <div className="oc-header">
+                  <span className="oc-kode">#{order.kode || order.id?.slice(0, 8).toUpperCase()}</span>
+                  <span className={`oc-status ${cfg.cls}`}>
+                    <span className="mat-icon">{cfg.icon}</span>
+                    {stts}
+                  </span>
+                </div>
+
+                {/* Body: Nama + Harga */}
+                <div className="oc-body">
+                  <div className="oc-customer">
+                    <div className="oc-nama">{order.nama_pelanggan}</div>
+                    <div className="oc-wa">{order.kontak_wa}</div>
+                  </div>
+                  <div className="oc-harga">{formatCurrency(order.harga ?? 0)}</div>
+                </div>
+
+                {/* Layanan */}
+                <div className="oc-layanan">{order.layanan}</div>
+
+                {/* Actions */}
+                {!isTerminal(order.status) && (
+                  <div className="oc-actions" onClick={(e) => e.stopPropagation()}>
+                    {getNextStatuses(order.status).map((btn) => {
+                      let btnCls = 'oc-action-primary';
+                      if (btn.variant === 'btn-success') btnCls = 'oc-action-success';
+                      if (btn.variant === 'btn-danger') btnCls = 'oc-action-danger';
+                      return (
+                        <button key={btn.target} className={btnCls} onClick={() => handleStatusUpdate(order.id, btn.target as OrderStatus)}>
+                          <span className="mat-icon">{getActionIcon(btn.target)}</span>
+                          {btn.label.replace(/^[▶✓✕]\s*/, '')}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              <div style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>
-                <div><strong>{order.nama_pelanggan}</strong> — {order.kontak_wa}</div>
-                <div className="text-muted" style={{ fontSize: '0.8rem' }}>{order.layanan}</div>
-                <div style={{ fontWeight: 700, color: 'var(--primary)', marginTop: 4 }}>{formatCurrency(order.harga ?? 0)}</div>
-                <div className="text-muted" style={{ fontSize: '0.75rem' }}>{formatDate(order.tanggal || '')}</div>
-              </div>
-              <div className="card-actions" onClick={(e) => e.stopPropagation()} style={{ marginTop: 8 }}>
-                {renderActionButtons(order)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
