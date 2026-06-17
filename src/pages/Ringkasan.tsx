@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { getRingkasan } from '../lib/services/dashboard-service';
 import { formatCurrency } from '../lib/utils';
 import type { DashboardSummary, OrderRow } from '../lib/types-supabase';
-import FAB from '../components/ui/FAB';
 
 const STATUS_LABELS: Record<string, string> = {
   Waiting: '⏳ Waiting',
@@ -227,8 +226,6 @@ function Ringkasan() {
         </div>
       </div>
 
-      {/* FAB — Tambah Pesanan Baru */}
-      <FAB icon="add" onClick={() => navigate('/admin/pesanan')} />
     </div>
   );
 }
