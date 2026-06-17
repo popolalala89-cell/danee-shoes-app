@@ -486,3 +486,90 @@ function createEmptyDompet(): Dompet {
     investorPct: 0,
   };
 }
+
+/**
+ * Read ALL settings_profit rows and return:
+ * - roles: { [peran]: { cleanPct, repairPct } }
+ * - targetOmset: sum of target_omset across rows
+ */
+export async function getAllSettingsProfit(): Promise<ServiceResponse<{ roles: Record<string, { cleanPct: number; repairPct: number }>; targetOmset: number }>> {
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase.from('settings_profit').select('*');
+    if (error) return { success: false, error: error.message };
+
+    const roles: Record<string, { cleanPct: number; repairPct: number }> = {};
+    let targetOmset = 0;
+
+    for (const row of data || []) {
+      if (row.target_omset > 0) targetOmset += row.target_omset;
+      if (row.peran) {
+        roles[row.peran.trim().toLowerCase()] = {
+          cleanPct: row.clean_pct || 0,
+          repairPct: row.repair_pct || 0,
+        };
+      }
+    }
+
+    // Initialize empty for all known roles
+    for (const peran of ['owner', 'kas', 'cuci', 'repair', 'admin', 'web', 'zakat', 'investor']) {
+      if (!roles[peran]) roles[peran] = { cleanPct: 0, repairPct: 0 };
+    }
+
+    return { success: true, data: { roles, targetOmset } };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Gagal mengambil settings profit' };
+  }
+}
+
+/**
+ * Save/upsert a single role record in settings_profit
+ * Finds matching row by peran value and updates percentages + target_omset
+ */
+export async function saveSettingsProfitRole(
+  peran: string,
+  roleName: string,
+  cleanPct: number,
+  repairPct: number,
+  targetOmset: number
+): Promise<ServiceResponse> {
+  try {
+    const supabase = getSupabase();
+    const peranKey = peran.trim().toLowerCase();
+
+    // Find existing row with this peran
+    const { data: existing } = await supabase
+      .from('settings_profit')
+      .select('id')
+      .eq('peran', peranKey)
+      .maybeSingle();
+
+    const payload = {
+      nama_layanan: `role_${peranKey}`,
+      hpp: 0,
+      kategori: null as string | null,
+      role_name: roleName,
+      target_omset: peranKey === 'owner' ? targetOmset : 0, // Store target on owner row
+      peran: peranKey,
+      clean_pct: cleanPct,
+      repair_pct: repairPct,
+    };
+
+    if (existing) {
+      const { error } = await supabase
+        .from('settings_profit')
+        .update(payload)
+        .eq('id', existing.id);
+      if (error) return { success: false, error: error.message };
+    } else {
+      const { error } = await supabase
+        .from('settings_profit')
+        .insert(payload);
+      if (error) return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Gagal menyimpan setting profit' };
+  }
+}

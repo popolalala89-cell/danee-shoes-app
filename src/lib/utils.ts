@@ -7,6 +7,13 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+/** Parse form input value to number (handles empty string, etc) */
+export function parseFormNumber(val: string): number {
+  if (!val || val.trim() === '') return 0;
+  const num = Number(val.replace(/[^0-9.,-]/g, '').replace(/\./g, ''));
+  return isNaN(num) ? 0 : num;
+}
+
 export function formatDate(dateStr: string): string {
   if (!dateStr) return '-';
   try {

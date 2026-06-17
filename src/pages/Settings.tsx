@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getThemeSettings, saveThemeSettings, getWaNumber, saveSetting } from '../lib/services/settings-service';
+import { getAllSettingsProfit, saveSettingsProfitRole } from '../lib/services/profit-service';
+import { formatCurrency, parseFormNumber } from '../lib/utils';
 
 const PRESET_COLORS = [
   { primary: '#034BB9', hover: '#023C94', label: 'Biru (Default)' },
@@ -10,6 +12,17 @@ const PRESET_COLORS = [
   { primary: '#0891b2', hover: '#0e7490', label: 'Cyan' },
   { primary: '#4f46e5', hover: '#4338ca', label: 'Indigo' },
   { primary: '#be123c', hover: '#9f1239', label: 'Merah Muda' },
+];
+
+const PERAN_LIST = [
+  { peran: 'owner',       label: 'Owner',               icon: '👔' },
+  { peran: 'kas',         label: 'Kas (Operasional)',   icon: '🏢' },
+  { peran: 'cuci',        label: 'Spesialis Cuci',      icon: '🧼' },
+  { peran: 'repair',      label: 'Spesialis Repair',    icon: '🔧' },
+  { peran: 'admin',       label: 'Admin (Marketing)',   icon: '🎧' },
+  { peran: 'web',         label: 'Engineer Web',        icon: '💻' },
+  { peran: 'zakat',       label: 'Zakat (2.5%)',        icon: '🤲' },
+  { peran: 'investor',    label: 'Investor',            icon: '📈' },
 ];
 
 const Settings: React.FC = () => {
@@ -25,13 +38,18 @@ const Settings: React.FC = () => {
   // WhatsApp number
   const [waNumber, setWaNumber] = useState('6285111619226');
 
+  // Profit sharing percentages
+  const [profitRoles, setProfitRoles] = useState<Record<string, { cleanPct: number; repairPct: number }>>({});
+  const [targetOmset, setTargetOmset] = useState(0);
+
   const fetchSettings = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [themeRes, waRes] = await Promise.all([
+      const [themeRes, waRes, profitRes] = await Promise.all([
         getThemeSettings(),
         getWaNumber(),
+        getAllSettingsProfit(),
       ]);
       if (themeRes.success && themeRes.data) {
         setPrimaryColor(themeRes.data.primary);
@@ -39,6 +57,10 @@ const Settings: React.FC = () => {
       }
       if (waRes.success && waRes.data) {
         setWaNumber(waRes.data);
+      }
+      if (profitRes.success && profitRes.data) {
+        setProfitRoles(profitRes.data.roles);
+        setTargetOmset(profitRes.data.targetOmset);
       }
     } catch (e: any) {
       setError(e.message || 'Gagal memuat pengaturan.');
@@ -94,6 +116,38 @@ const Settings: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveProfit = async () => {
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      // Save each role's percentages
+      for (const p of PERAN_LIST) {
+        const roleData = profitRoles[p.peran] || { cleanPct: 0, repairPct: 0 };
+        const res = await saveSettingsProfitRole(p.peran, p.label, roleData.cleanPct, roleData.repairPct, targetOmset);
+        if (!res.success) {
+          setError(res.error || `Gagal menyimpan ${p.label}`);
+          setSaving(false);
+          return;
+        }
+      }
+      setSuccess('Persentase profit sharing berhasil disimpan!');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (e: any) {
+      setError(e.message || 'Gagal menyimpan persentase profit.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updatePct = (peran: string, field: 'cleanPct' | 'repairPct', val: string) => {
+    const num = parseFormNumber(val) || 0;
+    setProfitRoles((prev) => ({
+      ...prev,
+      [peran]: { ...(prev[peran] || { cleanPct: 0, repairPct: 0 }), [field]: num },
+    }));
   };
 
   if (loading) {
@@ -184,6 +238,46 @@ const Settings: React.FC = () => {
             Contoh: 6285111619226 (jangan gunakan + atau spasi)
           </small>
         </div>
+      </div>
+
+      {/* Profit Sharing Settings */}
+      <div className="card" style={{ padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-sm)' }}>🤝 Pembagian Profit</h3>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-gray)', marginBottom: 'var(--space-md)' }}>
+          Atur target omset dan persentase pembagian profit per peran. Clean = jasa cuci, Repair = jasa perbaikan.
+        </p>
+
+        {/* Target Omset */}
+        <div className="form-group" style={{ maxWidth: 300, marginBottom: 'var(--space-md)' }}>
+          <label>Target Omset Bulanan</label>
+          <input type="number" className="form-control" value={targetOmset} onChange={(e) => setTargetOmset(parseInt(e.target.value) || 0)} min={0} step={10000} />
+        </div>
+
+        {/* Per-role percentages */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-sm)', marginBottom: 'var(--space-md)' }}>
+          {PERAN_LIST.map((p) => {
+            const roleData = profitRoles[p.peran] || { cleanPct: 0, repairPct: 0 };
+            return (
+              <div key={p.peran} style={{ background: '#f8fafc', borderRadius: 'var(--radius-sm)', padding: 'var(--space-sm)' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: 6 }}>{p.icon} {p.label}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div>
+                    <label style={{ fontSize: '0.7rem', color: 'var(--text-gray)', fontWeight: 600 }}>Clean (%)</label>
+                    <input type="number" className="form-control" value={roleData.cleanPct} onChange={(e) => updatePct(p.peran, 'cleanPct', e.target.value)} min={0} max={100} step={0.5} style={{ padding: '6px 8px', fontSize: '0.875rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.7rem', color: 'var(--text-gray)', fontWeight: 600 }}>Repair (%)</label>
+                    <input type="number" className="form-control" value={roleData.repairPct} onChange={(e) => updatePct(p.peran, 'repairPct', e.target.value)} min={0} max={100} step={0.5} style={{ padding: '6px 8px', fontSize: '0.875rem' }} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <button className="btn btn-primary" onClick={handleSaveProfit} disabled={saving}>
+          {saving ? 'Menyimpan...' : 'Simpan Persentase Profit'}
+        </button>
       </div>
     </div>
   );
