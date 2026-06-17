@@ -30,7 +30,7 @@ function getNextStatuses(status: string): { label: string; target: string; varia
       ];
     case 'Checking':
       return [
-        { label: '▶ Proses Repair', target: 'Proses Repair', variant: 'btn-primary' },
+        { label: '▶ Proses Cleaning', target: 'Proses Cleaning', variant: 'btn-primary' },
         { label: '✕ Batal', target: 'Batal', variant: 'btn-danger' },
       ];
     case 'Proses Cleaning':
