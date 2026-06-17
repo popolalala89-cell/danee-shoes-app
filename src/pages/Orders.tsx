@@ -71,6 +71,8 @@ function Orders() {
 
   // Add order modal
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showQRISModal, setShowQRISModal] = useState(false);
+  const [qrisImage, setQrisImage] = useState<string>(() => localStorage.getItem('danee_qris_image') || '');
   const [addNama, setAddNama] = useState('');
   const [addWa, setAddWa] = useState('');
   const [addCatatan, setAddCatatan] = useState('');
@@ -538,8 +540,50 @@ function Orders() {
   }
 
   function openQRIS() {
-    const msg = encodeURIComponent('Saya ingin melakukan pembayaran melalui QRIS. Mohon dikirimkan kode QRIS atau petunjuk pembayaran. Terima kasih.');
-    window.open(`https://wa.me/?text=${msg}`, '_blank');
+    setShowQRISModal(true);
+  }
+
+  function handleShareQRIS() {
+    if (!qrisImage) return;
+    // Try Web Share API (HP) — share image + text
+    fetch(qrisImage)
+      .then(r => r.blob())
+      .then(blob => {
+        const file = new File([blob], 'QRIS_Danee_Shoes.png', { type: blob.type });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({
+            files: [file],
+            title: 'QRIS Pembayaran Danee Shoes',
+            text: 'Silakan scan QRIS berikut untuk menyelesaikan pembayaran pesanan Anda.'
+          });
+        } else {
+          // Fallback: download
+          const a = document.createElement('a');
+          a.href = qrisImage;
+          a.download = 'QRIS_Danee_Shoes.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      })
+      .catch(() => {
+        // Fallback download
+        const a = document.createElement('a');
+        a.href = qrisImage;
+        a.download = 'QRIS_Danee_Shoes.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      });
+  }
+
+  function handleSetQRIS() {
+    const url = prompt('Tempel data URL QRIS (base64) atau URL gambar QRIS:');
+    if (url && url.trim()) {
+      const trimmed = url.trim();
+      setQrisImage(trimmed);
+      localStorage.setItem('danee_qris_image', trimmed);
+    }
   }
 
   function renderActionButtons(order: OrderRow) {
@@ -1110,6 +1154,43 @@ function Orders() {
             <div className="modal-footer">
               <button className="btn btn-white" onClick={() => setCetakStruk(null)}>Tutup</button>
               <button className="btn btn-primary" onClick={handlePrintStruk}>🖨️ Print</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QRIS Modal */}
+      {showQRISModal && (
+        <div className="modal-overlay" onClick={() => setShowQRISModal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>💳 QRIS Danee Shoes</h3>
+              <button className="modal-close" onClick={() => setShowQRISModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ textAlign: 'center' }}>
+              {qrisImage ? (
+                <>
+                  <img src={qrisImage} alt="QRIS Danee Shoes" style={{ width: '100%', maxWidth: 280, borderRadius: 12, marginBottom: 'var(--space-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }} />
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-gray)', marginBottom: 'var(--space-md)' }}>
+                    Scan QRIS untuk pembayaran
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button className="btn btn-primary" onClick={handleShareQRIS}>📤 Bagikan</button>
+                    <button className="btn btn-success" onClick={() => { const a = document.createElement('a'); a.href = qrisImage; a.download = 'QRIS_Danee_Shoes.png'; a.click(); }}>⬇️ Unduh</button>
+                    <button className="btn btn-white" onClick={handleSetQRIS}>🔄 Ganti QRIS</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ width: 120, height: 120, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem', margin: '0 auto ' + 'var(--space-md)', color: 'var(--text-gray)' }}>
+                    📷
+                  </div>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-gray)', marginBottom: 'var(--space-md)' }}>
+                    Belum ada gambar QRIS. Silakan tempel data URL QRIS (base64) dari AppScript.
+                  </p>
+                  <button className="btn btn-primary" onClick={handleSetQRIS}>📷 Set QRIS</button>
+                </>
+              )}
             </div>
           </div>
         </div>
