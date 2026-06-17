@@ -73,6 +73,9 @@ export default function Landing() {
   const [deliveryMethod, setDeliveryMethod] = useState<'antar' | 'jemput'>('antar');
   const [pickupAddress, setPickupAddress] = useState('');
 
+  // Bottom nav tab
+  const [activeTab, setActiveTab] = useState<'beranda' | 'layanan' | 'produk' | 'lainnya'>('beranda');
+
   const WA_BASE = `https://wa.me/${waNumber}`;
 
   /* ── Fetch ─────────────────────────────────────────────── */
@@ -826,6 +829,81 @@ export default function Landing() {
           .flashsale-row { max-width: 900px; margin: 0 auto; padding-left: 0; padding-right: 0; }
           .tracking-modern { margin: 0 auto 20px; }
         }
+        }
+
+        /* ===== Bottom Navigation (Android App style) ===== */
+        .tab-content {
+          padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+          min-height: 100vh;
+        }
+        .bottom-nav-shopee {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: calc(56px + env(safe-area-inset-bottom, 0px));
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+          background: #fff;
+          display: flex;
+          align-items: stretch;
+          justify-content: space-around;
+          z-index: 100;
+          box-shadow: 0 -1px 4px rgba(0,0,0,0.06);
+          border: none;
+        }
+        .bn-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 1px;
+          flex: 1;
+          max-width: 80px;
+          padding: 4px 8px 2px;
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #8e8e93;
+          transition: color 0.15s;
+          font-family: inherit;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .bn-item .bn-icon {
+          font-size: 1.25rem;
+          line-height: 1;
+        }
+        .bn-item .bn-label {
+          font-size: 0.6rem;
+          font-weight: 500;
+          line-height: 1.2;
+          letter-spacing: 0;
+        }
+        .bn-item.active {
+          color: var(--primary);
+        }
+        .bn-item.active .bn-label {
+          font-weight: 700;
+        }
+        .bn-item:active {
+          opacity: 0.7;
+        }
+
+        /* Tab page animation */
+        .tab-page {
+          animation: tabFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes tabFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (min-width: 600px) {
+          .bottom-nav-shopee { max-width: 480px; left: 50%; transform: translateX(-50%); border-radius: 12px 12px 0 0; box-shadow: 0 -2px 8px rgba(0,0,0,0.08); }
+          .shopee-topbar { padding: calc(4px + env(safe-area-inset-top, 0px)) 24px 4px; }
+        }
+        @media (min-width: 900px) {
+          .shopee-topbar { padding: calc(6px + env(safe-area-inset-top, 0px)) 48px 6px; }
+        }
       `}</style>
 
       {/* ===== 1. TOP BAR ===== */}
@@ -878,6 +956,9 @@ export default function Landing() {
         </ul>
       </header>
 
+      <div className="tab-content">
+        {activeTab === 'beranda' && (
+          <div className="tab-page">
       {/* ===== 2. BANNER CAROUSEL ===== */}
       <section className="banner-carousel-wrap">
         <div
@@ -1000,6 +1081,11 @@ export default function Landing() {
         </section>
       )}
 
+          </div>
+        )}
+
+        {activeTab === 'layanan' && (
+          <div className="tab-page">
       {/* ===== 5. DAFTAR LAYANAN ===== */}
       <section id="jasa" className="shopee-section-bg" style={{ paddingTop: 8, paddingBottom: 4 }}>
         <div className="shopee-section-header">
@@ -1070,6 +1156,11 @@ export default function Landing() {
         )}
       </section>
 
+          </div>
+        )}
+
+        {activeTab === 'produk' && (
+          <div className="tab-page">
       {/* ===== 6. PRODUK STORE ===== */}
       <section id="store" className="shopee-section-white" style={{ paddingTop: 8, paddingBottom: 4 }}>
         <div className="shopee-section-header">
@@ -1155,6 +1246,11 @@ export default function Landing() {
         )}
       </section>
 
+          </div>
+        )}
+
+        {activeTab === 'lainnya' && (
+          <div className="tab-page">
       {/* ===== 7. TRACKING ORDER ===== */}
       <section id="tracking" className="shopee-section-bg" style={{ paddingTop: 12, paddingBottom: 8 }}>
         <div className="shopee-section-header">
@@ -1340,6 +1436,42 @@ export default function Landing() {
           &copy; {new Date().getFullYear()} Danee Shoes Care
         </div>
       </footer>
+
+          </div>
+        )}
+      </div>
+
+      {/* ===== BOTTOM NAV ===== */}
+      <nav className="bottom-nav-shopee">
+        <button
+          className={`bn-item${activeTab === 'beranda' ? ' active' : ''}`}
+          onClick={() => setActiveTab('beranda')}
+        >
+          <span className="bn-icon">🏠</span>
+          <span className="bn-label">Beranda</span>
+        </button>
+        <button
+          className={`bn-item${activeTab === 'layanan' ? ' active' : ''}`}
+          onClick={() => setActiveTab('layanan')}
+        >
+          <span className="bn-icon">👟</span>
+          <span className="bn-label">Layanan</span>
+        </button>
+        <button
+          className={`bn-item${activeTab === 'produk' ? ' active' : ''}`}
+          onClick={() => setActiveTab('produk')}
+        >
+          <span className="bn-icon">🛍️</span>
+          <span className="bn-label">Produk</span>
+        </button>
+        <button
+          className={`bn-item${activeTab === 'lainnya' ? ' active' : ''}`}
+          onClick={() => setActiveTab('lainnya')}
+        >
+          <span className="bn-icon">📋</span>
+          <span className="bn-label">Lainnya</span>
+        </button>
+      </nav>
 
       {/* ===== DELIVERY MODAL ===== */}
       {modalOpen && modalService && (
