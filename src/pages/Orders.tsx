@@ -124,7 +124,7 @@ function Orders() {
       setLayananLoading(true);
       getAllDiskon().then((res) => {
         if (res.success) {
-          setAvailableDiskon((res.data || []).filter((d) => d.status === 'Aktif'));
+          setAvailableDiskon((res.data || []).filter((d) => d.status === 'Aktif' || d.status === 'Admin Saja'));
         }
       }).finally(() => setDiskonLoading(false));
       getMenuJasa().then((res) => {
