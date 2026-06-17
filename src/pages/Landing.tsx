@@ -336,6 +336,7 @@ export default function Landing() {
           background: #fff;
           box-shadow: 0 1px 4px rgba(0,0,0,0.06);
           padding: 8px 12px;
+          padding-top: calc(8px + env(safe-area-inset-top, 0px));
           display: flex;
           align-items: center;
           gap: 10px;
@@ -924,6 +925,7 @@ export default function Landing() {
         .tab-content {
           padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
           min-height: 100vh;
+          overscroll-behavior: contain;
         }
         .bottom-nav-shopee {
           position: fixed;
@@ -932,11 +934,12 @@ export default function Landing() {
           right: 0;
           height: calc(56px + env(safe-area-inset-bottom, 0px));
           padding-bottom: env(safe-area-inset-bottom, 0px);
+          box-sizing: border-box;
           background: #fff;
           display: flex;
           align-items: stretch;
           justify-content: space-around;
-          z-index: 100;
+          z-index: 1000;
           box-shadow: 0 -1px 4px rgba(0,0,0,0.06);
           border: none;
         }
