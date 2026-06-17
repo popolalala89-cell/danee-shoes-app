@@ -1,234 +1,148 @@
-import React, { useState, useEffect } from 'react';
-import { getDiskonEvent, saveDiskonEvent, deleteDiskonEvent } from '../lib/api';
+import { useState, useEffect } from 'react';
+import { getAllDiskon, createDiskon, updateDiskon, deleteDiskon } from '../lib/services/konten-service';
 import { formatCurrency } from '../lib/utils';
-import type { DiskonEvent } from '../lib/types';
+import type { DiskonEventRow } from '../lib/types-supabase';
+
+const emptyForm = { nama_event: '', potongan: 0, tipe: 'Persentase' as string, target_layanan: '', status: 'Aktif' as string };
+
+// Map old labels to new DB values
+const TIPE_OPTIONS: { label: string; value: string }[] = [
+  { label: 'Persen (%)', value: 'Persentase' },
+  { label: 'Nominal (Rp)', value: 'Nominal' },
+];
 
 const Diskon: React.FC = () => {
-  const [data, setData] = useState<DiskonEvent[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [showModal, setShowModal] = useState<boolean>(false);
-  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [data, setData] = useState<DiskonEventRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
-  const [form, setForm] = useState<{
-    ID: string;
-    NamaEvent: string;
-    Potongan: number;
-    Tipe: string;
-    Status: string;
-    TargetLayanan: string;
-  }>({
-    ID: '',
-    NamaEvent: '',
-    Potongan: 0,
-    Tipe: 'Persen',
-    Status: 'Aktif',
-    TargetLayanan: '',
-  });
-
-  // ---- Fetch Data ----
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await getDiskonEvent();
-      if (res.success) {
-        setData(res.data || []);
-      } else {
-        console.error('Gagal memuat diskon:', res.message);
-      }
-    } catch (err) {
-      console.error('Gagal memuat diskon:', err);
+      const res = await getAllDiskon();
+      if (res.success) setData(res.data || []);
+      else setError(res.error || 'Gagal memuat diskon.');
+    } catch (e: any) {
+      setError(e.message || 'Gagal memuat data.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  // ---- Modal Control ----
-  const openTambah = () => {
-    setForm({
-      ID: '',
-      NamaEvent: '',
-      Potongan: 0,
-      Tipe: 'Persen',
-      Status: 'Aktif',
-      TargetLayanan: '',
-    });
+  const openAdd = () => {
     setEditingId(null);
+    setForm(emptyForm);
     setShowModal(true);
   };
 
-  const openEdit = (item: DiskonEvent) => {
+  const openEdit = (item: DiskonEventRow) => {
+    setEditingId(item.id);
     setForm({
-      ID: item.ID,
-      NamaEvent: item.NamaEvent,
-      Potongan: item.Potongan,
-      Tipe: item.Tipe,
-      Status: item.Status,
-      TargetLayanan: item.TargetLayanan,
+      nama_event: item.nama_event,
+      potongan: item.potongan,
+      tipe: item.tipe,
+      target_layanan: item.target_layanan || '',
+      status: item.status,
     });
-    setEditingId(item.ID);
     setShowModal(true);
   };
 
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingId(null);
-  };
-
-  // ---- Form Handlers ----
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: name === 'Potongan' ? Number(value) : value,
+      [name]: name === 'potongan' ? (value ? Number(value) : 0) : value,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.NamaEvent || !form.Tipe || !form.Status) return;
-    setSubmitting(true);
+    if (!form.nama_event.trim() || form.potongan <= 0) return;
+    setSaving(true);
     try {
-      const payload: Partial<DiskonEvent> = {
-        NamaEvent: form.NamaEvent,
-        Potongan: form.Potongan,
-        Tipe: form.Tipe,
-        Status: form.Status,
-        TargetLayanan: form.TargetLayanan,
-      };
       if (editingId) {
-        payload.ID = editingId;
-      }
-      const res = await saveDiskonEvent(payload);
-      if (res.success) {
-        closeModal();
-        await fetchData();
+        const res = await updateDiskon(editingId, {
+          nama_event: form.nama_event,
+          potongan: form.potongan,
+          tipe: form.tipe as 'Persentase' | 'Nominal',
+          target_layanan: form.target_layanan || null,
+          status: form.status as 'Aktif' | 'Admin Saja' | 'Nonaktif',
+        });
+        if (!res.success) { setError(res.error ?? null); setSaving(false); return; }
       } else {
-        console.error('Gagal menyimpan diskon:', res.message);
-        alert('Gagal menyimpan: ' + (res.message || 'Unknown error'));
+        const res = await createDiskon({
+          nama_event: form.nama_event,
+          potongan: form.potongan,
+          tipe: form.tipe as 'Persentase' | 'Nominal',
+          target_layanan: form.target_layanan || null,
+          status: form.status as 'Aktif' | 'Admin Saja' | 'Nonaktif',
+        });
+        if (!res.success) { setError(res.error ?? null); setSaving(false); return; }
       }
-    } catch (err) {
-      console.error('Gagal menyimpan diskon:', err);
-      alert('Gagal menyimpan diskon.');
+      setShowModal(false);
+      await fetchData();
+    } catch (e: any) {
+      setError(e.message || 'Gagal menyimpan.');
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string, namaEvent: string) => {
-    if (!window.confirm(`Nonaktifkan event diskon "${namaEvent}"?`)) return;
+  const handleDelete = async (id: string, nama: string) => {
+    if (!window.confirm(`Hapus event diskon "${nama}"?`)) return;
     try {
-      const res = await deleteDiskonEvent(id);
-      if (res.success) {
-        await fetchData();
-      } else {
-        console.error('Gagal menonaktifkan diskon:', res.message);
-        alert('Gagal menonaktifkan: ' + (res.message || 'Unknown error'));
-      }
-    } catch (err) {
-      console.error('Gagal menonaktifkan diskon:', err);
-      alert('Gagal menonaktifkan diskon.');
+      const res = await deleteDiskon(id);
+      if (!res.success) { setError(res.error ?? null); return; }
+      await fetchData();
+    } catch (e: any) {
+      setError(e.message || 'Gagal menghapus.');
     }
   };
 
-  // ---- Format helpers ----
-  const formatPotongan = (item: DiskonEvent): string => {
-    if (item.Tipe === 'Persen') {
-      return `${item.Potongan}%`;
-    }
-    if (item.Tipe === 'Langsung') {
-      return formatCurrency(item.Potongan);
-    }
-    if (item.Tipe === 'Gratis Item') {
-      return 'Gratis';
-    }
-    return String(item.Potongan);
-  };
-
-  const tipeLabels: Record<string, string> = {
-    Persen: 'Persen',
-    Langsung: 'Langsung',
-    'Gratis Item': 'Gratis Item',
+  const formatDiskon = (item: DiskonEventRow) => {
+    if (item.tipe === 'Persentase') return `${item.potongan}%`;
+    return formatCurrency(item.potongan);
   };
 
   return (
     <div className="admin-main">
-      {/* Header */}
       <div className="admin-topbar">
-        <h1>Manajemen Diskon</h1>
+        <h1>Event Diskon</h1>
+        <button className="btn btn-primary" onClick={openAdd}>+ Tambah Diskon</button>
       </div>
 
-      {/* Action button */}
-      <div className="page-header-actions" style={{ marginBottom: 'var(--space-md)' }}>
-        <button className="btn btn-primary" onClick={openTambah}>
-          + Tambah Event Diskon
-        </button>
-      </div>
+      {error && <div className="alert alert-danger" style={{ padding: 'var(--space-sm) var(--space-md)', marginBottom: 'var(--space-md)', color: 'var(--danger)', fontWeight: 500 }}>{error}</div>}
 
-      {/* Loading */}
-      {loading && (
-        <div className="loading-overlay">
-          <div className="loading-spinner" />
-          <p>Memuat data diskon...</p>
-        </div>
-      )}
+      {loading && <div className="loading-overlay"><div className="loading-spinner" /><p>Memuat diskon...</p></div>}
 
-      {/* Table */}
       {!loading && (
         <div className="table-wrap">
           <table>
             <thead>
-              <tr>
-                <th>ID</th>
-                <th>Nama Event</th>
-                <th>Potongan</th>
-                <th>Tipe</th>
-                <th>Target Layanan</th>
-                <th>Status</th>
-                <th>Aksi</th>
-              </tr>
+              <tr><th>Event</th><th>Potongan</th><th>Tipe</th><th>Target Layanan</th><th>Status</th><th>Aksi</th></tr>
             </thead>
             <tbody>
               {data.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center text-muted">
-                    Belum ada event diskon.
-                  </td>
-                </tr>
+                <tr><td colSpan={6} className="text-center text-muted">Belum ada event diskon.</td></tr>
               ) : (
                 data.map((item) => (
-                  <tr key={item.ID}>
-                    <td>{item.ID}</td>
-                    <td style={{ fontWeight: 600 }}>{item.NamaEvent}</td>
-                    <td>{formatPotongan(item)}</td>
-                    <td>{tipeLabels[item.Tipe] || item.Tipe}</td>
-                    <td>{item.TargetLayanan || '-'}</td>
-                    <td>
-                      <span className={`badge ${item.Status === 'Aktif' ? 'badge-selesai' : 'badge-batal'}`}
-                      >
-                        {item.Status}
-                      </span>
-                    </td>
+                  <tr key={item.id}>
+                    <td style={{ fontWeight: 600 }}>{item.nama_event}</td>
+                    <td style={{ fontWeight: 700, color: 'var(--danger)' }}>{formatDiskon(item)}</td>
+                    <td><span className="badge badge-proses">{item.tipe === 'Persentase' ? 'Persen' : 'Nominal'}</span></td>
+                    <td>{item.target_layanan || '-'}</td>
+                    <td><span className={`badge ${item.status === 'Aktif' ? 'badge-selesai' : 'badge-batal'}`}>{item.status}</span></td>
                     <td>
                       <div className="aksi-group">
-                        <button
-                          className="btn btn-sm btn-outline"
-                          onClick={() => openEdit(item)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => handleDelete(item.ID, item.NamaEvent)}
-                        >
-                          Nonaktifkan
-                        </button>
+                        <button className="btn btn-sm btn-primary" onClick={() => openEdit(item)}>Edit</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id, item.nama_event)}>Hapus</button>
                       </div>
                     </td>
                   </tr>
@@ -239,109 +153,48 @@ const Diskon: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Form */}
       {showModal && (
-        <div className="modal-overlay">
-          <div className="modal-box">
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{editingId ? 'Edit Event Diskon' : 'Tambah Event Diskon'}</h3>
-              <button className="modal-close" onClick={closeModal}>
-                &times;
-              </button>
+              <h3>{editingId ? 'Edit Diskon' : 'Tambah Diskon'}</h3>
+              <button className="modal-close" onClick={() => setShowModal(false)}>&times;</button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                {/* Hidden ID field */}
-                <input type="hidden" name="ID" value={form.ID} />
-
                 <div className="form-group">
-                  <label htmlFor="namaEvent">Nama Event</label>
-                  <input
-                    id="namaEvent"
-                    type="text"
-                    name="NamaEvent"
-                    className="form-control"
-                    placeholder="e.g. DISKON LEBARAN"
-                    value={form.NamaEvent}
-                    onChange={handleChange}
-                    required
-                  />
+                  <label>Nama Event</label>
+                  <input type="text" name="nama_event" className="form-control" value={form.nama_event} onChange={handleChange} placeholder="Nama event diskon" required />
                 </div>
-
                 <div className="form-group">
-                  <label htmlFor="tipe">Tipe Diskon</label>
-                  <select
-                    id="tipe"
-                    name="Tipe"
-                    className="form-control"
-                    value={form.Tipe}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="Persen">Persen</option>
-                    <option value="Langsung">Langsung</option>
-                    <option value="Gratis Item">Gratis Item</option>
+                  <label>Tipe Potongan</label>
+                  <select name="tipe" className="form-control" value={form.tipe} onChange={handleChange} required>
+                    {TIPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-
                 <div className="form-group">
-                  <label htmlFor="potongan">
-                    {form.Tipe === 'Persen'
-                      ? 'Potongan (%)'
-                      : form.Tipe === 'Langsung'
-                      ? 'Potongan (Rp)'
-                      : 'Potongan'}
-                  </label>
-                  <input
-                    id="potongan"
-                    type="number"
-                    name="Potongan"
-                    className="form-control"
-                    min={0}
-                    value={form.Potongan}
-                    onChange={handleChange}
-                    required
-                  />
+                  <label>Nilai Potongan</label>
+                  <input type="number" name="potongan" className="form-control" min={0} value={form.potongan || ''} onChange={handleChange} placeholder={form.tipe === 'Persentase' ? '10 (10%)' : '50000'} required />
+                  <small style={{ color: 'var(--gray)', fontSize: '0.75rem' }}>
+                    {form.tipe === 'Persentase' ? 'Masukkan angka persen (contoh: 10 untuk 10%)' : 'Masukkan nominal Rupiah (contoh: 50000)'}
+                  </small>
                 </div>
-
                 <div className="form-group">
-                  <label htmlFor="targetLayanan">Target Layanan</label>
-                  <input
-                    id="targetLayanan"
-                    type="text"
-                    name="TargetLayanan"
-                    className="form-control"
-                    placeholder="e.g. Semua, Reparasi, Cleaning"
-                    value={form.TargetLayanan}
-                    onChange={handleChange}
-                  />
+                  <label>Target Layanan (opsional)</label>
+                  <input type="text" name="target_layanan" className="form-control" value={form.target_layanan} onChange={handleChange} placeholder="Semua layanan" />
                 </div>
-
                 <div className="form-group">
-                  <label htmlFor="status">Status</label>
-                  <select
-                    id="status"
-                    name="Status"
-                    className="form-control"
-                    value={form.Status}
-                    onChange={handleChange}
-                    required
-                  >
+                  <label>Status</label>
+                  <select name="status" className="form-control" value={form.status} onChange={handleChange} required>
                     <option value="Aktif">Aktif</option>
                     <option value="Nonaktif">Nonaktif</option>
                   </select>
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-white" onClick={closeModal}>
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={submitting || !form.NamaEvent}
-                >
-                  {submitting ? 'Menyimpan...' : 'Simpan'}
+                <button type="button" className="btn btn-white" onClick={() => setShowModal(false)} disabled={saving}>Batal</button>
+                <button type="submit" className="btn btn-primary" disabled={saving || !form.nama_event.trim() || form.potongan <= 0}>
+                  {saving ? 'Menyimpan...' : 'Simpan'}
                 </button>
               </div>
             </form>

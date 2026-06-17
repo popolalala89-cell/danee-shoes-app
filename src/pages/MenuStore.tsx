@@ -1,109 +1,150 @@
-import React, { useState, useEffect } from 'react';
-import { getMenuStore, saveMenuStore, deleteMenuStore } from '../lib/api';
+import { useState, useEffect } from 'react';
+import { getAll as getAllMenuStore, getAllActive as getMenuStoreActive, create as createMenuStore, update as updateMenuStore, remove as deleteMenuStore } from '../lib/services/menu-store-service';
 import { formatCurrency } from '../lib/utils';
-import type { MenuStore } from '../lib/types';
+import type { MenuStoreRow } from '../lib/types-supabase';
 
-const initialForm: Partial<MenuStore> = {
-  ID: '',
-  NamaProduk: '',
-  Kategori: '',
-  Harga: 0,
-  Stok: 0,
-  Status: 'Aktif',
-  Deskripsi: '',
-  LinkFoto: '',
-  LinkMarketplace: '',
+const emptyForm = {
+  nama_produk: '',
+  kategori: '',
+  harga: 0,
+  harga_promo: null as number | null,
+  stok: 0,
+  deskripsi: '',
+  link_foto: '',
+  link_marketplace: '',
+  status: 'Aktif' as 'Aktif' | 'Nonaktif',
 };
 
 const MenuStore: React.FC = () => {
-  const [items, setItems] = useState<MenuStore[]>([]);
+  const [data, setData] = useState<MenuStoreRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>('Semua');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState<Partial<MenuStore>>({ ...initialForm });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  const fetchItems = async () => {
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const data = await getMenuStore();
-      setItems(data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch menu store items:', err);
+      let res;
+      if (filterStatus === 'Aktif') {
+        res = await getMenuStoreActive();
+      } else {
+        res = await getAllMenuStore();
+      }
+      if (res.success) {
+        setData(res.data || []);
+      } else {
+        setError(res.error || 'Gagal memuat data produk.');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Gagal memuat data.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
+  useEffect(() => { fetchData(); }, [filterStatus]);
 
   const openAdd = () => {
-    setForm({ ...initialForm });
+    setEditingId(null);
+    setForm(emptyForm);
     setShowModal(true);
   };
 
-  const openEdit = (item: MenuStore) => {
-    setForm({ ...item });
+  const openEdit = (item: MenuStoreRow) => {
+    setEditingId(item.id);
+    setForm({
+      nama_produk: item.nama_produk,
+      kategori: item.kategori || '',
+      harga: item.harga,
+      harga_promo: item.harga_promo,
+      stok: item.stok,
+      deskripsi: item.deskripsi || '',
+      link_foto: item.link_foto || '',
+      link_marketplace: item.link_marketplace || '',
+      status: item.status,
+    });
     setShowModal(true);
   };
 
-  const closeModal = () => {
-    setShowModal(false);
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: name === 'Harga' || name === 'Stok' ? Number(value) : value,
+      [name]: name === 'harga' || name === 'stok' || name === 'harga_promo' ? (value ? Number(value) : null) : value,
     }));
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.nama_produk || form.harga <= 0) return;
+    setSaving(true);
     try {
-      setSaving(true);
-      await saveMenuStore(form);
-      closeModal();
-      await fetchItems();
-    } catch (err) {
-      console.error('Failed to save menu store item:', err);
+      if (editingId) {
+        await updateMenuStore(editingId, {
+          nama_produk: form.nama_produk,
+          kategori: form.kategori || null,
+          harga: form.harga,
+          harga_promo: form.harga_promo,
+          stok: form.stok,
+          deskripsi: form.deskripsi || null,
+          link_foto: form.link_foto || null,
+          link_marketplace: form.link_marketplace || null,
+          status: form.status,
+        });
+      } else {
+        await createMenuStore({
+          nama_produk: form.nama_produk,
+          kategori: form.kategori || null,
+          harga: form.harga,
+          harga_promo: form.harga_promo,
+          stok: form.stok,
+          deskripsi: form.deskripsi || null,
+          link_foto: form.link_foto || null,
+          link_marketplace: form.link_marketplace || null,
+          status: form.status,
+        });
+      }
+      setShowModal(false);
+      await fetchData();
+    } catch (e: any) {
+      setError(e.message || 'Gagal menyimpan.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleNonaktifkan = async (id: string) => {
-    if (!window.confirm('Apakah Anda yakin ingin menonaktifkan produk ini?')) {
-      return;
-    }
+  const handleDelete = async (id: string, nama: string) => {
+    if (!window.confirm(`Nonaktifkan produk "${nama}"?`)) return;
     try {
       await deleteMenuStore(id);
-      await fetchItems();
-    } catch (err) {
-      console.error('Failed to delete menu store item:', err);
+      await fetchData();
+    } catch (e: any) {
+      setError(e.message || 'Gagal menonaktifkan.');
     }
   };
 
-  const statusBadge = (status: string) => {
-    const cls = status === 'Aktif' ? 'badge badge-selesai' : 'badge badge-batal';
-    return <span className={cls}>{status}</span>;
-  };
+  const filteredData = filterStatus === 'Semua' ? data : data.filter((item) => item.status === filterStatus);
 
   return (
     <div className="admin-main">
-      {/* Header */}
       <div className="admin-topbar">
         <h1>Menu Store</h1>
-        <button className="btn btn-gold" onClick={openAdd}>
-          + Tambah Produk
-        </button>
+        <button className="btn btn-primary" onClick={openAdd}>+ Tambah Produk</button>
       </div>
 
-      {/* Loading */}
+      <div className="tab-btns" style={{ marginBottom: 'var(--space-md)' }}>
+        {['Semua', 'Aktif', 'Nonaktif'].map((f) => (
+          <button key={f} className={`tab-btn ${filterStatus === f ? 'active' : ''}`} onClick={() => setFilterStatus(f)}>{f}</button>
+        ))}
+      </div>
+
+      {error && <div className="alert alert-danger" style={{ padding: 'var(--space-sm) var(--space-md)', marginBottom: 'var(--space-md)', color: 'var(--danger)', fontWeight: 500 }}>{error}</div>}
+
       {loading && (
         <div className="loading-overlay">
           <div className="loading-spinner" />
@@ -111,13 +152,11 @@ const MenuStore: React.FC = () => {
         </div>
       )}
 
-      {/* Table */}
       {!loading && (
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Nama Produk</th>
                 <th>Kategori</th>
                 <th>Harga</th>
@@ -127,169 +166,82 @@ const MenuStore: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="text-center text-muted">
-                    Belum ada produk.
-                  </td>
-                </tr>
+              {filteredData.length === 0 ? (
+                <tr><td colSpan={6} className="text-center text-muted">Belum ada data produk.</td></tr>
+              ) : (
+                filteredData.map((item) => (
+                  <tr key={item.id}>
+                    <td style={{ fontWeight: 600 }}>{item.nama_produk}</td>
+                    <td><span className="badge badge-proses">{item.kategori || '-'}</span></td>
+                    <td>{formatCurrency(item.harga)}</td>
+                    <td><span className={`badge ${(item.stok ?? 0) <= 3 ? 'badge-batal' : 'badge-selesai'}`}>{item.stok ?? 0}</span></td>
+                    <td><span className={`badge ${item.status === 'Aktif' ? 'badge-selesai' : 'badge-batal'}`}>{item.status}</span></td>
+                    <td>
+                      <div className="aksi-group">
+                        <button className="btn btn-sm btn-primary" onClick={() => openEdit(item)}>Edit</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id, item.nama_produk)}>Nonaktifkan</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
-              {items.map((item) => (
-                <tr key={item.ID}>
-                  <td>{item.ID}</td>
-                  <td style={{ fontWeight: 600 }}>{item.NamaProduk}</td>
-                  <td>{item.Kategori}</td>
-                  <td>{formatCurrency(item.Harga ?? 0)}</td>
-                  <td>{item.Stok}</td>
-                  <td>{statusBadge(item.Status)}</td>
-                  <td>
-                    <div className="aksi-group">
-                      <button
-                        className="btn btn-sm btn-outline"
-                        onClick={() => openEdit(item)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleNonaktifkan(item.ID)}
-                      >
-                        Nonaktifkan
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Modal Overlay */}
       {showModal && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-box">
             <div className="modal-header">
-              <h3>{form.ID ? 'Edit Produk' : 'Tambah Produk'}</h3>
-              <button className="modal-close" onClick={closeModal}>
-                &times;
-              </button>
+              <h3>{editingId ? 'Edit Produk' : 'Tambah Produk'}</h3>
+              <button className="modal-close" onClick={() => setShowModal(false)}>&times;</button>
             </div>
-            <form onSubmit={handleSave}>
+            <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                {/* Hidden ID */}
-                <input type="hidden" name="ID" value={form.ID} />
-
                 <div className="form-group">
                   <label>Nama Produk</label>
-                  <input
-                    type="text"
-                    name="NamaProduk"
-                    className="form-control"
-                    value={form.NamaProduk}
-                    onChange={handleChange}
-                    required
-                  />
+                  <input type="text" name="nama_produk" className="form-control" value={form.nama_produk} onChange={handleChange} placeholder="Nama produk" required />
                 </div>
-
                 <div className="form-group">
                   <label>Kategori</label>
-                  <input
-                    type="text"
-                    name="Kategori"
-                    className="form-control"
-                    value={form.Kategori}
-                    onChange={handleChange}
-                    required
-                  />
+                  <input type="text" name="kategori" className="form-control" value={form.kategori} onChange={handleChange} placeholder="Kategori produk" />
                 </div>
-
                 <div className="form-group">
-                  <label>Harga</label>
-                  <input
-                    type="number"
-                    name="Harga"
-                    className="form-control"
-                    value={form.Harga}
-                    onChange={handleChange}
-                    required
-                    min={0}
-                  />
+                  <label>Harga (Rp)</label>
+                  <input type="number" name="harga" className="form-control" min={0} value={form.harga || ''} onChange={handleChange} placeholder="0" required />
                 </div>
-
+                <div className="form-group">
+                  <label>Harga Promo (Rp) — opsional</label>
+                  <input type="number" name="harga_promo" className="form-control" min={0} value={form.harga_promo ?? ''} onChange={handleChange} placeholder="Kosongkan jika tidak ada" />
+                </div>
                 <div className="form-group">
                   <label>Stok</label>
-                  <input
-                    type="number"
-                    name="Stok"
-                    className="form-control"
-                    value={form.Stok}
-                    onChange={handleChange}
-                    required
-                    min={0}
-                  />
+                  <input type="number" name="stok" className="form-control" min={0} value={form.stok || ''} onChange={handleChange} placeholder="0" />
                 </div>
-
+                <div className="form-group">
+                  <label>Deskripsi</label>
+                  <textarea name="deskripsi" className="form-control" rows={3} value={form.deskripsi} onChange={handleChange} placeholder="Deskripsi produk (opsional)" />
+                </div>
+                <div className="form-group">
+                  <label>Link Foto</label>
+                  <input type="text" name="link_foto" className="form-control" value={form.link_foto} onChange={handleChange} placeholder="URL foto produk" />
+                </div>
+                <div className="form-group">
+                  <label>Link Marketplace</label>
+                  <input type="text" name="link_marketplace" className="form-control" value={form.link_marketplace} onChange={handleChange} placeholder="URL marketplace" />
+                </div>
                 <div className="form-group">
                   <label>Status</label>
-                  <select
-                    name="Status"
-                    className="form-control"
-                    value={form.Status}
-                    onChange={handleChange}
-                  >
+                  <select name="status" className="form-control" value={form.status} onChange={handleChange} required>
                     <option value="Aktif">Aktif</option>
                     <option value="Nonaktif">Nonaktif</option>
                   </select>
                 </div>
-
-                <div className="form-group">
-                  <label>Deskripsi</label>
-                  <textarea
-                    name="Deskripsi"
-                    className="form-control"
-                    value={form.Deskripsi}
-                    onChange={handleChange}
-                    rows={3}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Link Foto</label>
-                  <input
-                    type="text"
-                    name="LinkFoto"
-                    className="form-control"
-                    value={form.LinkFoto}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Link Marketplace</label>
-                  <input
-                    type="text"
-                    name="LinkMarketplace"
-                    className="form-control"
-                    value={form.LinkMarketplace}
-                    onChange={handleChange}
-                  />
-                </div>
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-white"
-                  onClick={closeModal}
-                  disabled={saving}
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-gold"
-                  disabled={saving}
-                >
+                <button type="button" className="btn btn-white" onClick={() => setShowModal(false)}>Batal</button>
+                <button type="submit" className="btn btn-primary" disabled={saving || !form.nama_produk || form.harga <= 0}>
                   {saving ? 'Menyimpan...' : 'Simpan'}
                 </button>
               </div>

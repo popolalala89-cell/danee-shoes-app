@@ -1,325 +1,181 @@
-import React, { useState, useEffect } from 'react';
-import { getReferralAdmin, saveReferral, deleteReferral } from '../lib/api';
-import { formatCurrency, formatDate } from '../lib/utils';
-import type { Referral } from '../lib/types';
+import { useState, useEffect } from 'react';
+import { getAllReferral, createReferral, updateReferral, deleteReferral } from '../lib/services/konten-service';
+import { formatCurrency } from '../lib/utils';
+import type { ReferralRow } from '../lib/types-supabase';
 
-interface FormData {
-  ID: string;
-  Kode: string;
-  NamaReferral: string;
-  KomisiPct: number;
-  Status: string;
-}
+const emptyForm = { kode: '', nama_referral: '', link: '', status: 'Aktif' as string, komisi_pct: 5 };
 
-const emptyForm: FormData = {
-  ID: '',
-  Kode: '',
-  NamaReferral: '',
-  KomisiPct: 0,
-  Status: 'Aktif',
-};
-
-function Referral() {
-  const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+const Referral: React.FC = () => {
+  const [data, setData] = useState<ReferralRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState<boolean>(false);
-  const [form, setForm] = useState<FormData>(emptyForm);
-  const [saving, setSaving] = useState<boolean>(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
-  // Fetch on mount
-  useEffect(() => {
-    loadReferrals();
-  }, []);
-
-  async function loadReferrals() {
+  const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getReferralAdmin();
-      if (res.success && res.data) {
-        setReferrals(res.data);
-      } else {
-        setError(res.message || 'Gagal memuat data referral.');
-      }
+      const res = await getAllReferral();
+      if (res.success) setData(res.data || []);
+      else setError(res.error || 'Gagal memuat referral.');
     } catch (e: any) {
-      setError(e.message || 'Terjadi kesalahan saat memuat data referral.');
+      setError(e.message || 'Gagal memuat data.');
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  // Open modal for add
-  function handleAdd() {
+  useEffect(() => { fetchData(); }, []);
+
+  const openAdd = () => {
+    setEditingId(null);
     setForm(emptyForm);
     setShowModal(true);
-  }
+  };
 
-  // Open modal for edit (pre-fills form)
-  function handleEdit(item: Referral) {
+  const openEdit = (item: ReferralRow) => {
+    setEditingId(item.id);
     setForm({
-      ID: item.ID,
-      Kode: item.Kode,
-      NamaReferral: item.NamaReferral,
-      KomisiPct: item.KomisiPct,
-      Status: item.Status,
+      kode: item.kode,
+      nama_referral: item.nama_referral,
+      link: item.link || '',
+      status: item.status,
+      komisi_pct: item.komisi_pct,
     });
     setShowModal(true);
-  }
+  };
 
-  // Close modal
-  function handleCloseModal() {
-    setShowModal(false);
-    setForm(emptyForm);
-  }
-
-  // Form field change
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: name === 'KomisiPct' ? Number(value) : value,
+      [name]: name === 'komisi_pct' ? (value ? Number(value) : 0) : value,
     }));
-  }
+  };
 
-  // Save (create or update)
-  async function handleSave(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.kode.trim() || !form.nama_referral.trim()) return;
     setSaving(true);
     try {
-      const payload: Partial<Referral> = {
-        Kode: form.Kode,
-        NamaReferral: form.NamaReferral,
-        KomisiPct: form.KomisiPct,
-        Status: form.Status,
-      };
-      if (form.ID) {
-        payload.ID = form.ID;
-      }
-      const res = await saveReferral(payload);
-      if (res.success) {
-        handleCloseModal();
-        await loadReferrals();
+      if (editingId) {
+        const res = await updateReferral(editingId, {
+          nama_referral: form.nama_referral,
+          status: form.status as 'Aktif' | 'Nonaktif',
+          komisi_pct: form.komisi_pct,
+        });
+        if (!res.success) { setError(res.error ?? null); setSaving(false); return; }
       } else {
-        alert(res.message || 'Gagal menyimpan data referral.');
+        const res = await createReferral({
+          nama_referral: form.nama_referral,
+          status: form.status as 'Aktif' | 'Nonaktif',
+          komisi_pct: form.komisi_pct,
+        });
+        if (!res.success) { setError(res.error ?? null); setSaving(false); return; }
       }
+      setShowModal(false);
+      await fetchData();
     } catch (e: any) {
-      alert(e.message || 'Terjadi kesalahan saat menyimpan.');
+      setError(e.message || 'Gagal menyimpan.');
     } finally {
       setSaving(false);
     }
-  }
+  };
 
-  // Delete (nonaktifkan)
-  async function handleDelete(id: string, kode: string) {
-    if (!window.confirm(`Nonaktifkan kode referral "${kode}"? Data akan dihapus.`)) return;
+  const handleDelete = async (id: string, nama: string) => {
+    if (!window.confirm(`Nonaktifkan referral "${nama}"?`)) return;
     try {
       const res = await deleteReferral(id);
-      if (res.success) {
-        await loadReferrals();
-      } else {
-        alert(res.message || 'Gagal menonaktifkan referral.');
-      }
+      if (!res.success) { setError(res.error ?? null); return; }
+      await fetchData();
     } catch (e: any) {
-      alert(e.message || 'Terjadi kesalahan saat menonaktifkan.');
+      setError(e.message || 'Gagal menonaktifkan.');
     }
-  }
-
-  // Status badge
-  function renderStatusBadge(status: string) {
-    const isActive = status === 'Aktif';
-    return (
-      <span className={`badge ${isActive ? 'badge-selesai' : 'badge-batal'}`}>
-        {status}
-      </span>
-    );
-  }
+  };
 
   return (
     <div className="admin-main">
-      {/* Header */}
       <div className="admin-topbar">
-        <h1>🔗 Referral Management</h1>
-        <button className="btn btn-primary" onClick={handleAdd}>
-          + Tambah Kode Referral
-        </button>
+        <h1>Referral</h1>
+        <button className="btn btn-primary" onClick={openAdd}>+ Tambah Referral</button>
       </div>
 
-      {/* Loading state */}
-      {loading && (
-        <div className="loading-overlay" style={{ minHeight: '200px' }}>
-          <div className="loading-spinner" />
-          <p style={{ color: 'var(--text-gray)', marginTop: '0.75rem' }}>
-            Memuat data referral...
-          </p>
-        </div>
-      )}
+      {error && <div className="alert alert-danger" style={{ padding: 'var(--space-sm) var(--space-md)', marginBottom: 'var(--space-md)', color: 'var(--danger)', fontWeight: 500 }}>{error}</div>}
 
-      {/* Error state */}
-      {!loading && error && (
-        <div className="card" style={{ padding: '2rem 1rem', textAlign: 'center', marginBottom: '1.5rem' }}>
-          <p style={{ color: 'var(--danger)', marginBottom: '1rem', fontWeight: 600 }}>
-            {error}
-          </p>
-          <button className="btn btn-outline" onClick={loadReferrals}>
-            Coba Lagi
-          </button>
-        </div>
-      )}
+      {loading && <div className="loading-overlay"><div className="loading-spinner" /><p>Memuat referral...</p></div>}
 
-      {/* Table */}
-      {!loading && !error && (
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div className="table-wrap" style={{ border: 'none', borderRadius: 0, padding: 0 }}>
-            {referrals.length === 0 ? (
-              <p style={{ color: 'var(--text-gray)', fontSize: '0.9rem', padding: '1rem 0' }}>
-                Belum ada data referral. Klik "Tambah Kode Referral" untuk membuat yang baru.
-              </p>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Kode</th>
-                    <th>Nama Referral</th>
-                    <th>Total Klik</th>
-                    <th>Total Order</th>
-                    <th>Total Revenue</th>
-                    <th>Status</th>
-                    <th>Tanggal Dibuat</th>
-                    <th>Aksi</th>
+      {!loading && (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Kode</th><th>Nama</th><th>Komisi</th><th>Klik</th><th>Order</th><th>Revenue</th><th>Status</th><th>Aksi</th></tr>
+            </thead>
+            <tbody>
+              {data.length === 0 ? (
+                <tr><td colSpan={8} className="text-center text-muted">Belum ada referral.</td></tr>
+              ) : (
+                data.map((item) => (
+                  <tr key={item.id}>
+                    <td><span className="badge badge-proses" style={{ fontFamily: 'monospace' }}>{item.kode}</span></td>
+                    <td style={{ fontWeight: 600 }}>{item.nama_referral}</td>
+                    <td>{item.komisi_pct}%</td>
+                    <td>{item.total_klik ?? 0}</td>
+                    <td>{item.total_order ?? 0}</td>
+                    <td style={{ fontWeight: 700 }}>{formatCurrency(item.total_revenue ?? 0)}</td>
+                    <td><span className={`badge ${item.status === 'Aktif' ? 'badge-selesai' : 'badge-batal'}`}>{item.status}</span></td>
+                    <td>
+                      <div className="aksi-group">
+                        <button className="btn btn-sm btn-primary" onClick={() => openEdit(item)}>Edit</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id, item.nama_referral)}>Nonaktifkan</button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {referrals.map((item) => (
-                    <tr key={item.ID}>
-                      <td style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>
-                        {item.ID}
-                      </td>
-                      <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                        {item.Kode}
-                      </td>
-                      <td>{item.NamaReferral}</td>
-                      <td style={{ textAlign: 'center' }}>{item.TotalKlik ?? 0}</td>
-                      <td style={{ textAlign: 'center' }}>{item.TotalOrder ?? 0}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                        {formatCurrency(item.TotalRevenue ?? 0)}
-                      </td>
-                      <td>{renderStatusBadge(item.Status)}</td>
-                      <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-                        {formatDate(item.Dibuat)}
-                      </td>
-                      <td>
-                        <div className="aksi-group">
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => handleEdit(item)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() => handleDelete(item.ID, item.Kode)}
-                          >
-                            Nonaktifkan
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Modal Form */}
       {showModal && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>
-                {form.ID ? 'Edit Kode Referral' : 'Tambah Kode Referral'}
-              </h2>
-              <button className="modal-close" onClick={handleCloseModal}>×</button>
+              <h3>{editingId ? 'Edit Referral' : 'Tambah Referral'}</h3>
+              <button className="modal-close" onClick={() => setShowModal(false)}>&times;</button>
             </div>
-
-            <form onSubmit={handleSave} style={{ padding: '1.5rem' }}>
-              {/* Hidden ID */}
-              {form.ID && (
-                <input type="hidden" name="ID" value={form.ID} />
-              )}
-
-              {/* Kode */}
-              <div className="form-group">
-                <label htmlFor="Kode">Kode Referral</label>
-                <input
-                  id="Kode"
-                  name="Kode"
-                  type="text"
-                  className="form-control"
-                  value={form.Kode}
-                  onChange={handleChange}
-                  placeholder="Contoh: RAFLI10"
-                  required
-                />
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Kode Referral</label>
+                  <input type="text" name="kode" className="form-control" value={form.kode} onChange={handleChange} placeholder="Kode unik (contoh: REFFAHREN)" required />
+                </div>
+                <div className="form-group">
+                  <label>Nama Referral</label>
+                  <input type="text" name="nama_referral" className="form-control" value={form.nama_referral} onChange={handleChange} placeholder="Nama partner" required />
+                </div>
+                <div className="form-group">
+                  <label>Link (opsional)</label>
+                  <input type="text" name="link" className="form-control" value={form.link} onChange={handleChange} placeholder="URL referral" />
+                </div>
+                <div className="form-group">
+                  <label>Komisi (%)</label>
+                  <input type="number" name="komisi_pct" className="form-control" min={0} max={100} step={0.5} value={form.komisi_pct} onChange={handleChange} placeholder="5" />
+                </div>
+                <div className="form-group">
+                  <label>Status</label>
+                  <select name="status" className="form-control" value={form.status} onChange={handleChange} required>
+                    <option value="Aktif">Aktif</option>
+                    <option value="Nonaktif">Nonaktif</option>
+                  </select>
+                </div>
               </div>
-
-              {/* NamaReferral */}
-              <div className="form-group">
-                <label htmlFor="NamaReferral">Nama Referral</label>
-                <input
-                  id="NamaReferral"
-                  name="NamaReferral"
-                  type="text"
-                  className="form-control"
-                  value={form.NamaReferral}
-                  onChange={handleChange}
-                  placeholder="Nama lengkap referral"
-                  required
-                />
-              </div>
-
-              {/* KomisiPct */}
-              <div className="form-group">
-                <label htmlFor="KomisiPct">Komisi (%)</label>
-                <input
-                  id="KomisiPct"
-                  name="KomisiPct"
-                  type="number"
-                  className="form-control"
-                  value={form.KomisiPct}
-                  onChange={handleChange}
-                  placeholder="10"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  required
-                />
-              </div>
-
-              {/* Status */}
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label htmlFor="Status">Status</label>
-                <select
-                  id="Status"
-                  name="Status"
-                  className="form-control"
-                  value={form.Status}
-                  onChange={handleChange}
-                >
-                  <option value="Aktif">Aktif</option>
-                  <option value="Nonaktif">Nonaktif</option>
-                </select>
-              </div>
-
-              {/* Actions */}
-              <div className="modal-footer" style={{ borderTop: 'none', padding: 0, paddingTop: '1rem' }}>
-                <button type="button" className="btn btn-outline" onClick={handleCloseModal}>
-                  Batal
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-white" onClick={() => setShowModal(false)} disabled={saving}>Batal</button>
+                <button type="submit" className="btn btn-primary" disabled={saving || !form.kode.trim() || !form.nama_referral.trim()}>
                   {saving ? 'Menyimpan...' : 'Simpan'}
                 </button>
               </div>
@@ -329,6 +185,6 @@ function Referral() {
       )}
     </div>
   );
-}
+};
 
 export default Referral;

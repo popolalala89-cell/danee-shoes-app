@@ -1,162 +1,183 @@
-import React, { useState, useEffect } from 'react';
-import { getMenuJasa, saveMenuJasa, deleteMenuJasa } from '../lib/api';
+import { useState, useEffect } from 'react';
+import { getAll as getAllMenuJasa, create as createMenuJasa, update as updateMenuJasa, remove as deleteMenuJasa } from '../lib/services/menu-jasa-service';
 import { formatCurrency } from '../lib/utils';
-import type { MenuJasa } from '../lib/types';
+import type { MenuJasaRow } from '../lib/types-supabase';
 
-const defaultForm: Partial<MenuJasa> = {
-  NamaLayanan: '',
-  Kategori: 'Cleaning',
-  Harga: 0,
-  HargaPromo: undefined,
-  Status: 'Aktif',
-  Deskripsi: '',
-  Urutan: 0,
+const KATEGORI_FILTERS = ['Semua', 'Cleaning', 'Repair'] as const;
+
+const emptyForm = {
+  nama_layanan: '',
+  kategori: 'Cleaning' as 'Cleaning' | 'Repair',
+  harga: 0,
+  harga_promo: null as number | null,
+  deskripsi: '',
+  status: 'Aktif' as 'Aktif' | 'Coming Soon' | 'Nonaktif',
+  urutan: 0,
 };
 
 const MenuJasa: React.FC = () => {
-  const [data, setData] = useState<MenuJasa[]>([]);
+  const [data, setData] = useState<MenuJasaRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filterKategori, setFilterKategori] = useState<string>('Semua');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState<typeof defaultForm>({ ...defaultForm });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await getMenuJasa();
-      setData(res.data || []);
-    } catch (err) {
-      console.error('Gagal memuat layanan jasa:', err);
+      const filter = filterKategori === 'Semua' ? undefined : filterKategori as 'Cleaning' | 'Repair';
+      const res = await getAllMenuJasa(filter);
+      if (res.success) {
+        setData(res.data || []);
+      } else {
+        setError(res.error || 'Gagal memuat data jasa.');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Gagal memuat data.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, [filterKategori]);
 
   const openAdd = () => {
-    setForm({ ...defaultForm });
+    setEditingId(null);
+    setForm(emptyForm);
     setShowModal(true);
   };
 
-  const openEdit = (item: MenuJasa) => {
+  const openEdit = (item: MenuJasaRow) => {
+    setEditingId(item.id);
     setForm({
-      ID: item.ID,
-      NamaLayanan: item.NamaLayanan,
-      Kategori: item.Kategori,
-      Harga: item.Harga,
-      HargaPromo: item.HargaPromo ?? undefined,
-      Status: item.Status,
-      Deskripsi: item.Deskripsi || '',
-      Urutan: item.Urutan ?? 0,
+      nama_layanan: item.nama_layanan,
+      kategori: item.kategori,
+      harga: item.harga,
+      harga_promo: item.harga_promo,
+      deskripsi: item.deskripsi || '',
+      status: item.status,
+      urutan: item.urutan || 0,
     });
     setShowModal(true);
   };
 
-  const closeModal = () => {
-    setShowModal(false);
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]:
-        name === 'Harga' || name === 'Urutan' || name === 'HargaPromo'
-          ? value === ''
-            ? undefined
-            : Number(value)
-          : value,
+      [name]: name === 'harga' || name === 'urutan' || name === 'harga_promo' ? (value ? Number(value) : null) : value,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.nama_layanan || form.harga <= 0) return;
     setSaving(true);
     try {
-      await saveMenuJasa(form);
-      closeModal();
+      if (editingId) {
+        await updateMenuJasa(editingId, {
+          nama_layanan: form.nama_layanan,
+          kategori: form.kategori,
+          harga: form.harga,
+          harga_promo: form.harga_promo,
+          deskripsi: form.deskripsi || null,
+          status: form.status,
+          urutan: form.urutan,
+        });
+      } else {
+        await createMenuJasa({
+          nama_layanan: form.nama_layanan,
+          kategori: form.kategori,
+          harga: form.harga,
+          harga_promo: form.harga_promo,
+          deskripsi: form.deskripsi || null,
+          status: form.status,
+          urutan: form.urutan,
+        });
+      }
+      setShowModal(false);
       await fetchData();
-    } catch (err) {
-      console.error('Gagal menyimpan layanan jasa:', err);
+    } catch (e: any) {
+      setError(e.message || 'Gagal menyimpan.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleNonaktifkan = async (id: string) => {
-    if (!window.confirm('Nonaktifkan layanan ini?')) return;
+  const handleDelete = async (id: string, nama: string) => {
+    if (!window.confirm(`Nonaktifkan layanan "${nama}"?`)) return;
     try {
       await deleteMenuJasa(id);
       await fetchData();
-    } catch (err) {
-      console.error('Gagal menonaktifkan layanan jasa:', err);
+    } catch (e: any) {
+      setError(e.message || 'Gagal menonaktifkan.');
     }
   };
 
-  const statusBadge = (status: string) => {
-    const cls = status === 'Aktif' ? 'badge badge-success' : 'badge badge-danger';
-    return <span className={cls}>{status}</span>;
+  const getStatusClass = (status: string) => {
+    if (status === 'Aktif') return 'badge-selesai';
+    if (status === 'Coming Soon') return 'badge-waiting';
+    return 'badge-batal';
   };
 
+  const filteredData = filterKategori === 'Semua' ? data : data.filter((item) => item.kategori === filterKategori);
+
   return (
-    <div className="menu-jasa-page">
+    <div className="admin-main">
       <div className="admin-topbar">
         <h1>Menu Jasa</h1>
-        <button className="btn btn-gold" onClick={openAdd}>
-          + Tambah Layanan
-        </button>
+        <button className="btn btn-primary" onClick={openAdd}>+ Tambah Jasa</button>
       </div>
 
-      {loading ? (
+      {/* Kategori filter tabs */}
+      <div className="tab-btns" style={{ marginBottom: 'var(--space-md)' }}>
+        {KATEGORI_FILTERS.map((f) => (
+          <button key={f} className={`tab-btn ${filterKategori === f ? 'active' : ''}`} onClick={() => setFilterKategori(f)}>{f}</button>
+        ))}
+      </div>
+
+      {error && <div className="alert alert-danger" style={{ padding: 'var(--space-sm) var(--space-md)', marginBottom: 'var(--space-md)', color: 'var(--danger)', fontWeight: 500 }}>{error}</div>}
+
+      {loading && (
         <div className="loading-overlay">
           <div className="loading-spinner" />
+          <p>Memuat data jasa...</p>
         </div>
-      ) : (
+      )}
+
+      {!loading && (
         <div className="table-wrap">
-          <table className="table">
+          <table>
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Nama Layanan</th>
                 <th>Kategori</th>
                 <th>Harga</th>
+                <th>Harga Promo</th>
                 <th>Status</th>
                 <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {data.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center text-muted">
-                    Belum ada layanan jasa.
-                  </td>
-                </tr>
+              {filteredData.length === 0 ? (
+                <tr><td colSpan={6} className="text-center text-muted">Belum ada data jasa.</td></tr>
               ) : (
-                data.map((item) => (
-                  <tr key={item.ID}>
-                    <td>{item.ID}</td>
-                    <td>{item.NamaLayanan}</td>
-                    <td>{item.Kategori}</td>
-                    <td>{formatCurrency(item.Harga ?? 0)}</td>
-                    <td>{statusBadge(item.Status)}</td>
+                filteredData.map((item) => (
+                  <tr key={item.id}>
+                    <td style={{ fontWeight: 600 }}>{item.nama_layanan}</td>
+                    <td><span className="badge badge-proses">{item.kategori}</span></td>
+                    <td>{formatCurrency(item.harga)}</td>
+                    <td>{item.harga_promo ? formatCurrency(item.harga_promo) : '-'}</td>
+                    <td><span className={`badge ${getStatusClass(item.status)}`}>{item.status}</span></td>
                     <td>
-                      <button
-                        className="btn btn-sm btn-outline"
-                        onClick={() => openEdit(item)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleNonaktifkan(item.ID)}
-                      >
-                        Nonaktifkan
-                      </button>
+                      <div className="aksi-group">
+                        <button className="btn btn-sm btn-primary" onClick={() => openEdit(item)}>Edit</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id, item.nama_layanan)}>Nonaktifkan</button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -166,123 +187,59 @@ const MenuJasa: React.FC = () => {
         </div>
       )}
 
+      {/* Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+          <div className="modal-box">
             <div className="modal-header">
-              <h3>{form.ID ? 'Edit Layanan' : 'Tambah Layanan'}</h3>
-              <button className="modal-close" onClick={closeModal}>
-                &times;
-              </button>
+              <h3>{editingId ? 'Edit Jasa' : 'Tambah Jasa'}</h3>
+              <button className="modal-close" onClick={() => setShowModal(false)}>&times;</button>
             </div>
-            <div className="modal-body">
-              <form onSubmit={handleSubmit}>
-                {form.ID && (
-                  <input type="hidden" name="ID" value={form.ID} />
-                )}
-
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
                 <div className="form-group">
                   <label>Nama Layanan</label>
-                  <input
-                    className="form-control"
-                    type="text"
-                    name="NamaLayanan"
-                    value={form.NamaLayanan}
-                    onChange={handleChange}
-                    required
-                  />
+                  <input type="text" name="nama_layanan" className="form-control" value={form.nama_layanan} onChange={handleChange} placeholder="Nama layanan" required />
                 </div>
-
                 <div className="form-group">
                   <label>Kategori</label>
-                  <select
-                    className="form-control"
-                    name="Kategori"
-                    value={form.Kategori}
-                    onChange={handleChange}
-                  >
+                  <select name="kategori" className="form-control" value={form.kategori} onChange={handleChange} required>
                     <option value="Cleaning">Cleaning</option>
                     <option value="Repair">Repair</option>
                   </select>
                 </div>
-
                 <div className="form-group">
-                  <label>Harga</label>
-                  <input
-                    className="form-control"
-                    type="number"
-                    name="Harga"
-                    value={form.Harga}
-                    onChange={handleChange}
-                    required
-                  />
+                  <label>Harga (Rp)</label>
+                  <input type="number" name="harga" className="form-control" min={0} value={form.harga || ''} onChange={handleChange} placeholder="0" required />
                 </div>
-
                 <div className="form-group">
-                  <label>Harga Promo (opsional)</label>
-                  <input
-                    className="form-control"
-                    type="number"
-                    name="HargaPromo"
-                    value={form.HargaPromo ?? ''}
-                    onChange={handleChange}
-                  />
+                  <label>Harga Promo (Rp) — opsional</label>
+                  <input type="number" name="harga_promo" className="form-control" min={0} value={form.harga_promo ?? ''} onChange={handleChange} placeholder="Kosongkan jika tidak ada" />
                 </div>
-
+                <div className="form-group">
+                  <label>Deskripsi</label>
+                  <textarea name="deskripsi" className="form-control" rows={3} value={form.deskripsi} onChange={handleChange} placeholder="Deskripsi layanan (opsional)" />
+                </div>
+                <div className="form-group">
+                  <label>Urutan</label>
+                  <input type="number" name="urutan" className="form-control" min={0} value={form.urutan} onChange={handleChange} />
+                </div>
                 <div className="form-group">
                   <label>Status</label>
-                  <select
-                    className="form-control"
-                    name="Status"
-                    value={form.Status}
-                    onChange={handleChange}
-                  >
+                  <select name="status" className="form-control" value={form.status} onChange={handleChange} required>
                     <option value="Aktif">Aktif</option>
+                    <option value="Coming Soon">Coming Soon</option>
                     <option value="Nonaktif">Nonaktif</option>
                   </select>
                 </div>
-
-                <div className="form-group">
-                  <label>Deskripsi</label>
-                  <textarea
-                    className="form-control"
-                    name="Deskripsi"
-                    value={form.Deskripsi}
-                    onChange={handleChange}
-                    rows={3}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Urutan</label>
-                  <input
-                    className="form-control"
-                    type="number"
-                    name="Urutan"
-                    value={form.Urutan}
-                    onChange={handleChange}
-                  />
-                </div>
-              </form>
-            </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-white"
-                onClick={closeModal}
-                disabled={saving}
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="btn btn-gold"
-                disabled={saving}
-                onClick={handleSubmit}
-              >
-                {saving ? 'Menyimpan...' : 'Simpan'}
-              </button>
-            </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-white" onClick={() => setShowModal(false)}>Batal</button>
+                <button type="submit" className="btn btn-primary" disabled={saving || !form.nama_layanan || form.harga <= 0}>
+                  {saving ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

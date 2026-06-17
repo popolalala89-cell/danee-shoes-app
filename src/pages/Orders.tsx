@@ -1,27 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  getOrders,
-  addOrder,
-  updateOrderStatus,
-  updateOrder,
-  trackOrder,
-} from '../lib/api';
+import { getAll as getOrders, create as createOrder, updateStatus as updateOrderStatus, update as updateOrder, trackOrder } from '../lib/services/order-service';
 import { formatCurrency, formatDate } from '../lib/utils';
-import type { Order } from '../lib/types';
+import type { OrderRow, OrderStatus } from '../lib/types-supabase';
 
-// ─── Constants ──────────────────────────────────────────────────
-const ORDER_STATUSES = [
-  'Semua',
-  'Waiting',
-  'Checking',
-  'Proses Repair',
-  'Proses Cleaning',
-  'Proses Pengeringan',
-  'Ready',
-  'Selesai',
-  'Batal',
-] as const;
-
+const ORDER_STATUSES = ['Semua', 'Waiting', 'Checking', 'Proses Repair', 'Proses Cleaning', 'Proses Pengeringan', 'Ready', 'Selesai', 'Batal'] as const;
 const TERMINAL_STATUSES = ['Selesai', 'Batal'];
 
 const STATUS_CONFIG: Record<string, { icon: string; cls: string }> = {
@@ -35,11 +17,8 @@ const STATUS_CONFIG: Record<string, { icon: string; cls: string }> = {
   Batal: { icon: '❌', cls: 'badge-batal' },
 };
 
-function isTerminal(status: string): boolean {
-  return TERMINAL_STATUSES.includes(status);
-}
+function isTerminal(status: string): boolean { return TERMINAL_STATUSES.includes(status); }
 
-// Status transition map: which statuses can advance to which
 function getNextStatuses(status: string): { label: string; target: string; variant: string }[] {
   switch (status) {
     case 'Waiting':
@@ -80,33 +59,30 @@ function getNextStatuses(status: string): { label: string; target: string; varia
   }
 }
 
-// ─── Main Component ─────────────────────────────────────────────
-export default function Orders() {
-  const [orders, setOrders] = useState<Order[]>([]);
+function Orders() {
+  const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('Semua');
-
-  // Search
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
 
   // Add order modal
   const [showAddModal, setShowAddModal] = useState(false);
-  const [formNama, setFormNama] = useState('');
-  const [formWa, setFormWa] = useState('');
-  const [formLayanan, setFormLayanan] = useState('');
-  const [formHarga, setFormHarga] = useState('');
-  const [formCatatan, setFormCatatan] = useState('');
-  const [formTipeBayar, setFormTipeBayar] = useState('Bayar di Akhir');
-  const [formReferral, setFormReferral] = useState('');
+  const [addNama, setAddNama] = useState('');
+  const [addWa, setAddWa] = useState('');
+  const [addLayanan, setAddLayanan] = useState('');
+  const [addHarga, setAddHarga] = useState('');
+  const [addCatatan, setAddCatatan] = useState('');
+  const [addTipeBayar, setAddTipeBayar] = useState('Bayar di Akhir');
+  const [addReferral, setAddReferral] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Detail modal
-  const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const [detailOrder, setDetailOrder] = useState<OrderRow | null>(null);
 
   // Edit modal
-  const [editOrder, setEditOrder] = useState<Order | null>(null);
+  const [editOrder, setEditOrder] = useState<OrderRow | null>(null);
   const [editNama, setEditNama] = useState('');
   const [editWa, setEditWa] = useState('');
   const [editLayanan, setEditLayanan] = useState('');
@@ -114,17 +90,18 @@ export default function Orders() {
   const [editCatatan, setEditCatatan] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
 
-  // ─── Fetch orders ────────────────────────────────────────────
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  useEffect(() => { fetchOrders(); }, []);
 
   async function fetchOrders() {
     setLoading(true);
     setError(null);
     try {
       const res = await getOrders();
-      setOrders(res.data || []);
+      if (res.success) {
+        setOrders(res.data || []);
+      } else {
+        setError(res.error || 'Gagal mengambil data pesanan');
+      }
     } catch (err: any) {
       setError(err?.message || 'Gagal mengambil data pesanan');
     } finally {
@@ -132,19 +109,14 @@ export default function Orders() {
     }
   }
 
-  // ─── Search with debounce ────────────────────────────────────
   const doSearch = useCallback(async (q: string) => {
-    if (!q.trim()) {
-      fetchOrders();
-      return;
-    }
+    if (!q.trim()) { fetchOrders(); return; }
     setSearching(true);
     try {
       const res = await trackOrder(q.trim());
       if (res.success && res.data) {
-        setOrders(res.data);
+        setOrders(Array.isArray(res.data) ? res.data : [res.data]);
       } else {
-        // fallback: client-side filter on current orders
         fetchOrders();
       }
     } catch {
@@ -159,14 +131,9 @@ export default function Orders() {
     return () => clearTimeout(timer);
   }, [searchQuery, doSearch]);
 
-  // ─── Filtered orders ─────────────────────────────────────────
-  const filteredOrders =
-    filter === 'Semua'
-      ? orders
-      : orders.filter((o) => o.Status === filter);
+  const filteredOrders = filter === 'Semua' ? orders : orders.filter((o) => o.status === filter);
 
-  // ─── Status update ───────────────────────────────────────────
-  async function handleStatusUpdate(orderId: string, newStatus: string) {
+  async function handleStatusUpdate(orderId: string, newStatus: OrderStatus) {
     try {
       await updateOrderStatus(orderId, newStatus);
       await fetchOrders();
@@ -175,78 +142,71 @@ export default function Orders() {
     }
   }
 
-  // ─── Add order ───────────────────────────────────────────────
   function handleTambahOrder(e: React.FormEvent) {
     e.preventDefault();
-    if (!formNama.trim() || !formWa.trim() || !formLayanan.trim() || !formHarga.trim()) {
-      setError('Harap isi Nama, WA, Layanan, dan Harga');
-      return;
+    if (!addNama.trim() || !addWa.trim() || !addLayanan.trim() || !addHarga.trim()) {
+      setError('Harap isi Nama, WA, Layanan, dan Harga'); return;
     }
     setSubmitting(true);
-    addOrder({
-      NamaPelanggan: formNama.trim(),
-      KontakWA: formWa.trim(),
-      Layanan: formLayanan.trim(),
-      Harga: parseFloat(formHarga),
-      Catatan: formCatatan.trim(),
-      TipePembayaran: formTipeBayar,
-      ReferralCode: formReferral.trim() || undefined,
+    createOrder({
+      nama_pelanggan: addNama.trim(),
+      kontak_wa: addWa.trim(),
+      layanan: addLayanan.trim(),
+      harga: parseFloat(addHarga),
+      catatan: addCatatan.trim() || null,
+      tipe_pembayaran: addTipeBayar as 'Bayar di Awal' | 'Bayar di Akhir',
+      referral: addReferral.trim() || null,
     })
-      .then(() => {
-        setShowAddModal(false);
-        resetAddForm();
-        return fetchOrders();
+      .then((res) => {
+        if (res.success) {
+          setShowAddModal(false);
+          resetAddForm();
+          fetchOrders();
+        } else {
+          setError(res.error || 'Gagal menambah order');
+        }
       })
-      .catch((err: any) => {
-        setError(err?.message || 'Gagal menambah order');
-      })
-      .finally(() => {
-        setSubmitting(false);
-      });
+      .catch((err: any) => setError(err?.message || 'Gagal menambah order'))
+      .finally(() => setSubmitting(false));
   }
 
   function resetAddForm() {
-    setFormNama('');
-    setFormWa('');
-    setFormLayanan('');
-    setFormHarga('');
-    setFormCatatan('');
-    setFormTipeBayar('Bayar di Akhir');
-    setFormReferral('');
+    setAddNama(''); setAddWa(''); setAddLayanan(''); setAddHarga('');
+    setAddCatatan(''); setAddTipeBayar('Bayar di Akhir'); setAddReferral('');
   }
 
-  // ─── Edit order ──────────────────────────────────────────────
-  function openEdit(order: Order) {
+  function openEdit(order: OrderRow) {
     setEditOrder(order);
-    setEditNama(order.NamaPelanggan || '');
-    setEditWa(order.KontakWA || '');
-    setEditLayanan(order.Layanan || '');
-    setEditHarga(String(order.Harga ?? ''));
-    setEditCatatan(order.Catatan || '');
+    setEditNama(order.nama_pelanggan || '');
+    setEditWa(order.kontak_wa || '');
+    setEditLayanan(order.layanan || '');
+    setEditHarga(String(order.harga ?? ''));
+    setEditCatatan(order.catatan || '');
   }
 
-  function closeEdit() {
-    setEditOrder(null);
-  }
+  function closeEdit() { setEditOrder(null); }
 
   async function handleEditSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!editOrder) return;
     if (!editNama.trim() || !editWa.trim() || !editLayanan.trim() || !editHarga.trim()) {
-      setError('Harap isi Nama, WA, Layanan, dan Harga');
-      return;
+      setError('Harap isi Nama, WA, Layanan, dan Harga'); return;
     }
     setEditSubmitting(true);
     try {
-      await updateOrder(editOrder.OrderID, {
-        NamaPelanggan: editNama.trim(),
-        KontakWA: editWa.trim(),
-        Layanan: editLayanan.trim(),
-        Harga: parseFloat(editHarga),
-        Catatan: editCatatan.trim(),
+      const res = await updateOrder(editOrder.id, {
+        nama_pelanggan: editNama.trim(),
+        kontak_wa: editWa.trim(),
+        layanan: editLayanan.trim(),
+        harga: parseFloat(editHarga) || 0,
+        catatan: editCatatan.trim() || null,
       });
-      setEditOrder(null);
-      await fetchOrders();
+      if (res.success) {
+        setEditOrder(null);
+        await fetchOrders();
+      } else {
+        setError(res.error || 'Gagal mengupdate order');
+      }
     } catch (err: any) {
       setError(err?.message || 'Gagal mengupdate order');
     } finally {
@@ -254,26 +214,18 @@ export default function Orders() {
     }
   }
 
-  // ─── QRIS ────────────────────────────────────────────────────
   function openQRIS() {
-    const msg = encodeURIComponent(
-      'Saya ingin melakukan pembayaran melalui QRIS. Mohon dikirimkan kode QRIS atau petunjuk pembayaran. Terima kasih.'
-    );
+    const msg = encodeURIComponent('Saya ingin melakukan pembayaran melalui QRIS. Mohon dikirimkan kode QRIS atau petunjuk pembayaran. Terima kasih.');
     window.open(`https://wa.me/?text=${msg}`, '_blank');
   }
 
-  // ─── Render action buttons ───────────────────────────────────
-  function renderActionButtons(order: Order) {
-    const next = getNextStatuses(order.Status);
+  function renderActionButtons(order: OrderRow) {
+    const next = getNextStatuses(order.status);
     if (next.length === 0) return <span className="text-muted">—</span>;
     return (
       <div className="aksi-group">
         {next.map((btn) => (
-          <button
-            key={btn.target}
-            className={`btn btn-sm ${btn.variant}`}
-            onClick={() => handleStatusUpdate(order.OrderID, btn.target)}
-          >
+          <button key={btn.target} className={`btn btn-sm ${btn.variant}`} onClick={() => handleStatusUpdate(order.id, btn.target as OrderStatus)}>
             {btn.label}
           </button>
         ))}
@@ -281,128 +233,64 @@ export default function Orders() {
     );
   }
 
-  // ─── Loading state ───────────────────────────────────────────
   if (loading && orders.length === 0) {
     return (
-      <div className="page-container">
-        <div className="loading-spinner">
-          <div className="spinner" />
-          <p>Memuat data pesanan...</p>
-        </div>
+      <div className="admin-main">
+        <div className="admin-topbar"><h1>Pesanan</h1></div>
+        <div className="loading-overlay"><div className="loading-spinner" /><p>Memuat data pesanan...</p></div>
       </div>
     );
   }
 
-  // ─── Error (no data) ────────────────────────────────────────
   if (error && orders.length === 0) {
     return (
-      <div className="page-container">
-        <div className="error-box">
-          <p className="error-text">{error}</p>
-          <button className="btn btn-primary" onClick={fetchOrders}>
-            Coba Lagi
-          </button>
+      <div className="admin-main">
+        <div className="admin-topbar"><h1>Pesanan</h1></div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem var(--space-md)', textAlign: 'center' }}>
+          <p style={{ color: 'var(--danger)', fontWeight: 600 }}>{error}</p>
+          <button className="btn btn-primary" onClick={fetchOrders} style={{ marginTop: 'var(--space-sm)' }}>Coba Lagi</button>
         </div>
       </div>
     );
   }
 
-  // ─── Main Render ─────────────────────────────────────────────
   return (
-    <div className="page-container">
-      {/* Error banner (non-blocking) */}
-      {error && (
-        <div className="alert alert-danger" onClick={() => setError(null)}>
-          {error}
-        </div>
-      )}
+    <div className="admin-main">
+      {error && <div className="alert alert-danger" style={{ padding: 'var(--space-sm) var(--space-md)', color: 'var(--danger)', fontWeight: 500, marginBottom: 'var(--space-sm)', cursor: 'pointer' }} onClick={() => setError(null)}>{error}</div>}
 
-      {/* Header */}
-      <div className="page-header">
-        <div className="page-header-text">
-          <h1>Pesanan</h1>
-          <p className="page-description">Manajemen pesanan jasa</p>
-        </div>
-
+      <div className="admin-topbar">
+        <h1>Pesanan</h1>
         <div className="page-header-actions">
-          {/* Search */}
-          <input
-            type="text"
-            className="form-control"
-            placeholder="🔍 Cari nama, WA, atau ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ maxWidth: 220 }}
-          />
-
-          {/* Filter */}
-          <select
-            className="form-select filter-select"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          >
-            {ORDER_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
+          <input type="text" className="form-control" placeholder="🔍 Cari nama, WA, atau ID..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ maxWidth: 200 }} />
+          <select className="form-control" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ maxWidth: 160 }}>
+            {ORDER_STATUSES.map((s) => (<option key={s} value={s}>{s}</option>))}
           </select>
-
-          {/* QRIS */}
-          <button className="btn btn-outline-primary" onClick={openQRIS}>
-            QRIS
-          </button>
-
-          {/* Tambah Order */}
-          <button className="btn btn-primary" onClick={() => { resetAddForm(); setShowAddModal(true); }}>
-            + Tambah Order
-          </button>
+          <button className="btn btn-outline" onClick={openQRIS}>QRIS</button>
+          <button className="btn btn-primary" onClick={() => { resetAddForm(); setShowAddModal(true); }}>+ Tambah Order</button>
         </div>
       </div>
 
-      {/* Table */}
       <div className="table-wrap">
-        <table className="table">
+        <table>
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Tanggal</th>
-              <th>Nama</th>
-              <th>WA</th>
-              <th>Layanan</th>
-              <th>Harga</th>
-              <th>Status</th>
-              <th>Aksi</th>
+              <th>Kode</th><th>Tanggal</th><th>Nama</th><th>WA</th><th>Layanan</th><th>Harga</th><th>Status</th><th>Aksi</th>
             </tr>
           </thead>
           <tbody>
             {filteredOrders.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center text-muted">
-                  {searching ? 'Mencari...' : 'Tidak ada pesanan'}
-                </td>
-              </tr>
+              <tr><td colSpan={8} className="text-center text-muted">{searching ? 'Mencari...' : 'Tidak ada pesanan'}</td></tr>
             ) : (
               filteredOrders.map((order) => (
-                <tr
-                  key={order.OrderID}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setDetailOrder(order)}
-                >
-                  <td>{order.OrderID}</td>
-                  <td>{formatDate(order.Tanggal || order.createdAt || '')}</td>
-                  <td>{order.NamaPelanggan}</td>
-                  <td>{order.KontakWA}</td>
-                  <td>{order.Layanan}</td>
-                  <td>{formatCurrency(order.Harga ?? 0)}</td>
-                  <td>
-                    <span className={`badge ${STATUS_CONFIG[order.Status]?.cls || ''}`}>
-                      {STATUS_CONFIG[order.Status]?.icon || ''} {order.Status}
-                    </span>
-                  </td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    {renderActionButtons(order)}
-                  </td>
+                <tr key={order.id} style={{ cursor: 'pointer' }} onClick={() => setDetailOrder(order)}>
+                  <td>{order.kode || order.id?.slice(0, 8)}</td>
+                  <td>{formatDate(order.tanggal || '')}</td>
+                  <td>{order.nama_pelanggan}</td>
+                  <td>{order.kontak_wa}</td>
+                  <td>{order.layanan}</td>
+                  <td>{formatCurrency(order.harga ?? 0)}</td>
+                  <td><span className={`badge ${STATUS_CONFIG[order.status]?.cls || ''}`}>{STATUS_CONFIG[order.status]?.icon || ''} {order.status}</span></td>
+                  <td onClick={(e) => e.stopPropagation()}>{renderActionButtons(order)}</td>
                 </tr>
               ))
             )}
@@ -410,170 +298,94 @@ export default function Orders() {
         </table>
       </div>
 
-      {/* Loading overlay when refreshing */}
-      {loading && <div className="loading-overlay"><div className="spinner" /></div>}
+      {loading && <div className="loading-overlay"><div className="loading-spinner" /></div>}
 
-      {/* ═══════════════════════════════════════════════════════
-          Tambah Order Modal
-         ═══════════════════════════════════════════════════════ */}
+      {/* Tambah Order Modal */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Tambah Order</h3>
-              <button className="modal-close" onClick={() => setShowAddModal(false)}>
-                &times;
-              </button>
+              <button className="modal-close" onClick={() => setShowAddModal(false)}>&times;</button>
             </div>
             <form onSubmit={handleTambahOrder}>
               <div className="modal-body">
-                <div className="form-group">
-                  <label>Nama Pelanggan</label>
-                  <input type="text" className="form-control" value={formNama}
-                    onChange={(e) => setFormNama(e.target.value)} required />
-                </div>
-                <div className="form-group">
-                  <label>Kontak WA</label>
-                  <input type="text" className="form-control" value={formWa}
-                    onChange={(e) => setFormWa(e.target.value)} required />
-                </div>
-                <div className="form-group">
-                  <label>Layanan</label>
-                  <input type="text" className="form-control" value={formLayanan}
-                    onChange={(e) => setFormLayanan(e.target.value)} required />
-                </div>
-                <div className="form-group">
-                  <label>Harga</label>
-                  <input type="number" className="form-control" value={formHarga}
-                    onChange={(e) => setFormHarga(e.target.value)} min={0} required />
-                </div>
-                <div className="form-group">
-                  <label>Catatan</label>
-                  <textarea className="form-control" value={formCatatan}
-                    onChange={(e) => setFormCatatan(e.target.value)} rows={3} />
-                </div>
-                <div className="form-group">
-                  <label>Tipe Pembayaran</label>
-                  <select className="form-control" value={formTipeBayar}
-                    onChange={(e) => setFormTipeBayar(e.target.value)}>
+                <div className="form-group"><label>Nama Pelanggan</label><input type="text" className="form-control" value={addNama} onChange={(e) => setAddNama(e.target.value)} required /></div>
+                <div className="form-group"><label>Kontak WA</label><input type="text" className="form-control" value={addWa} onChange={(e) => setAddWa(e.target.value)} required /></div>
+                <div className="form-group"><label>Layanan</label><input type="text" className="form-control" value={addLayanan} onChange={(e) => setAddLayanan(e.target.value)} required /></div>
+                <div className="form-group"><label>Harga</label><input type="number" className="form-control" value={addHarga} onChange={(e) => setAddHarga(e.target.value)} min={0} required /></div>
+                <div className="form-group"><label>Catatan</label><textarea className="form-control" value={addCatatan} onChange={(e) => setAddCatatan(e.target.value)} rows={3} /></div>
+                <div className="form-group"><label>Tipe Pembayaran</label>
+                  <select className="form-control" value={addTipeBayar} onChange={(e) => setAddTipeBayar(e.target.value)}>
                     <option value="Bayar di Awal">Bayar di Awal</option>
                     <option value="Bayar di Akhir">Bayar di Akhir</option>
                   </select>
                 </div>
-                <div className="form-group">
-                  <label>Referral Code (opsional)</label>
-                  <input type="text" className="form-control" value={formReferral}
-                    onChange={(e) => setFormReferral(e.target.value)} />
-                </div>
+                <div className="form-group"><label>Referral Code (opsional)</label><input type="text" className="form-control" value={addReferral} onChange={(e) => setAddReferral(e.target.value)} /></div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary"
-                  onClick={() => setShowAddModal(false)} disabled={submitting}>Batal</button>
-                <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Menyimpan...' : 'Simpan'}
-                </button>
+                <button type="button" className="btn btn-white" onClick={() => setShowAddModal(false)} disabled={submitting}>Batal</button>
+                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Menyimpan...' : 'Simpan'}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          Order Detail Modal
-         ═══════════════════════════════════════════════════════ */}
+      {/* Order Detail Modal */}
       {detailOrder && (
         <div className="modal-overlay" onClick={() => setDetailOrder(null)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Detail Order — {detailOrder.OrderID}</h3>
-              <button className="modal-close" onClick={() => setDetailOrder(null)}>
-                &times;
-              </button>
+              <h3>Detail Order — {detailOrder.kode || detailOrder.id?.slice(0, 8)}</h3>
+              <button className="modal-close" onClick={() => setDetailOrder(null)}>&times;</button>
             </div>
             <div className="modal-body">
               <table className="detail-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
-                  <DetailRow label="OrderID" value={detailOrder.OrderID} />
-                  <DetailRow label="Tanggal" value={formatDate(detailOrder.Tanggal || detailOrder.createdAt || '')} />
-                  <DetailRow label="Nama Pelanggan" value={detailOrder.NamaPelanggan} />
-                  <DetailRow label="Kontak WA" value={detailOrder.KontakWA} />
-                  <DetailRow label="Layanan" value={detailOrder.Layanan} />
-                  <DetailRow label="Harga" value={formatCurrency(detailOrder.Harga ?? 0)} />
-                  <DetailRow label="Status" value={
-                    <span className={`badge ${STATUS_CONFIG[detailOrder.Status]?.cls || ''}`}>
-                      {STATUS_CONFIG[detailOrder.Status]?.icon || ''} {detailOrder.Status}
-                    </span>
-                  } />
-                  <DetailRow label="Catatan" value={detailOrder.Catatan || '-'} />
-                  <DetailRow label="Diskon Info" value={detailOrder.DiskonInfo || '-'} />
-                  <DetailRow label="Referral" value={detailOrder.Referral || '-'} />
-                  <DetailRow label="Tipe Pembayaran" value={detailOrder.TipePembayaran || '-'} />
+                  <DetailRow label="Kode" value={detailOrder.kode || detailOrder.id} />
+                  <DetailRow label="Tanggal" value={formatDate(detailOrder.tanggal || '')} />
+                  <DetailRow label="Nama Pelanggan" value={detailOrder.nama_pelanggan} />
+                  <DetailRow label="Kontak WA" value={detailOrder.kontak_wa} />
+                  <DetailRow label="Layanan" value={detailOrder.layanan} />
+                  <DetailRow label="Harga" value={formatCurrency(detailOrder.harga ?? 0)} />
+                  <DetailRow label="Status" value={<span className={`badge ${STATUS_CONFIG[detailOrder.status]?.cls || ''}`}>{STATUS_CONFIG[detailOrder.status]?.icon || ''} {detailOrder.status}</span>} />
+                  <DetailRow label="Catatan" value={detailOrder.catatan || '-'} />
+                  <DetailRow label="Diskon Info" value={detailOrder.diskon_info || '-'} />
+                  <DetailRow label="Referral" value={detailOrder.referral || '-'} />
+                  <DetailRow label="Tipe Pembayaran" value={detailOrder.tipe_pembayaran || '-'} />
                 </tbody>
               </table>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setDetailOrder(null)}>
-                Tutup
-              </button>
-              {!isTerminal(detailOrder.Status) && (
-                <button
-                  className="btn btn-primary"
-                  onClick={() => { openEdit(detailOrder); setDetailOrder(null); }}
-                >
-                  ✏️ Edit
-                </button>
+              <button className="btn btn-white" onClick={() => setDetailOrder(null)}>Tutup</button>
+              {!isTerminal(detailOrder.status) && (
+                <button className="btn btn-primary" onClick={() => { openEdit(detailOrder); setDetailOrder(null); }}>✏️ Edit</button>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          Edit Order Modal
-         ═══════════════════════════════════════════════════════ */}
+      {/* Edit Order Modal */}
       {editOrder && (
         <div className="modal-overlay" onClick={closeEdit}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Edit Order — {editOrder.OrderID}</h3>
-              <button className="modal-close" onClick={closeEdit}>
-                &times;
-              </button>
+              <h3>Edit Order — {editOrder.kode || editOrder.id?.slice(0, 8)}</h3>
+              <button className="modal-close" onClick={closeEdit}>&times;</button>
             </div>
             <form onSubmit={handleEditSubmit}>
               <div className="modal-body">
-                <div className="form-group">
-                  <label>Nama Pelanggan</label>
-                  <input type="text" className="form-control" value={editNama}
-                    onChange={(e) => setEditNama(e.target.value)} required />
-                </div>
-                <div className="form-group">
-                  <label>Kontak WA</label>
-                  <input type="text" className="form-control" value={editWa}
-                    onChange={(e) => setEditWa(e.target.value)} required />
-                </div>
-                <div className="form-group">
-                  <label>Layanan</label>
-                  <input type="text" className="form-control" value={editLayanan}
-                    onChange={(e) => setEditLayanan(e.target.value)} required />
-                </div>
-                <div className="form-group">
-                  <label>Harga</label>
-                  <input type="number" className="form-control" value={editHarga}
-                    onChange={(e) => setEditHarga(e.target.value)} min={0} required />
-                </div>
-                <div className="form-group">
-                  <label>Catatan</label>
-                  <textarea className="form-control" value={editCatatan}
-                    onChange={(e) => setEditCatatan(e.target.value)} rows={3} />
-                </div>
+                <div className="form-group"><label>Nama Pelanggan</label><input type="text" className="form-control" value={editNama} onChange={(e) => setEditNama(e.target.value)} required /></div>
+                <div className="form-group"><label>Kontak WA</label><input type="text" className="form-control" value={editWa} onChange={(e) => setEditWa(e.target.value)} required /></div>
+                <div className="form-group"><label>Layanan</label><input type="text" className="form-control" value={editLayanan} onChange={(e) => setEditLayanan(e.target.value)} required /></div>
+                <div className="form-group"><label>Harga</label><input type="number" className="form-control" value={editHarga} onChange={(e) => setEditHarga(e.target.value)} min={0} required /></div>
+                <div className="form-group"><label>Catatan</label><textarea className="form-control" value={editCatatan} onChange={(e) => setEditCatatan(e.target.value)} rows={3} /></div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary"
-                  onClick={closeEdit} disabled={editSubmitting}>Batal</button>
-                <button type="submit" className="btn btn-primary" disabled={editSubmitting}>
-                  {editSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
-                </button>
+                <button type="button" className="btn btn-white" onClick={closeEdit} disabled={editSubmitting}>Batal</button>
+                <button type="submit" className="btn btn-primary" disabled={editSubmitting}>{editSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}</button>
               </div>
             </form>
           </div>
@@ -583,16 +395,13 @@ export default function Orders() {
   );
 }
 
-// ─── Helper component ───────────────────────────────────────────
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-      <td style={{ padding: '10px 12px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap', width: '35%' }}>
-        {label}
-      </td>
-      <td style={{ padding: '10px 12px', color: '#1e293b' }}>
-        {value}
-      </td>
+      <td style={{ padding: '10px 12px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap', width: '35%' }}>{label}</td>
+      <td style={{ padding: '10px 12px', color: '#1e293b' }}>{value}</td>
     </tr>
   );
 }
+
+export default Orders;
