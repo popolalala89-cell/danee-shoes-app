@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getAll as getOrders, create as createOrder, updateStatus as updateOrderStatus, update as updateOrder, trackOrder } from '../lib/services/order-service';
 import { getAllDiskon } from '../lib/services/konten-service';
+import { getAll as getMenuJasa } from '../lib/services/menu-jasa-service';
 import { formatCurrency, formatDate } from '../lib/utils';
-import type { OrderRow, OrderStatus, DiskonEventRow } from '../lib/types-supabase';
+import type { OrderRow, OrderStatus, DiskonEventRow, MenuJasaRow } from '../lib/types-supabase';
 
 const ORDER_STATUSES = ['Semua', 'Waiting', 'Checking', 'Proses Repair', 'Proses Cleaning', 'Proses Pengeringan', 'Ready', 'Selesai', 'Batal'] as const;
 const TERMINAL_STATUSES = ['Selesai', 'Batal'];
@@ -87,6 +88,10 @@ function Orders() {
   const [addDiskonNama, setAddDiskonNama] = useState('');
   const [addDiskonNilai, setAddDiskonNilai] = useState('');
 
+  // Layanan list
+  const [layananList, setLayananList] = useState<MenuJasaRow[]>([]);
+  const [layananLoading, setLayananLoading] = useState(false);
+
   // Detail modal
   const [detailOrder, setDetailOrder] = useState<OrderRow | null>(null);
 
@@ -101,15 +106,21 @@ function Orders() {
 
   useEffect(() => { fetchOrders(); }, []);
 
-  // Fetch diskon events when add modal opens
+  // Fetch diskon events + layanan when add modal opens
   useEffect(() => {
     if (showAddModal) {
       setDiskonLoading(true);
+      setLayananLoading(true);
       getAllDiskon().then((res) => {
         if (res.success) {
           setAvailableDiskon((res.data || []).filter((d) => d.status === 'Aktif'));
         }
       }).finally(() => setDiskonLoading(false));
+      getMenuJasa().then((res) => {
+        if (res.success) {
+          setLayananList(res.data || []);
+        }
+      }).finally(() => setLayananLoading(false));
     }
   }, [showAddModal]);
 
@@ -363,7 +374,28 @@ function Orders() {
               <div className="modal-body">
                 <div className="form-group"><label>Nama Pelanggan</label><input type="text" className="form-control" value={addNama} onChange={(e) => setAddNama(e.target.value)} required /></div>
                 <div className="form-group"><label>Kontak WA</label><input type="text" className="form-control" value={addWa} onChange={(e) => setAddWa(e.target.value)} required /></div>
-                <div className="form-group"><label>Layanan</label><input type="text" className="form-control" value={addLayanan} onChange={(e) => setAddLayanan(e.target.value)} required /></div>
+                <div className="form-group"><label>Layanan</label>
+                  {layananLoading ? (
+                    <p className="text-muted" style={{ fontSize: '0.85rem' }}>Memuat layanan...</p>
+                  ) : (
+                    <select className="form-control" value={addLayanan} onChange={(e) => {
+                      const selected = e.target.value;
+                      setAddLayanan(selected);
+                      // Auto-fill harga
+                      const svc = layananList.find((s) => s.nama_layanan === selected);
+                      if (svc) {
+                        setAddHarga(String(svc.harga_promo ?? svc.harga));
+                      }
+                    }} required>
+                      <option value="">-- Pilih Layanan --</option>
+                      {layananList.filter((s) => s.status === 'Aktif').map((svc) => (
+                        <option key={svc.id} value={svc.nama_layanan}>
+                          {svc.nama_layanan} — {svc.kategori} ({formatCurrency(svc.harga_promo ?? svc.harga)})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
                 <div className="form-group"><label>Harga</label><input type="number" className="form-control" value={addHarga} onChange={(e) => setAddHarga(e.target.value)} min={0} required /></div>
 
                 {/* Diskon Section */}
