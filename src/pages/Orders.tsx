@@ -610,23 +610,22 @@ function Orders() {
 
   return (
     <div className="admin-main">
-      {/* Page Header — MD3 Simplified */}
-      <div className="page-header-md3">
-        <h1>Pesanan</h1>
-        <div className="page-actions">
-          <button onClick={openQRIS} title="QRIS">
-            <span className="mat-icon">qr_code_scanner</span>
-          </button>
-          <button onClick={() => { resetAddForm(); setShowAddModal(true); }} title="Tambah Order">
-            <span className="mat-icon filled">add</span>
-          </button>
-        </div>
-      </div>
-
       {/* Search Bar — MD3 */}
       <div className="search-bar-md3">
         <span className="mat-icon">search</span>
         <input type="text" placeholder="Cari kode, nama, atau WA..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+      </div>
+
+      {/* Action Buttons — QRIS + Tambah Order */}
+      <div className="row-actions">
+        <button className="btn-outline-action" onClick={openQRIS}>
+          <span className="mat-icon">qr_code_scanner</span>
+          <span>QRIS</span>
+        </button>
+        <button className="btn-fill-action" onClick={() => { resetAddForm(); setShowAddModal(true); }}>
+          <span className="mat-icon filled">add</span>
+          <span>Tambah Order</span>
+        </button>
       </div>
 
       {error && (

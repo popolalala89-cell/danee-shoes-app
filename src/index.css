@@ -53,7 +53,7 @@
   --touch-sm: 40px;
 
   /* Layout */
-  --topbar-height: 64px;
+  --topbar-height: 40px;
   --bottomnav-height: 64px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -319,9 +319,9 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
   color: var(--white);
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding-left: 8px;
-  padding-right: var(--space-md);
+  gap: 2px;
+  padding-left: 4px;
+  padding-right: var(--space-sm);
   z-index: 1100;
   box-shadow: var(--elevation-2);
 }
@@ -406,7 +406,7 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -58%);
+  transform: translate(-50%, -50%);
   width: 40px;
   height: 28px;
   background: color-mix(in srgb, var(--primary) 14%, transparent);
@@ -524,17 +524,17 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
   min-width: 0;
   height: 100%;
 }
 
-/* Hamburger button */
+/* Hamburger button — compact */
 .hamburger-admin {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   border: none;
   background: transparent;
   color: var(--white);
@@ -549,32 +549,32 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
   background: rgba(255,255,255,0.15);
 }
 .hamburger-admin .mat-icon {
-  font-size: 24px;
+  font-size: 20px;
 }
 
 .topbar-avatar {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: rgba(255,255,255,0.2);
   color: var(--white);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
+  font-size: 0.65rem;
   font-weight: 700;
   flex-shrink: 0;
 }
 
 .topbar-page-icon {
-  font-size: 20px !important;
+  font-size: 18px !important;
   color: var(--white);
-  opacity: 0.9;
+  opacity: 0.85;
   flex-shrink: 0;
 }
 
 .topbar-title {
-  font-size: 1.05rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--white);
   white-space: nowrap;
@@ -586,15 +586,15 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
   position: relative;
   height: 100%;
 }
 
 .topbar-date {
-  font-size: 0.72rem;
-  opacity: 0.85;
+  font-size: 0.65rem;
+  opacity: 0.8;
   white-space: nowrap;
   display: none;
 }
@@ -1426,6 +1426,68 @@ textarea.form-control {
 }
 .search-bar-md3 input::placeholder {
   color: #94a3b8;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ACTION BUTTONS ROW — QRIS + Tambah Order
+   ════════════════════════════════════════════════════════════════ */
+.row-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.btn-outline-action {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  color: #1e293b;
+  font-family: var(--font-family);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 40px;
+}
+.btn-outline-action:active {
+  background: #f1f5f9;
+  transform: scale(0.97);
+}
+.btn-outline-action .mat-icon {
+  font-size: 20px;
+  color: var(--primary);
+}
+.btn-fill-action {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-family: var(--font-family);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 40px;
+}
+.btn-fill-action:active {
+  background: var(--primary-dark);
+  transform: scale(0.97);
+}
+.btn-fill-action .mat-icon {
+  font-size: 20px;
 }
 
 /* Empty state MD3 */
