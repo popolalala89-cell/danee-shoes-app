@@ -5,20 +5,15 @@ import type { ProfitSharingData, ProfitHistory } from '../lib/types-supabase';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-const WALLET_META = [
-  { key: 'ownerBase', label: 'Owner (Base)', color: '#2563eb' },
-  { key: 'ownerPct', label: 'Owner (Pct)', color: '#3b82f6' },
-  { key: 'cuciBase', label: 'Cuci (Base)', color: '#059669' },
-  { key: 'cuciPct', label: 'Cuci (Pct)', color: '#10b981' },
-  { key: 'repairPct', label: 'Repair (Pct)', color: '#d97706' },
-  { key: 'adminBase', label: 'Admin (Base)', color: '#7c3aed' },
-  { key: 'adminPct', label: 'Admin (Pct)', color: '#8b5cf6' },
-  { key: 'webBase', label: 'Web (Base)', color: '#0891b2' },
-  { key: 'webPct', label: 'Web (Pct)', color: '#06b6d4' },
-  { key: 'kasBase', label: 'Kas (Base)', color: '#dc2626' },
-  { key: 'kasPct', label: 'Kas (Pct)', color: '#ef4444' },
-  { key: 'zakatPct', label: 'Zakat (Pct)', color: '#d4af37' },
-  { key: 'investorPct', label: 'Investor (Pct)', color: '#4f46e5' },
+const WALLET_GROUPS = [
+  { role: 'Owner',    base: 'ownerBase',  pct: 'ownerPct',  color: '#2563eb' },
+  { role: 'Cuci',     base: 'cuciBase',   pct: 'cuciPct',   color: '#059669' },
+  { role: 'Repair',   base: null,         pct: 'repairPct', color: '#d97706' },
+  { role: 'Admin',    base: 'adminBase',  pct: 'adminPct',  color: '#7c3aed' },
+  { role: 'Web',      base: 'webBase',    pct: 'webPct',    color: '#0891b2' },
+  { role: 'Kas',      base: 'kasBase',    pct: 'kasPct',    color: '#dc2626' },
+  { role: 'Zakat',    base: null,         pct: 'zakatPct',  color: '#d4af37' },
+  { role: 'Investor', base: null,         pct: 'investorPct', color: '#4f46e5' },
 ];
 
 const ProfitSharing: React.FC = () => {
@@ -122,15 +117,24 @@ const ProfitSharing: React.FC = () => {
             </div>
           </div>
 
-          {/* Wallet Distribution */}
+          {/* Wallet Distribution — grouped by role, base+pct combined */}
           <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-sm)' }}>Distribusi Dompet</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)' }}>
-            {WALLET_META.map((wallet) => {
-              const value = (data.dompet as any)[wallet.key] || 0;
+            {WALLET_GROUPS.map((g) => {
+              const baseVal = g.base ? ((data.dompet as any)[g.base] || 0) : 0;
+              const pctVal = g.pct ? ((data.dompet as any)[g.pct] || 0) : 0;
+              const total = baseVal + pctVal;
+              const detailParts: string[] = [];
+              if (baseVal > 0) detailParts.push(`base ${formatCurrency(baseVal)}`);
+              if (pctVal > 0) detailParts.push(`pct ${formatCurrency(pctVal)}`);
+              const detail = detailParts.join(' + ');
               return (
-                <div key={wallet.key} className="card" style={{ padding: 'var(--space-sm) var(--space-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: `3px solid ${wallet.color}` }}>
-                  <span style={{ fontSize: '0.8125rem', color: 'var(--text-gray)' }}>{wallet.label}</span>
-                  <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{formatCurrency(value)}</span>
+                <div key={g.role} className="card" style={{ padding: 'var(--space-sm) var(--space-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: `3px solid ${g.color}` }}>
+                  <div>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-gray)' }}>{g.role}</span>
+                    {detail && <div style={{ fontSize: '0.65rem', color: 'var(--text-light)', marginTop: 1 }}>{detail}</div>}
+                  </div>
+                  <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{formatCurrency(total)}</span>
                 </div>
               );
             })}
