@@ -73,12 +73,16 @@ function Orders() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addNama, setAddNama] = useState('');
   const [addWa, setAddWa] = useState('');
-  const [addLayanan, setAddLayanan] = useState('');
-  const [addHarga, setAddHarga] = useState('');
   const [addCatatan, setAddCatatan] = useState('');
   const [addTipeBayar, setAddTipeBayar] = useState('Bayar di Akhir');
   const [addReferral, setAddReferral] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Add order — cart system (multiple items per order, like AppScript)
+  interface CartItem { nama: string; harga: number; qty: number; }
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartInputLayanan, setCartInputLayanan] = useState('');
+  const [cartInputHarga, setCartInputHarga] = useState('');
 
   // Add order discount state
   const [availableDiskon, setAvailableDiskon] = useState<DiskonEventRow[]>([]);
@@ -175,14 +179,58 @@ function Orders() {
     }
   }
 
-  function handleTambahOrder(e: React.FormEvent) {
+  // ── Cart functions (seperti AppScript) ──
+
+  function addToCart() {
+    if (!cartInputLayanan.trim() || !cartInputHarga.trim()) {
+      setError('Pilih layanan terlebih dahulu'); return;
+    }
+    const harga = parseFloat(cartInputHarga);
+    if (!harga || harga <= 0) { setError('Harga tidak valid'); return; }
+
+    setCartItems(prev => {
+      const exist = prev.find(x => x.nama === cartInputLayanan && x.harga === harga);
+      if (exist) {
+        return prev.map(x =>
+          x.nama === cartInputLayanan && x.harga === harga
+            ? { ...x, qty: x.qty + 1 }
+            : x
+        );
+      }
+      return [...prev, { nama: cartInputLayanan, harga, qty: 1 }];
+    });
+    // Reset cart input
+    setCartInputLayanan('');
+    setCartInputHarga('');
+    setError(null);
+  }
+
+  function removeFromCart(idx: number) {
+    setCartItems(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  function getSubtotal(): number {
+    return cartItems.reduce((sum, item) => sum + item.harga * item.qty, 0);
+  }
+
+  function buildLayananText(): string {
+    return cartItems.map(item =>
+      `${item.nama} (${item.qty}x) @ ${formatCurrency(item.harga)}`
+    ).join(', ');
+  }
+
+  // ── End cart functions ──
+
+  function handleTambahOrder(e: React.FormEvent, closeAfterSave: boolean = false) {
     e.preventDefault();
-    if (!addNama.trim() || !addWa.trim() || !addLayanan.trim() || !addHarga.trim()) {
-      setError('Harap isi Nama, WA, Layanan, dan Harga'); return;
+    if (!addNama.trim() || !addWa.trim()) {
+      setError('Harap isi Nama dan WA'); return;
+    }
+    if (cartItems.length === 0) {
+      setError('Belum ada item pesanan. Tambah layanan ke keranjang.'); return;
     }
 
-    // Hitung diskon
-    let hargaAsli = parseFloat(addHarga) || 0;
+    const subtotal = getSubtotal();
     let potonganHarga = 0;
     let diskonTextInfo = '';
 
@@ -191,29 +239,30 @@ function Orders() {
       if (ev) {
         diskonTextInfo = ev.nama_event;
         if (ev.tipe === 'Persentase') {
-          potonganHarga = Math.round(hargaAsli * (ev.potongan / 100));
+          potonganHarga = Math.round(subtotal * (ev.potongan / 100));
           diskonTextInfo += ` (${ev.potongan}%): -${formatCurrency(potonganHarga)}`;
         } else {
           potonganHarga = ev.potongan;
-          if (potonganHarga > hargaAsli) potonganHarga = hargaAsli;
+          if (potonganHarga > subtotal) potonganHarga = subtotal;
           diskonTextInfo += `: -${formatCurrency(potonganHarga)}`;
         }
       }
     } else if (addDiskonTipe === 'Manual') {
       const namaDiskon = addDiskonNama.trim() || 'Diskon Manual';
       const nilaiDiskon = parseFloat(addDiskonNilai) || 0;
-      potonganHarga = nilaiDiskon > hargaAsli ? hargaAsli : nilaiDiskon;
+      potonganHarga = nilaiDiskon > subtotal ? subtotal : nilaiDiskon;
       diskonTextInfo = `${namaDiskon}: -${formatCurrency(potonganHarga)}`;
     }
 
-    const hargaFinal = hargaAsli - potonganHarga;
+    const hargaFinal = subtotal - potonganHarga;
+    const layananText = buildLayananText();
 
     setSubmitting(true);
     setError(null);
     createOrder({
       nama_pelanggan: addNama.trim(),
       kontak_wa: addWa.trim(),
-      layanan: addLayanan.trim(),
+      layanan: layananText,
       harga: hargaFinal,
       catatan: addCatatan.trim() || null,
       diskon_info: potonganHarga > 0 ? diskonTextInfo : null,
@@ -222,8 +271,16 @@ function Orders() {
     })
       .then((res) => {
         if (res.success) {
-          setAddSuccessMsg(`✓ ${addNama.trim()} berhasil ditambahkan`);
-          resetAddForm();
+          setAddSuccessMsg(`✓ Order berhasil dibuat untuk ${addNama.trim()} — ${cartItems.length} item`);
+          if (closeAfterSave) {
+            closeAddModal();
+          } else {
+            // Reset form but keep modal open (Tambah Lagi)
+            setAddNama(''); setAddWa(''); setAddCatatan(''); setAddTipeBayar('Bayar di Akhir');
+            setAddReferral(''); setAddDiskonTipe('Tanpa'); setAddDiskonEventId('');
+            setAddDiskonNama(''); setAddDiskonNilai(''); setCartItems([]);
+            setCartInputLayanan(''); setCartInputHarga('');
+          }
           fetchOrders();
         } else {
           setError(res.error || 'Gagal menambah order');
@@ -239,60 +296,15 @@ function Orders() {
   }
 
   function handleTambahDanTutup(e: React.FormEvent) {
-    setSubmitting(true);
-    setError(null);
-    if (!addNama.trim() || !addWa.trim() || !addLayanan.trim() || !addHarga.trim()) {
-      setError('Harap isi Nama, WA, Layanan, dan Harga'); setSubmitting(false); return;
-    }
-    let hargaAsli = parseFloat(addHarga) || 0;
-    let potonganHarga = 0;
-    let diskonTextInfo = '';
-    if (addDiskonTipe === 'Event' && addDiskonEventId) {
-      const ev = availableDiskon.find((d) => d.id === addDiskonEventId);
-      if (ev) {
-        diskonTextInfo = ev.nama_event;
-        if (ev.tipe === 'Persentase') {
-          potonganHarga = Math.round(hargaAsli * (ev.potongan / 100));
-          diskonTextInfo += ` (${ev.potongan}%): -${formatCurrency(potonganHarga)}`;
-        } else {
-          potonganHarga = ev.potongan;
-          if (potonganHarga > hargaAsli) potonganHarga = hargaAsli;
-          diskonTextInfo += `: -${formatCurrency(potonganHarga)}`;
-        }
-      }
-    } else if (addDiskonTipe === 'Manual') {
-      const namaDiskon = addDiskonNama.trim() || 'Diskon Manual';
-      const nilaiDiskon = parseFloat(addDiskonNilai) || 0;
-      potonganHarga = nilaiDiskon > hargaAsli ? hargaAsli : nilaiDiskon;
-      diskonTextInfo = `${namaDiskon}: -${formatCurrency(potonganHarga)}`;
-    }
-    const hargaFinal = hargaAsli - potonganHarga;
-    createOrder({
-      nama_pelanggan: addNama.trim(),
-      kontak_wa: addWa.trim(),
-      layanan: addLayanan.trim(),
-      harga: hargaFinal,
-      catatan: addCatatan.trim() || null,
-      diskon_info: potonganHarga > 0 ? diskonTextInfo : null,
-      tipe_pembayaran: addTipeBayar as 'Bayar di Awal' | 'Bayar di Akhir',
-      referral: addReferral.trim() || null,
-    })
-      .then((res) => {
-        if (res.success) {
-          closeAddModal();
-          fetchOrders();
-        } else {
-          setError(res.error || 'Gagal menambah order');
-        }
-      })
-      .catch((err: any) => setError(err?.message || 'Gagal menambah order'))
-      .finally(() => setSubmitting(false));
+    handleTambahOrder(e, true);
   }
 
   function resetAddForm() {
-    setAddNama(''); setAddWa(''); setAddLayanan(''); setAddHarga('');
-    setAddCatatan(''); setAddTipeBayar('Bayar di Akhir'); setAddReferral('');
-    setAddDiskonTipe('Tanpa'); setAddDiskonEventId(''); setAddDiskonNama(''); setAddDiskonNilai('');
+    setAddNama(''); setAddWa(''); setAddCatatan('');
+    setAddTipeBayar('Bayar di Akhir'); setAddReferral('');
+    setAddDiskonTipe('Tanpa'); setAddDiskonEventId('');
+    setAddDiskonNama(''); setAddDiskonNilai('');
+    setCartItems([]); setCartInputLayanan(''); setCartInputHarga('');
   }
 
   function openEdit(order: OrderRow) {
@@ -357,78 +369,80 @@ function Orders() {
     return (
       <div className="admin-main">
         <div className="admin-topbar"><h1>Pesanan</h1></div>
-        <div className="loading-overlay"><div className="loading-spinner" /><p>Memuat data pesanan...</p></div>
-      </div>
-    );
-  }
-
-  if (error && orders.length === 0) {
-    return (
-      <div className="admin-main">
-        <div className="admin-topbar"><h1>Pesanan</h1></div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem var(--space-md)', textAlign: 'center' }}>
-          <p style={{ color: 'var(--danger)', fontWeight: 600 }}>{error}</p>
-          <button className="btn btn-primary" onClick={fetchOrders} style={{ marginTop: 'var(--space-sm)' }}>Coba Lagi</button>
-        </div>
+        <div className="loading-overlay"><div className="loading-spinner" /></div>
       </div>
     );
   }
 
   return (
     <div className="admin-main">
-      {error && <div className="alert alert-danger" style={{ padding: 'var(--space-sm) var(--space-md)', color: 'var(--danger)', fontWeight: 500, marginBottom: 'var(--space-sm)', cursor: 'pointer' }} onClick={() => setError(null)}>{error}</div>}
-
       <div className="admin-topbar">
         <h1>Pesanan</h1>
-        <div className="page-header-actions">
-          <input type="text" className="form-control" placeholder="🔍 Cari nama, WA, atau ID..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ maxWidth: 200 }} />
-          <select className="form-control" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ maxWidth: 160 }}>
-            {ORDER_STATUSES.map((s) => (<option key={s} value={s}>{s}</option>))}
-          </select>
-          <button className="btn btn-outline" onClick={openQRIS}>QRIS</button>
+        <div className="admin-topbar-actions">
+          <input type="text" className="form-control" placeholder="Cari kode/nama/wa..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: 180 }} />
+          <button className="btn btn-success" onClick={openQRIS} title="QRIS Payment">💳 QRIS</button>
           <button className="btn btn-primary" onClick={() => { resetAddForm(); setShowAddModal(true); }}>+ Tambah Order</button>
         </div>
       </div>
 
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Kode</th><th>Tanggal</th><th>Nama</th><th>WA</th><th>Layanan</th><th>Harga</th><th>Status</th><th>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredOrders.length === 0 ? (
-              <tr><td colSpan={8} className="text-center text-muted">{searching ? 'Mencari...' : 'Tidak ada pesanan'}</td></tr>
-            ) : (
-              filteredOrders.map((order) => (
-                <tr key={order.id} style={{ cursor: 'pointer' }} onClick={() => setDetailOrder(order)}>
-                  <td>{order.kode || order.id?.slice(0, 8)}</td>
-                  <td>{formatDate(order.tanggal || '')}</td>
-                  <td>{order.nama_pelanggan}</td>
-                  <td>{order.kontak_wa}</td>
-                  <td>{order.layanan}</td>
-                  <td>{formatCurrency(order.harga ?? 0)}</td>
-                  <td><span className={`badge ${STATUS_CONFIG[order.status]?.cls || ''}`}>{STATUS_CONFIG[order.status]?.icon || ''} {order.status}</span></td>
-                  <td onClick={(e) => e.stopPropagation()}>{renderActionButtons(order)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      {error && (
+        <div className="alert alert-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-sm)' }}>
+          <span>{error}</span>
+          <button className="btn btn-sm btn-white" onClick={() => setError(null)} style={{ marginLeft: 8 }}>✕</button>
+        </div>
+      )}
+
+      {/* Filter tabs */}
+      <div className="filter-tabs" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 'var(--space-sm)' }}>
+        {ORDER_STATUSES.map((s) => (
+          <button key={s} className={`btn btn-sm ${filter === s ? 'btn-primary' : 'btn-white'}`} onClick={() => setFilter(s)}>
+            {s}
+          </button>
+        ))}
       </div>
+
+      {searching && <div className="loading-overlay"><div className="loading-spinner" /></div>}
+
+      {/* Orders list */}
+      {filteredOrders.length === 0 ? (
+        <div className="empty-state">
+          <p>Tidak ada pesanan.</p>
+        </div>
+      ) : (
+        <div className="card-grid">
+          {filteredOrders.map((order) => (
+            <div key={order.id} className="card order-card" onClick={() => setDetailOrder(order)}>
+              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <strong>{order.kode || order.id?.slice(0, 8)}</strong>
+                <span className={`badge ${STATUS_CONFIG[order.status]?.cls || ''}`}>
+                  {STATUS_CONFIG[order.status]?.icon || ''} {order.status}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.9rem', lineHeight: 1.6 }}>
+                <div><strong>{order.nama_pelanggan}</strong> — {order.kontak_wa}</div>
+                <div className="text-muted" style={{ fontSize: '0.8rem' }}>{order.layanan}</div>
+                <div style={{ fontWeight: 700, color: 'var(--primary)', marginTop: 4 }}>{formatCurrency(order.harga ?? 0)}</div>
+                <div className="text-muted" style={{ fontSize: '0.75rem' }}>{formatDate(order.tanggal || '')}</div>
+              </div>
+              <div className="card-actions" onClick={(e) => e.stopPropagation()} style={{ marginTop: 8 }}>
+                {renderActionButtons(order)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {loading && <div className="loading-overlay"><div className="loading-spinner" /></div>}
 
-      {/* Tambah Order Modal */}
+      {/* ─── Tambah Order Modal (Cart-based, seperti AppScript) ─── */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => closeAddModal()}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
             <div className="modal-header">
               <h3>Tambah Order</h3>
               <button className="modal-close" onClick={() => closeAddModal()}>&times;</button>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); handleTambahOrder(e); }}>
+            <form onSubmit={(e) => handleTambahOrder(e, false)}>
               <div className="modal-body">
                 {addSuccessMsg && (
                   <div style={{ background: '#dcfce7', color: '#166534', padding: 'var(--space-sm) var(--space-md)', borderRadius: 'var(--radius)', marginBottom: 'var(--space-sm)', fontSize: '0.9rem', fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -436,35 +450,92 @@ function Orders() {
                     <span style={{ fontSize: '0.75rem', color: '#166534' }}>👍</span>
                   </div>
                 )}
+
+                {/* Data Pelanggan */}
                 <div className="form-group"><label>Nama Pelanggan</label><input type="text" className="form-control" value={addNama} onChange={(e) => setAddNama(e.target.value)} required /></div>
                 <div className="form-group"><label>Kontak WA</label><input type="text" className="form-control" value={addWa} onChange={(e) => setAddWa(e.target.value)} required /></div>
-                <div className="form-group"><label>Layanan</label>
-                  {layananLoading ? (
-                    <p className="text-muted" style={{ fontSize: '0.85rem' }}>Memuat layanan...</p>
-                  ) : (
-                    <select className="form-control" value={addLayanan} onChange={(e) => {
-                      const selected = e.target.value;
-                      setAddLayanan(selected);
-                      // Auto-fill harga
-                      const svc = layananList.find((s) => s.nama_layanan === selected);
-                      if (svc) {
-                        setAddHarga(String(svc.harga_promo ?? svc.harga));
-                      }
-                    }} required>
-                      <option value="">-- Pilih Layanan --</option>
-                      {layananList.filter((s) => s.status === 'Aktif').map((svc) => (
-                        <option key={svc.id} value={svc.nama_layanan}>
-                          {svc.nama_layanan} — {svc.kategori} ({formatCurrency(svc.harga_promo ?? svc.harga)})
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                <div className="form-group"><label>Harga</label><input type="number" className="form-control" value={addHarga} onChange={(e) => setAddHarga(e.target.value)} min={0} required /></div>
 
-                {/* Diskon Section */}
+                {/* ── Cart: Tambah Item ── */}
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 'var(--space-sm)', marginTop: 'var(--space-sm)' }}>
+                  <label style={{ fontWeight: 700, color: '#1e293b', display: 'block', marginBottom: 'var(--space-xs)' }}>
+                    🛒 Item Pesanan
+                  </label>
+
+                  {/* Input: pilih layanan + tambah ke keranjang */}
+                  <div style={{ display: 'flex', gap: 'var(--space-xs)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 160 }}>
+                      {layananLoading ? (
+                        <p className="text-muted" style={{ fontSize: '0.85rem' }}>Memuat layanan...</p>
+                      ) : (
+                        <select className="form-control" value={cartInputLayanan} onChange={(e) => {
+                          const selected = e.target.value;
+                          setCartInputLayanan(selected);
+                          const svc = layananList.find((s) => s.nama_layanan === selected);
+                          if (svc) {
+                            setCartInputHarga(String(svc.harga_promo ?? svc.harga));
+                          } else {
+                            setCartInputHarga('');
+                          }
+                        }}>
+                          <option value="">-- Pilih Layanan --</option>
+                          {layananList.filter((s) => s.status === 'Aktif').map((svc) => (
+                            <option key={svc.id} value={svc.nama_layanan}>
+                              {svc.nama_layanan} — {svc.kategori} ({formatCurrency(svc.harga_promo ?? svc.harga)})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    <div style={{ width: 120 }}>
+                      <input type="number" className="form-control" value={cartInputHarga} onChange={(e) => setCartInputHarga(e.target.value)} min={0} placeholder="Harga" />
+                    </div>
+                    <button type="button" className="btn btn-primary" onClick={addToCart} disabled={!cartInputLayanan.trim() || !cartInputHarga.trim()}>
+                      + Tambah
+                    </button>
+                  </div>
+
+                  {/* Daftar item di keranjang */}
+                  <div style={{ marginTop: 'var(--space-sm)', maxHeight: 200, overflowY: 'auto' }}>
+                    {cartItems.length === 0 ? (
+                      <p className="text-muted" style={{ fontSize: '0.85rem', textAlign: 'center', padding: '10px 0' }}>
+                        Belum ada item. Pilih layanan di atas lalu klik "Tambah".
+                      </p>
+                    ) : (
+                      <>
+                        {cartItems.map((item, idx) => (
+                          <div key={idx} style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            background: '#f8fafc', padding: '6px 10px', borderRadius: 'var(--radius)',
+                            marginBottom: 4, border: '1px solid #e2e8f0', fontSize: '0.85rem'
+                          }}>
+                            <div>
+                              <strong>{item.nama}</strong> <span style={{ color: 'var(--primary)', fontWeight: 600 }}>x{item.qty}</span>
+                              <br /><span className="text-muted">{formatCurrency(item.harga)}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <strong>{formatCurrency(item.harga * item.qty)}</strong>
+                              <button type="button" onClick={() => removeFromCart(idx)} style={{
+                                background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.1rem', lineHeight: 1, padding: '2px 6px'
+                              }} title="Hapus">&times;</button>
+                            </div>
+                          </div>
+                        ))}
+                        {/* Subtotal keranjang */}
+                        <div style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          padding: '8px 10px', borderTop: '2px solid #e2e8f0', marginTop: 4, fontWeight: 700
+                        }}>
+                          <span>Subtotal ({cartItems.reduce((s, i) => s + i.qty, 0)} item)</span>
+                          <span>{formatCurrency(getSubtotal())}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Diskon Section (global untuk seluruh order) */}
                 <div className="form-group" style={{ borderTop: '1px solid #e2e8f0', paddingTop: 'var(--space-sm)', marginTop: 'var(--space-sm)' }}>
-                  <label style={{ fontWeight: 700, color: '#1e293b' }}>Diskon</label>
+                  <label style={{ fontWeight: 700, color: '#1e293b' }}>Diskon (Order)</label>
                   <select className="form-control" value={addDiskonTipe} onChange={(e) => { setAddDiskonTipe(e.target.value as any); setAddDiskonEventId(''); setAddDiskonNama(''); setAddDiskonNilai(''); }}>
                     <option value="Tanpa">Tanpa Diskon</option>
                     <option value="Event">Event Diskon</option>
@@ -507,46 +578,44 @@ function Orders() {
                 )}
 
                 {/* Ringkasan Harga Setelah Diskon */}
-                {(addDiskonTipe !== 'Tanpa') && (
-                  <div style={{ background: '#f8fafc', padding: 'var(--space-sm)', borderRadius: 'var(--radius)', marginBottom: 'var(--space-sm)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-                      <span>Harga Asli</span>
-                      <span style={{ fontWeight: 600 }}>{formatCurrency(parseFloat(addHarga) || 0)}</span>
-                    </div>
-                    {(() => {
-                      const hargaAsli = parseFloat(addHarga) || 0;
-                      let pot = 0;
-                      let lbl = '';
-                      if (addDiskonTipe === 'Event' && addDiskonEventId) {
-                        const ev = availableDiskon.find((d) => d.id === addDiskonEventId);
-                        if (ev) {
-                          if (ev.tipe === 'Persentase') { pot = Math.round(hargaAsli * (ev.potongan / 100)); }
-                          else { pot = ev.potongan; if (pot > hargaAsli) pot = hargaAsli; }
-                          lbl = ev.nama_event;
-                        }
-                      } else if (addDiskonTipe === 'Manual') {
-                        pot = parseFloat(addDiskonNilai) || 0;
-                        if (pot > hargaAsli) pot = hargaAsli;
-                        lbl = addDiskonNama.trim() || 'Diskon Manual';
-                      }
-                      const final = hargaAsli - pot;
-                      return (
-                        <>
-                          {pot > 0 && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#16a34a' }}>
-                              <span>Potongan {lbl ? `(${lbl})` : ''}</span>
-                              <span style={{ fontWeight: 600 }}>-{formatCurrency(pot)}</span>
-                            </div>
-                          )}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 700, borderTop: '1px solid #e2e8f0', paddingTop: '4px', marginTop: '4px' }}>
-                            <span>Total Akhir</span>
-                            <span style={{ color: '#16a34a' }}>{formatCurrency(final)}</span>
-                          </div>
-                        </>
-                      );
-                    })()}
+                <div style={{ background: '#f8fafc', padding: 'var(--space-sm)', borderRadius: 'var(--radius)', marginBottom: 'var(--space-sm)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                    <span>Subtotal</span>
+                    <span style={{ fontWeight: 600 }}>{formatCurrency(getSubtotal())}</span>
                   </div>
-                )}
+                  {(addDiskonTipe !== 'Tanpa') && (() => {
+                    const subtotal = getSubtotal();
+                    let pot = 0;
+                    let lbl = '';
+                    if (addDiskonTipe === 'Event' && addDiskonEventId) {
+                      const ev = availableDiskon.find((d) => d.id === addDiskonEventId);
+                      if (ev) {
+                        if (ev.tipe === 'Persentase') { pot = Math.round(subtotal * (ev.potongan / 100)); }
+                        else { pot = ev.potongan; if (pot > subtotal) pot = subtotal; }
+                        lbl = ev.nama_event;
+                      }
+                    } else if (addDiskonTipe === 'Manual') {
+                      pot = parseFloat(addDiskonNilai) || 0;
+                      if (pot > subtotal) pot = subtotal;
+                      lbl = addDiskonNama.trim() || 'Diskon Manual';
+                    }
+                    const final = subtotal - pot;
+                    return (
+                      <>
+                        {pot > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#16a34a' }}>
+                            <span>Potongan {lbl ? `(${lbl})` : ''}</span>
+                            <span style={{ fontWeight: 600 }}>-{formatCurrency(pot)}</span>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 700, borderTop: '1px solid #e2e8f0', paddingTop: '4px', marginTop: '4px' }}>
+                          <span>Total Akhir</span>
+                          <span style={{ color: '#16a34a' }}>{formatCurrency(final)}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
 
                 <div className="form-group"><label>Catatan</label><textarea className="form-control" value={addCatatan} onChange={(e) => setAddCatatan(e.target.value)} rows={2} /></div>
                 <div className="form-group"><label>Tipe Pembayaran</label>
@@ -559,8 +628,12 @@ function Orders() {
               </div>
               <div className="modal-footer" style={{ display: 'flex', gap: 'var(--space-xs)', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-white" onClick={() => closeAddModal()} disabled={submitting}>Tutup</button>
-                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Menyimpan...' : 'Tambah Lagi'}</button>
-                <button type="button" className="btn btn-success" onClick={handleTambahDanTutup} disabled={submitting}>{submitting ? 'Menyimpan...' : 'Simpan & Tutup'}</button>
+                <button type="submit" className="btn btn-primary" disabled={submitting || cartItems.length === 0}>
+                  {submitting ? 'Menyimpan...' : 'Tambah Lagi'}
+                </button>
+                <button type="button" className="btn btn-success" onClick={handleTambahDanTutup} disabled={submitting || cartItems.length === 0}>
+                  {submitting ? 'Menyimpan...' : 'Simpan & Tutup'}
+                </button>
               </div>
             </form>
           </div>

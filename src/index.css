@@ -1362,10 +1362,6 @@ textarea.form-control {
     padding-bottom: var(--space-lg);
   }
 
-  .bottom-nav {
-    display: none;
-  }
-
   .admin-main {
     max-width: 1200px;
     margin: 0 auto;
