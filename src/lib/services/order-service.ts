@@ -100,9 +100,16 @@ export async function create(
 ): Promise<ServiceResponse<OrderRow>> {
   try {
     const supabase = getSupabase();
+    
+    // Generate kode unik format ORD-XXXXXXXXX (max 15 char)
+    const unix = String(Date.now());
+    const rand = Math.floor(Math.random() * 100);
+    const generatedKode = `ORD-${unix.slice(-8)}${String(rand).padStart(2, '0')}`;
+
     const { data, error } = await supabase
       .from(TABLE)
       .insert({
+        kode: generatedKode,
         nama_pelanggan: payload.nama_pelanggan,
         kontak_wa: payload.kontak_wa || null,
         layanan: payload.layanan,
