@@ -87,6 +87,7 @@ function Orders() {
   const [addDiskonEventId, setAddDiskonEventId] = useState('');
   const [addDiskonNama, setAddDiskonNama] = useState('');
   const [addDiskonNilai, setAddDiskonNilai] = useState('');
+  const [addSuccessMsg, setAddSuccessMsg] = useState('');
 
   // Layanan list
   const [layananList, setLayananList] = useState<MenuJasaRow[]>([]);
@@ -208,6 +209,7 @@ function Orders() {
     const hargaFinal = hargaAsli - potonganHarga;
 
     setSubmitting(true);
+    setError(null);
     createOrder({
       nama_pelanggan: addNama.trim(),
       kontak_wa: addWa.trim(),
@@ -220,8 +222,64 @@ function Orders() {
     })
       .then((res) => {
         if (res.success) {
-          setShowAddModal(false);
+          setAddSuccessMsg(`✓ ${addNama.trim()} berhasil ditambahkan`);
           resetAddForm();
+          fetchOrders();
+        } else {
+          setError(res.error || 'Gagal menambah order');
+        }
+      })
+      .catch((err: any) => setError(err?.message || 'Gagal menambah order'))
+      .finally(() => setSubmitting(false));
+  }
+
+  function closeAddModal() {
+    setShowAddModal(false);
+    setAddSuccessMsg('');
+  }
+
+  function handleTambahDanTutup(e: React.FormEvent) {
+    setSubmitting(true);
+    setError(null);
+    if (!addNama.trim() || !addWa.trim() || !addLayanan.trim() || !addHarga.trim()) {
+      setError('Harap isi Nama, WA, Layanan, dan Harga'); setSubmitting(false); return;
+    }
+    let hargaAsli = parseFloat(addHarga) || 0;
+    let potonganHarga = 0;
+    let diskonTextInfo = '';
+    if (addDiskonTipe === 'Event' && addDiskonEventId) {
+      const ev = availableDiskon.find((d) => d.id === addDiskonEventId);
+      if (ev) {
+        diskonTextInfo = ev.nama_event;
+        if (ev.tipe === 'Persentase') {
+          potonganHarga = Math.round(hargaAsli * (ev.potongan / 100));
+          diskonTextInfo += ` (${ev.potongan}%): -${formatCurrency(potonganHarga)}`;
+        } else {
+          potonganHarga = ev.potongan;
+          if (potonganHarga > hargaAsli) potonganHarga = hargaAsli;
+          diskonTextInfo += `: -${formatCurrency(potonganHarga)}`;
+        }
+      }
+    } else if (addDiskonTipe === 'Manual') {
+      const namaDiskon = addDiskonNama.trim() || 'Diskon Manual';
+      const nilaiDiskon = parseFloat(addDiskonNilai) || 0;
+      potonganHarga = nilaiDiskon > hargaAsli ? hargaAsli : nilaiDiskon;
+      diskonTextInfo = `${namaDiskon}: -${formatCurrency(potonganHarga)}`;
+    }
+    const hargaFinal = hargaAsli - potonganHarga;
+    createOrder({
+      nama_pelanggan: addNama.trim(),
+      kontak_wa: addWa.trim(),
+      layanan: addLayanan.trim(),
+      harga: hargaFinal,
+      catatan: addCatatan.trim() || null,
+      diskon_info: potonganHarga > 0 ? diskonTextInfo : null,
+      tipe_pembayaran: addTipeBayar as 'Bayar di Awal' | 'Bayar di Akhir',
+      referral: addReferral.trim() || null,
+    })
+      .then((res) => {
+        if (res.success) {
+          closeAddModal();
           fetchOrders();
         } else {
           setError(res.error || 'Gagal menambah order');
@@ -364,14 +422,20 @@ function Orders() {
 
       {/* Tambah Order Modal */}
       {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+        <div className="modal-overlay" onClick={() => closeAddModal()}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Tambah Order</h3>
-              <button className="modal-close" onClick={() => setShowAddModal(false)}>&times;</button>
+              <button className="modal-close" onClick={() => closeAddModal()}>&times;</button>
             </div>
-            <form onSubmit={handleTambahOrder}>
+            <form onSubmit={(e) => { e.preventDefault(); handleTambahOrder(e); }}>
               <div className="modal-body">
+                {addSuccessMsg && (
+                  <div style={{ background: '#dcfce7', color: '#166534', padding: 'var(--space-sm) var(--space-md)', borderRadius: 'var(--radius)', marginBottom: 'var(--space-sm)', fontSize: '0.9rem', fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{addSuccessMsg}</span>
+                    <span style={{ fontSize: '0.75rem', color: '#166534' }}>👍</span>
+                  </div>
+                )}
                 <div className="form-group"><label>Nama Pelanggan</label><input type="text" className="form-control" value={addNama} onChange={(e) => setAddNama(e.target.value)} required /></div>
                 <div className="form-group"><label>Kontak WA</label><input type="text" className="form-control" value={addWa} onChange={(e) => setAddWa(e.target.value)} required /></div>
                 <div className="form-group"><label>Layanan</label>
@@ -493,9 +557,10 @@ function Orders() {
                 </div>
                 <div className="form-group"><label>Referral Code (opsional)</label><input type="text" className="form-control" value={addReferral} onChange={(e) => setAddReferral(e.target.value)} /></div>
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-white" onClick={() => setShowAddModal(false)} disabled={submitting}>Batal</button>
-                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Menyimpan...' : 'Simpan'}</button>
+              <div className="modal-footer" style={{ display: 'flex', gap: 'var(--space-xs)', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-white" onClick={() => closeAddModal()} disabled={submitting}>Tutup</button>
+                <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Menyimpan...' : 'Tambah Lagi'}</button>
+                <button type="button" className="btn btn-success" onClick={handleTambahDanTutup} disabled={submitting}>{submitting ? 'Menyimpan...' : 'Simpan & Tutup'}</button>
               </div>
             </form>
           </div>
