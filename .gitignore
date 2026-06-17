@@ -9,4 +9,5 @@ android/.idea
 *.log
 .DS_Store
 apk/
+apk-github/
 .env
