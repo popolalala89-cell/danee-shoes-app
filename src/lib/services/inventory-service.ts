@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Inventory Service
+// Danee Shoes Care — Inventory Service
 // Store inventory and bahan inventory management
 
 import { getSupabase } from '../supabase';

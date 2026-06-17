@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Order Service
+// Danee Shoes Care — Order Service
 // Full order management
 
 import { getSupabase } from '../supabase';

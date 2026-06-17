@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Admin User Service
+// Danee Shoes Care — Admin User Service
 // Manages admin users and their menu permissions
 
 import { getSupabase } from '../supabase';

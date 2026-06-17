@@ -1,40 +1,59 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getAll } from '../lib/services/menu-jasa-service';
 import { getAllActive } from '../lib/services/menu-store-service';
-import { getAll as getAllKonten } from '../lib/services/konten-service';
+import { getAll as getAllKonten, getAllDiskon } from '../lib/services/konten-service';
 import { getWaNumber } from '../lib/services/settings-service';
 import { trackOrder } from '../lib/services/order-service';
 import { formatCurrency } from '../lib/utils';
-import type { MenuJasaRow, MenuStoreRow, KontenWebRow, OrderRow } from '../lib/types-supabase';
+import type { MenuJasaRow, MenuStoreRow, KontenWebRow, OrderRow, DiskonEventRow } from '../lib/types-supabase';
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 function getStatusBadgeClass(status: string): string {
   switch (status) {
-    case 'Selesai':     return 'badge-selesai';
-    case 'Ready':       return 'badge-ready';
-    case 'Batal':       return 'badge-batal';
-    case 'Waiting':     return 'badge-waiting';
-    default:            return 'badge-proses';
+    case 'Selesai': return 'badge-selesai';
+    case 'Ready': return 'badge-ready';
+    case 'Batal': return 'badge-batal';
+    case 'Waiting': return 'badge-waiting';
+    default: return 'badge-proses';
   }
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
   Cleaning: '👟',
-  Repair:   '🔧',
+  Repair: '🔧',
 };
 
-/* ── Sections are implemented as separate named constants so
-     TypeScript can validate them — the JSX below just uses them.  */
+/* ── Carousel hook ──────────────────────────────────────────── */
+function useCarousel(length: number, interval = 4000) {
+  const [idx, setIdx] = useState(0);
+  const timer = useRef<number | null>(null);
 
+  useEffect(() => {
+    if (length <= 1) return;
+    timer.current = window.setInterval(() => setIdx((p) => (p + 1) % length), interval);
+    return () => { if (timer.current !== null) window.clearInterval(timer.current); };
+  }, [length, interval]);
+
+  const goTo = useCallback((i: number) => {
+    setIdx(i);
+    if (timer.current !== null) { window.clearInterval(timer.current); timer.current = null; }
+  }, []);
+
+  return { idx, goTo };
+}
+
+/* ── Main Component ─────────────────────────────────────────── */
 export default function Landing() {
   /* ── State ─────────────────────────────────────────────── */
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Data states
   const [loading, setLoading] = useState(true);
   const [jasaList, setJasaList] = useState<MenuJasaRow[]>([]);
   const [storeList, setStoreList] = useState<MenuStoreRow[]>([]);
   const [kontenList, setKontenList] = useState<KontenWebRow[]>([]);
+  const [diskonList, setDiskonList] = useState<DiskonEventRow[]>([]);
   const [waNumber, setWaNumber] = useState('6285111619226');
 
   // Error states per section
@@ -62,17 +81,16 @@ export default function Landing() {
     const load = async () => {
       setLoading(true);
       try {
-        // Load WA number first
         const waRes = await getWaNumber();
         if (!cancelled && waRes.success && waRes.data) {
           setWaNumber(waRes.data);
         }
 
-        // Fetch all sections in parallel
-        const [jasaRes, storeRes, kontenRes] = await Promise.all([
+        const [jasaRes, storeRes, kontenRes, diskonRes] = await Promise.all([
           getAll().catch(() => ({ success: false as const, error: 'Gagal memuat layanan' })),
           getAllActive().catch(() => ({ success: false as const, error: 'Gagal memuat produk' })),
           getAllKonten().catch(() => ({ success: false as const, error: 'Gagal memuat konten' })),
+          getAllDiskon().catch(() => ({ success: false as const, error: '' })),
         ]);
 
         if (cancelled) return;
@@ -96,6 +114,10 @@ export default function Landing() {
           setKontenError('');
         } else {
           setKontenError(kontenRes.error || 'Gagal memuat konten');
+        }
+
+        if (diskonRes.success && diskonRes.data) {
+          setDiskonList(diskonRes.data.filter((d: DiskonEventRow) => d.status === 'Aktif'));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -121,6 +143,27 @@ export default function Landing() {
   const youtube = kontenList.find(
     (k) => k.kategori === 'YouTube' && k.status === 'Aktif',
   );
+
+  // Banner items from edukasi konten (for carousel)
+  const bannerItems = edukasiList.length > 0
+    ? edukasiList.slice(0, 5)
+    : [];
+
+  // Flash sale items — services with harga_promo
+  const flashSaleItems = activeServices.filter((j) => j.harga_promo && j.harga_promo > 0);
+
+  // Filtered services/search
+  const filteredJasa = searchQuery.trim()
+    ? activeServices.filter((j) =>
+        j.nama_layanan.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : activeServices;
+
+  const filteredStore = searchQuery.trim()
+    ? storeList.filter((p) =>
+        p.nama_produk.toLowerCase().includes(searchQuery.toLowerCase()),
+      )
+    : storeList;
 
   /* ── Handlers ──────────────────────────────────────────── */
   const scrollTo = (id: string) => {
@@ -161,7 +204,7 @@ export default function Landing() {
       deliveryMethod === 'antar'
         ? 'Antar Sendiri (Drop-off)'
         : 'Jemput (Pickup)';
-    let msg = `Halo Danee Shoes & Clean! Saya ingin order jasa berikut:\n\n`;
+    let msg = `Halo Danee Shoes Care! Saya ingin order jasa berikut:\n\n`;
     msg += `*Layanan:* ${modalService.nama_layanan}\n`;
     msg += `*Harga:* ${formatCurrency(modalService.harga)}\n`;
     msg += `*Metode Penyerahan:* ${methodLabel}\n`;
@@ -173,6 +216,9 @@ export default function Landing() {
     setModalOpen(false);
     setModalService(null);
   };
+
+  // Carousel
+  const { idx: bannerIdx, goTo: goToBanner } = useCarousel(bannerItems.length, 4000);
 
   /* ── Full-page loading ────────────────────────────────── */
   if (loading) {
@@ -187,179 +233,603 @@ export default function Landing() {
   /* ── Render ───────────────────────────────────────────── */
   return (
     <>
-      {/* ── Inline responsive overrides ── */}
       <style>{`
-        .hero-danee {
-          position: relative;
-          padding: 3rem 1rem;
-          text-align: center;
-          background: linear-gradient(135deg, #034BB9 0%, #023C94 50%, #011e4a 100%);
-          overflow: hidden;
-          color: #fff;
-        }
-        .hero-danee::before {
-          content: '';
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: radial-gradient(circle at 30% 40%, rgba(255,255,255,0.06) 0%, transparent 60%);
-          pointer-events: none;
-        }
-        .hero-danee h1 {
-          font-size: 1.85rem;
-          font-weight: 800;
-          color: #fff;
-          margin-bottom: 0.5rem;
-          position: relative;
-        }
-        .hero-danee .tagline {
-          font-size: 1rem;
-          color: rgba(255,255,255,0.85);
-          font-weight: 400;
-          margin-bottom: 1.5rem;
-          position: relative;
-        }
-        .hero-danee .hero-sub {
-          font-size: 0.9rem;
-          color: rgba(255,255,255,0.7);
-          max-width: 400px;
-          margin: 0 auto 1.75rem;
-          line-height: 1.6;
-          position: relative;
-        }
-        .hero-wa-float {
-          display: inline-flex;
+        /* ===== Shopee-Style Landing ===== */
+
+        .shopee-topbar {
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          background: #fff;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+          padding: 8px 12px;
+          display: flex;
           align-items: center;
-          gap: 8px;
-          background: #25D366;
-          color: #fff;
-          padding: 14px 32px;
-          border-radius: 50px;
-          font-weight: 700;
-          font-size: 1rem;
-          box-shadow: 0 6px 20px rgba(37,211,102,0.4);
-          transition: all 0.2s ease;
-          text-decoration: none;
+          gap: 10px;
+        }
+        .shopee-topbar-logo {
+          font-size: 1.1rem;
+          font-weight: 800;
+          color: var(--primary);
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .shopee-topbar-logo span { font-size: 1.3rem; }
+        .shopee-search {
+          flex: 1;
           position: relative;
+          max-width: 400px;
         }
-        .hero-wa-float:active {
-          transform: scale(0.97);
-          box-shadow: 0 3px 12px rgba(37,211,102,0.3);
+        .shopee-search input {
+          width: 100%;
+          padding: 9px 36px 9px 14px;
+          border: none;
+          border-radius: 20px;
+          background: #f1f3f5;
+          font-size: 0.85rem;
+          outline: none;
+          color: var(--text-dark);
         }
-        .service-badge {
-          display: inline-block;
-          padding: 2px 10px;
-          border-radius: 999px;
-          font-size: 0.68rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.4px;
-        }
-        .badge-cleaning { background: #e0f2fe; color: #0369a1; }
-        .badge-repair   { background: #fef3c7; color: #92400e; }
-        .coming-soon-tag {
+        .shopee-search input::placeholder { color: #9aa0a6; }
+        .shopee-search input:focus { background: #e8eaed; }
+        .shopee-search-icon {
           position: absolute;
-          top: 8px;
-          right: 8px;
-          background: #f59e0b;
-          color: #fff;
-          font-size: 0.6rem;
-          font-weight: 700;
-          padding: 3px 8px;
-          border-radius: 999px;
-          text-transform: uppercase;
-          letter-spacing: 0.3px;
-        }
-        .dim-card {
-          opacity: 0.55;
-          filter: grayscale(0.5);
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #9aa0a6;
+          font-size: 1.1rem;
           pointer-events: none;
         }
-        .section-danee {
-          padding: 2.5rem 1rem;
-          max-width: 1100px;
-          margin: 0 auto;
+        .shopee-topbar-icons {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          color: #555;
+          font-size: 1.2rem;
         }
-        .section-danee-alt {
-          background: var(--light);
+        .shopee-topbar-icons button {
+          background: none;
+          border: none;
+          padding: 4px;
+          cursor: pointer;
+          color: inherit;
+          font-size: inherit;
+          position: relative;
         }
-        .section-title-danee {
-          text-align: center;
-          margin-bottom: 1.5rem;
+        .shopee-badge-dot {
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 8px;
+          height: 8px;
+          background: #ee4d2d;
+          border-radius: 50%;
+          border: 1.5px solid #fff;
         }
-        .section-title-danee h2 {
-          font-size: 1.35rem;
-          font-weight: 700;
-          color: var(--dark);
+
+        /* Banner Carousel */
+        .banner-carousel-wrap {
+          position: relative;
+          margin: 10px 12px;
+          border-radius: 10px;
+          overflow: hidden;
+          background: #fff;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
-        .section-title-danee h2 span {
-          color: #034BB9;
+        .banner-carousel-track {
+          display: flex;
+          transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .section-title-danee p {
-          color: var(--text-gray);
-          font-size: 0.875rem;
-          margin-top: 4px;
-        }
-        .grid-danee {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 1rem;
-        }
-        @media (min-width: 600px) {
-          .grid-danee { grid-template-columns: 1fr 1fr; }
-          .hero-danee h1 { font-size: 2.25rem; }
-        }
-        @media (min-width: 900px) {
-          .grid-danee { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
-          .hero-danee { padding: 5rem 2rem; }
-          .hero-danee h1 { font-size: 2.75rem; }
-          .section-danee { padding: 4rem 2rem; }
-        }
-        .track-result-card {
-          background: var(--white);
-          border-radius: var(--radius);
-          padding: 1rem;
-          box-shadow: var(--elevation-1);
-          margin-bottom: 0.75rem;
-        }
-        .track-result-card:last-child { margin-bottom: 0; }
-        .store-img-placeholder {
-          width: 100%;
-          height: 160px;
-          background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-          border-radius: var(--radius-sm);
-          margin-bottom: 0.75rem;
+        .banner-slide {
+          min-width: 100%;
+          aspect-ratio: 16 / 7;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 2.5rem;
+          background: linear-gradient(135deg, #f8f9ff 0%, #eef1ff 100%);
+          padding: 16px 24px;
+          text-align: center;
         }
-        .wa-footer-btn {
+        .banner-slide img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 6px;
+        }
+        .banner-slide.no-img {
+          flex-direction: column;
+          gap: 6px;
+        }
+        .banner-slide.no-img h3 {
+          font-size: 1.2rem;
+          font-weight: 700;
+          color: var(--primary);
+          margin: 0;
+        }
+        .banner-slide.no-img p {
+          font-size: 0.8rem;
+          color: var(--text-gray);
+          margin: 0;
+          max-width: 280px;
+        }
+        .banner-dots {
+          position: absolute;
+          bottom: 8px;
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          gap: 6px;
+          z-index: 2;
+        }
+        .banner-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: rgba(0,0,0,0.2);
+          border: none;
+          padding: 0;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .banner-dot.active {
+          width: 18px;
+          border-radius: 3px;
+          background: var(--primary);
+        }
+
+        /* Category grid */
+        .category-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px 8px;
+          padding: 14px 12px;
+          background: #fff;
+          margin: 0 12px 12px;
+          border-radius: 10px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .category-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+          text-decoration: none;
+          color: var(--text-dark);
+          border: none;
+          background: none;
+          padding: 0;
+          font-family: inherit;
+        }
+        .category-circle {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: #f0f4ff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.4rem;
+          transition: transform 0.15s;
+        }
+        .category-item:active .category-circle { transform: scale(0.92); }
+        .category-label {
+          font-size: 0.7rem;
+          font-weight: 500;
+          color: var(--text-dark);
+          text-align: center;
+          line-height: 1.2;
+        }
+
+        /* Flash Sale */
+        .flashsale-row {
+          display: flex;
+          gap: 10px;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          -webkit-overflow-scrolling: touch;
+          padding: 0 12px 14px;
+          scrollbar-width: none;
+        }
+        .flashsale-row::-webkit-scrollbar { display: none; }
+        .flashsale-card {
+          min-width: 130px;
+          scroll-snap-align: start;
+          background: #fff;
+          border-radius: 8px;
+          padding: 10px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+          text-align: center;
+          flex-shrink: 0;
+          border: 1px solid #fee2e2;
+        }
+        .flashsale-card .fs-icon { font-size: 1.8rem; margin-bottom: 4px; }
+        .flashsale-card .fs-name {
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: var(--text-dark);
+          margin-bottom: 4px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .flashsale-card .fs-price-old {
+          font-size: 0.68rem;
+          color: #9aa0a6;
+          text-decoration: line-through;
+        }
+        .flashsale-card .fs-price-new {
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: #ee4d2d;
+        }
+        .flashsale-card .fs-discount {
+          display: inline-block;
+          background: #ee4d2d;
+          color: #fff;
+          font-size: 0.6rem;
+          font-weight: 700;
+          padding: 1px 6px;
+          border-radius: 3px;
+          margin-top: 3px;
+        }
+
+        /* Section header (Shopee style) */
+        .shopee-section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 14px 12px 8px;
+        }
+        .shopee-section-header h2 {
+          font-size: 1rem;
+          font-weight: 700;
+          color: var(--text-dark);
+          margin: 0;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .shopee-section-header a {
+          font-size: 0.78rem;
+          color: var(--primary);
+          text-decoration: none;
+        }
+
+        /* Product/Service Grid — 2 columns like Shopee */
+        .shopee-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          padding: 0 12px 16px;
+        }
+        .shopee-card {
+          background: #fff;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+          transition: box-shadow 0.15s;
+          display: flex;
+          flex-direction: column;
+        }
+        .shopee-card:active { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+        /* Service card specific */
+        .shopee-service-top {
+          padding: 14px 12px 0;
+          text-align: center;
+        }
+        .shopee-service-icon {
+          font-size: 2.2rem;
+          margin-bottom: 4px;
+        }
+        .shopee-service-name {
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--text-dark);
+          margin-bottom: 2px;
+          line-height: 1.3;
+        }
+        .shopee-service-desc {
+          font-size: 0.72rem;
+          color: var(--text-gray);
+          line-height: 1.3;
+          margin-bottom: 6px;
+        }
+        .shopee-service-price {
+          font-size: 0.95rem;
+          font-weight: 700;
+          color: #ee4d2d;
+          margin-bottom: 10px;
+        }
+        .shopee-service-promo {
+          font-size: 0.68rem;
+          color: #9aa0a6;
+          text-decoration: line-through;
+        }
+        .shopee-card-footer {
+          display: flex;
+          gap: 6px;
+          padding: 0 10px 10px;
+          margin-top: auto;
+        }
+        .shopee-card-footer button {
+          flex: 1;
+          padding: 8px 0;
+          border-radius: 4px;
+          font-size: 0.72rem;
+          font-weight: 600;
+          border: none;
+          cursor: pointer;
+          transition: opacity 0.15s;
+        }
+        .shopee-card-footer button:active { opacity: 0.8; }
+        .btn-shopee-primary {
+          background: var(--primary);
+          color: #fff;
+        }
+        .btn-shopee-secondary {
+          background: #f0f4ff;
+          color: var(--primary);
+        }
+        .btn-shopee-disabled {
+          background: #eee;
+          color: #999;
+          cursor: not-allowed;
+        }
+
+        /* Store card specific */
+        .shopee-store-img {
+          width: 100%;
+          aspect-ratio: 1;
+          object-fit: cover;
+          background: #f8f9fa;
+          display: block;
+        }
+        .shopee-store-img-placeholder {
+          width: 100%;
+          aspect-ratio: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #f8f9fa;
+          font-size: 2.2rem;
+        }
+        .shopee-store-info {
+          padding: 8px 10px 10px;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        }
+        .shopee-store-name {
+          font-size: 0.8rem;
+          font-weight: 500;
+          color: var(--text-dark);
+          line-height: 1.3;
+          margin-bottom: 3px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .shopee-store-price {
+          font-size: 0.95rem;
+          font-weight: 700;
+          color: #ee4d2d;
+          margin-top: auto;
+        }
+
+        /* Tracking */
+        .tracking-modern {
+          background: #fff;
+          margin: 0 12px 16px;
+          border-radius: 10px;
+          padding: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .tracking-modern .track-input-row {
+          display: flex;
+          gap: 8px;
+        }
+        .tracking-modern input {
+          flex: 1;
+          padding: 10px 14px;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          outline: none;
+        }
+        .tracking-modern input:focus { border-color: var(--primary); }
+        .tracking-modern .track-btn {
+          padding: 10px 18px;
+          background: var(--primary);
+          color: #fff;
+          border: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 0.82rem;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .tracking-modern .track-btn:disabled { opacity: 0.6; }
+
+        /* Content section */
+        .konten-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          padding: 0 12px 16px;
+        }
+        .konten-card {
+          background: #fff;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+          text-align: center;
+        }
+        .konten-card img {
+          width: 100%;
+          aspect-ratio: 1;
+          object-fit: cover;
+          display: block;
+        }
+        .konten-card .konten-label {
+          padding: 8px 10px;
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: var(--text-dark);
+        }
+
+        /* Footer minimal */
+        .footer-minimal {
+          background: #fff;
+          border-top: 1px solid #f0f0f0;
+          padding: 20px 16px 28px;
+          text-align: center;
+        }
+        .footer-minimal .fm-brand {
+          font-size: 1rem;
+          font-weight: 700;
+          color: var(--primary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          margin-bottom: 8px;
+        }
+        .footer-minimal .fm-tagline {
+          font-size: 0.78rem;
+          color: var(--text-gray);
+          margin-bottom: 12px;
+        }
+        .footer-minimal .fm-links {
+          display: flex;
+          justify-content: center;
+          gap: 16px;
+          font-size: 0.82rem;
+          margin-bottom: 10px;
+          flex-wrap: wrap;
+        }
+        .footer-minimal .fm-links a {
+          color: var(--text-gray);
+          text-decoration: none;
+        }
+        .footer-minimal .fm-links a:active { color: var(--primary); }
+        .footer-minimal .fm-wa {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           background: #25D366;
           color: #fff;
-          padding: 12px 24px;
-          border-radius: 50px;
+          padding: 10px 22px;
+          border-radius: 20px;
+          font-size: 0.82rem;
           font-weight: 600;
-          font-size: 0.9rem;
           text-decoration: none;
-          transition: all 0.2s ease;
+          margin-bottom: 10px;
         }
-        .wa-footer-btn:active {
-          opacity: 0.9;
-          transform: scale(0.98);
+        .footer-minimal .fm-copy {
+          font-size: 0.72rem;
+          color: #bbb;
+        }
+
+        /* Section backgrounds */
+        .shopee-section-bg { background: #f5f5f5; }
+        .shopee-section-white { background: #fff; }
+
+        /* Hamburger overlay */
+        .hamburger-landing {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          background: none;
+          border: none;
+          font-size: 1.25rem;
+          cursor: pointer;
+          color: var(--text-dark);
+        }
+        .nav-links {
+          display: none;
+          list-style: none;
+          gap: var(--space-lg);
+          position: fixed;
+          top: 0;
+          right: -100%;
+          width: 280px;
+          height: 100vh;
+          background: var(--white);
+          flex-direction: column;
+          padding: 80px var(--space-lg) var(--space-lg);
+          box-shadow: var(--elevation-4);
+          transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 200;
+        }
+        .nav-links.open {
+          display: flex;
+          right: 0;
+        }
+        .nav-links a {
+          color: var(--text-gray);
+          font-weight: 500;
+          font-size: 0.9375rem;
+          padding: var(--space-md) 0;
+          border-bottom: 1px solid #f1f5f9;
+          display: block;
+        }
+
+        /* Misc */
+        .coming-soon-badge-shopee {
+          display: inline-block;
+          background: #f59e0b;
+          color: #fff;
+          font-size: 0.55rem;
+          font-weight: 700;
+          padding: 2px 6px;
+          border-radius: 3px;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          margin-bottom: 4px;
+        }
+        .dim-card-shopee {
+          opacity: 0.55;
+          filter: grayscale(0.4);
+          pointer-events: none;
+        }
+
+        /* Responsive */
+        @media (min-width: 600px) {
+          .shopee-grid { grid-template-columns: 1fr 1fr 1fr; }
+          .konten-grid { grid-template-columns: 1fr 1fr 1fr; }
+          .category-grid { grid-template-columns: repeat(4, 1fr); padding: 16px 24px; margin: 0 24px 16px; }
+          .banner-carousel-wrap { margin: 12px 24px; }
+          .tracking-modern { margin: 0 24px 20px; max-width: 600px; }
+          .shopee-topbar { padding: 10px 24px; }
+          .shopee-section-header { padding: 18px 24px 10px; }
+          .shopee-grid { padding: 0 24px 20px; }
+          .konten-grid { padding: 0 24px 20px; }
+          .flashsale-row { padding: 0 24px 16px; }
+        }
+        @media (min-width: 900px) {
+          .shopee-grid { grid-template-columns: repeat(4, 1fr); }
+          .konten-grid { grid-template-columns: repeat(3, 1fr); }
+          .shopee-topbar { padding: 12px 48px; }
+          .banner-carousel-wrap { margin: 16px 48px; max-width: 900px; margin-left: auto; margin-right: auto; }
+          .category-grid { max-width: 900px; margin: 0 auto 16px; }
+          .shopee-section-header { max-width: 900px; margin: 0 auto; padding-left: 0; padding-right: 0; }
+          .shopee-grid { max-width: 900px; margin: 0 auto; padding-left: 0; padding-right: 0; }
+          .konten-grid { max-width: 900px; margin: 0 auto; padding-left: 0; padding-right: 0; }
+          .flashsale-row { max-width: 900px; margin: 0 auto; padding-left: 0; padding-right: 0; }
+          .tracking-modern { margin: 0 auto 20px; }
         }
       `}</style>
 
-      {/* ===== NAVBAR ===== */}
-      <nav className="navbar">
-        <div className="navbar-brand">
-          <span style={{ fontSize: '1.3rem' }}>👟</span> Danee Shoes &amp; Clean
-        </div>
+      {/* ===== 1. TOP BAR ===== */}
+      <header className="shopee-topbar">
         <button
           className="hamburger-landing"
           onClick={() => setMenuOpen(!menuOpen)}
@@ -367,7 +837,29 @@ export default function Landing() {
         >
           {menuOpen ? '✕' : '☰'}
         </button>
-        {/* Overlay when menu open */}
+        <div className="shopee-topbar-logo">
+          <span>👟</span> Danee
+        </div>
+        <div className="shopee-search">
+          <input
+            type="text"
+            placeholder="Cari layanan atau produk..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <span className="shopee-search-icon">🔍</span>
+        </div>
+        <div className="shopee-topbar-icons">
+          <button onClick={() => scrollTo('tracking')} title="Cek order">
+            📋
+          </button>
+          <button onClick={() => window.open(WA_BASE, '_blank')} title="Hubungi kami">
+            <span>💬</span>
+            <span className="shopee-badge-dot" />
+          </button>
+        </div>
+
+        {/* Mobile drawer overlay */}
         {menuOpen && (
           <div
             style={{
@@ -382,466 +874,470 @@ export default function Landing() {
           <li><a href="#store" onClick={(e) => { e.preventDefault(); scrollTo('store'); }}>Produk</a></li>
           <li><a href="#tracking" onClick={(e) => { e.preventDefault(); scrollTo('tracking'); }}>Tracking</a></li>
           <li><a href="#konten" onClick={(e) => { e.preventDefault(); scrollTo('konten'); }}>Konten</a></li>
-          <li><a href={WA_BASE} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="mat-icon" style={{ fontSize: 18 }}>chat</span> WhatsApp</a></li>
+          <li><a href={WA_BASE} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>💬 WhatsApp</a></li>
         </ul>
-      </nav>
+      </header>
 
-      {/* ===== 1. HERO SECTION ===== */}
-      <section className="hero-danee">
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <div
-            style={{
-              display: 'inline-block',
-              background: 'rgba(255,255,255,0.15)',
-              backdropFilter: 'blur(4px)',
-              color: '#fff',
-              padding: '6px 18px',
-              borderRadius: '20px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              marginBottom: '1rem',
-            }}
-          >
-            🏆 Premium Shoe Care Service
-          </div>
-          <h1>Danee Shoes &amp; Clean</h1>
-          <p className="tagline">Cuci Sepatu &amp; Reparasi Profesional</p>
-          <p className="hero-sub">
-            Percayakan perawatan sepatu kesayanganmu kepada ahlinya.
-            Kami siap cleaning, repair, dan jual produk perawatan sepatu terbaik.
-          </p>
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap', position: 'relative' }}>
-            <a
-              href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20%26%20Clean%21%20Saya%20mau%20order%20jasa...`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hero-wa-float"
-            >
-              <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 6 }}>smartphone</span> Order via WhatsApp
-            </a>
-            <button
-              className="btn btn-outline"
-              style={{
-                background: 'rgba(255,255,255,0.12)',
-                border: '1.5px solid rgba(255,255,255,0.35)',
-                color: '#fff',
-                backdropFilter: 'blur(4px)',
-                fontSize: '0.95rem',
-                minHeight: '52px',
-                padding: '0 24px',
-              }}
-              onClick={() => scrollTo('tracking')}
-            >
-              📦 Cek Status Order
-            </button>
-          </div>
-          <div style={{ marginTop: '1.25rem' }}>
-            <a
-              href="https://maps.google.com/?q=Danee+Shoes+%26+Clean+Purwakarta"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'rgba(255,255,255,0.12)',
-                backdropFilter: 'blur(4px)',
-                padding: '7px 16px',
-                borderRadius: '20px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                color: 'rgba(255,255,255,0.85)',
-              }}
-            >
-              <span className="mat-icon" style={{ fontSize: 16, verticalAlign: 'middle', marginRight: 4 }}>location_on</span> Purwakarta, Jawa Barat
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* ===== 2. MENU JASA SECTION ===== */}
-      <section id="jasa" className="section-danee">
-        <div className="section-title-danee">
-          <h2>Menu <span>Jasa</span></h2>
-          <p>Layanan cleaning &amp; repair profesional untuk sepatu kesayanganmu</p>
-        </div>
-
-        {jasaError && (
-          <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
-            {jasaError}
-          </div>
-        )}
-
-        {!jasaError && activeServices.length === 0 && (
-          <p className="text-center text-muted">Belum ada layanan tersedia.</p>
-        )}
-
-        <div className="grid-danee">
-          {activeServices.map((service) => {
-            const isComing = service.status === 'Coming Soon';
-            return (
-              <div
-                className={`service-card${isComing ? ' dim-card' : ''}`}
-                key={service.id}
-                style={{ position: 'relative' }}
-              >
-                {isComing && <span className="coming-soon-tag">Coming Soon</span>}
-                <div className="icon">
-                  {CATEGORY_ICONS[service.kategori] || '🛠️'}
-                </div>
-                <h3>{service.nama_layanan}</h3>
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <span className={`service-badge ${
-                    service.kategori === 'Cleaning' ? 'badge-cleaning' : 'badge-repair'
-                  }`}>
-                    {service.kategori === 'Cleaning' ? '🧹 Cleaning' : '🔧 Repair'}
-                  </span>
-                </div>
-                <div className="price">
-                  {service.harga > 0 ? formatCurrency(service.harga) : 'Gratis'}
-                </div>
-                {service.deskripsi && (
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-gray)', lineHeight: 1.5, marginBottom: '0.75rem' }}>
-                    {service.deskripsi}
-                  </p>
-                )}
-                {!isComing && (
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => openDeliveryModal(service)}
-                    style={{ width: '100%' }}
-                  >
-                    <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 6 }}>smartphone</span> Order via WhatsApp
-                  </button>
-                )}
-                {isComing && (
-                  <button
-                    className="btn btn-secondary"
-                    disabled
-                    style={{ width: '100%' }}
-                  >
-                    ⏳ Segera Hadir
-                  </button>
+      {/* ===== 2. BANNER CAROUSEL ===== */}
+      <section className="banner-carousel-wrap">
+        <div
+          className="banner-carousel-track"
+          style={{ transform: `translateX(-${bannerIdx * 100}%)` }}
+        >
+          {bannerItems.length > 0 ? (
+            bannerItems.map((item) => (
+              <div className="banner-slide" key={item.id}>
+                {item.isi_konten && (item.isi_konten.startsWith('http') || item.isi_konten.startsWith('data:')) ? (
+                  <img src={item.isi_konten} alt={item.keterangan} />
+                ) : (
+                  <div className="banner-slide no-img">
+                    <h3>👟 {item.keterangan}</h3>
+                    <p>{item.isi_konten || 'Tips & edukasi perawatan sepatu dari Danee Shoes Care'}</p>
+                  </div>
                 )}
               </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ===== 3. MENU STORE SECTION ===== */}
-      <section id="store" className="section-danee section-danee-alt" style={{ padding: '2.5rem 1rem' }}>
-        <div className="section-danee" style={{ padding: 0, maxWidth: '1100px', margin: '0 auto' }}>
-          <div className="section-title-danee">
-            <h2>Store <span>Produk</span></h2>
-            <p>Produk perawatan sepatu original dan berkualitas</p>
-          </div>
-
-          {storeError && (
-            <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
-              {storeError}
+            ))
+          ) : (
+            <div className="banner-slide no-img">
+              <h3>👟 Danee Shoes Care</h3>
+              <p>Cuci Sepatu & Reparasi Profesional — Purwakarta</p>
+              <a
+                href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20Care`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-shopee-primary"
+                style={{
+                  display: 'inline-block',
+                  padding: '10px 24px',
+                  borderRadius: 20,
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  marginTop: 8,
+                }}
+              >
+                💬 Order Sekarang
+              </a>
             </div>
           )}
-
-          {!storeError && storeList.length === 0 && (
-            <p className="text-center text-muted">Belum ada produk tersedia.</p>
-          )}
-
-          <div className="grid-danee">
-            {storeList.map((product) => {
-              const outOfStock = product.stok <= 0;
-              return (
-                <div
-                  className={`card${outOfStock ? ' dim-card' : ''}`}
-                  key={product.id}
-                  style={{ textAlign: 'center', position: 'relative' }}
-                >
-                  {outOfStock && <span className="coming-soon-tag" style={{ background: '#ef4444' }}>Stok Habis</span>}
-                  {product.link_foto ? (
-                    <img
-                      src={product.link_foto}
-                      alt={product.nama_produk}
-                      style={{
-                        width: '100%', height: '180px', objectFit: 'cover',
-                        borderRadius: 'var(--radius-sm)', marginBottom: '0.75rem',
-                      }}
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="store-img-placeholder">🛍️</div>
-                  )}
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-dark)', marginBottom: '0.4rem' }}>
-                    {product.nama_produk}
-                  </h3>
-                  <div className="price" style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>
-                    {formatCurrency(product.harga)}
-                  </div>
-                  <div style={{ marginBottom: '0.75rem' }}>
-                    {!outOfStock ? (
-                      <span className="badge badge-selesai" style={{ fontSize: '0.7rem' }}>
-                        Stok: {product.stok}
-                      </span>
-                    ) : (
-                      <span className="badge badge-batal" style={{ fontSize: '0.7rem' }}>
-                        Stok Habis
-                      </span>
-                    )}
-                  </div>
-                  {product.deskripsi && (
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-gray)', lineHeight: 1.5, marginBottom: '0.75rem' }}>
-                      {product.deskripsi}
-                    </p>
-                  )}
-                  {!outOfStock && (
-                    <button
-                      className="btn btn-primary"
-                      style={{ width: '100%' }}
-                      onClick={() => {
-                        let msg = `Halo Danee Shoes & Clean! Saya tertarik dengan produk berikut:\n\n`;
-                        msg += `*Produk:* ${product.nama_produk}\n`;
-                        msg += `*Harga:* ${formatCurrency(product.harga)}\n`;
-                        msg += `*Stok:* ${product.stok}\n`;
-                        if (product.link_marketplace) msg += `\nAtau lihat di marketplace: ${product.link_marketplace}`;
-                        msg += `\n\nTerima kasih.`;
-                        window.open(`${WA_BASE}?text=${encodeURIComponent(msg)}`, '_blank');
-                      }}
-                    >
-                      <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 6 }}>shopping_cart</span> Beli via WhatsApp
-                    </button>
-                  )}
-                  {outOfStock && (
-                    <button className="btn btn-secondary" disabled style={{ width: '100%' }}>
-                      Stok Habis
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
         </div>
-      </section>
-
-      {/* ===== 4. TRACK ORDER SECTION ===== */}
-      <section id="tracking" className="section-danee">
-        <div className="section-title-danee">
-          <h2>Cek <span>Status Order</span></h2>
-          <p>Masukkan kode order atau nama kamu untuk melacak status pesanan</p>
-        </div>
-
-        <div className="tracking-form">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Cari order (kode / nama)..."
-            value={trackKeyword}
-            onChange={(e) => setTrackKeyword(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleTrack(); }}
-          />
-          <button
-            className="btn btn-primary"
-            onClick={handleTrack}
-            disabled={trackLoading}
-            style={{ whiteSpace: 'nowrap' }}
-          >
-            {trackLoading ? '⚙️ Mencari...' : '🔍 Cek'}
-          </button>
-        </div>
-
-        {trackError && (
-          <p style={{ textAlign: 'center', color: 'var(--danger)', marginTop: '1rem', fontWeight: 600 }}>
-            {trackError}
-          </p>
-        )}
-
-        {trackResult && trackResult.length > 0 && (
-          <div style={{ marginTop: '1.5rem', maxWidth: '500px', margin: '1.5rem auto 0' }}>
-            <p style={{ textAlign: 'center', color: 'var(--text-gray)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-              {trackResult.length} order ditemukan
-            </p>
-            {trackResult.map((order) => (
-              <div className="track-result-card" key={order.id}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.85rem' }}>
-                    #{order.kode}
-                  </span>
-                  <span className={`badge ${getStatusBadgeClass(order.status)}`}>
-                    {order.status}
-                  </span>
-                </div>
-                <p style={{ fontSize: '0.88rem', marginBottom: '0.3rem' }}>
-                  <strong>Nama:</strong> {order.nama_pelanggan}
-                </p>
-                <p style={{ fontSize: '0.88rem', marginBottom: '0.3rem' }}>
-                  <strong>Layanan:</strong> {order.layanan}
-                </p>
-                <p style={{ fontSize: '0.88rem', marginBottom: '0.3rem' }}>
-                  <strong>Harga:</strong> {formatCurrency(order.harga)}
-                </p>
-                {order.tanggal && (
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-gray)' }}>
-                    📅 {new Date(order.tanggal).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' })}
-                  </p>
-                )}
-                {order.catatan && (
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-gray)', marginTop: '0.3rem', fontStyle: 'italic' }}>
-                    CATATAN: {order.catatan}
-                  </p>
-                )}
-                {order.diskon_info && (
-                  <p style={{ fontSize: '0.82rem', color: 'var(--success)', marginTop: '0.3rem', fontWeight: 600 }}>
-                    💰 Diskon: {order.diskon_info}
-                  </p>
-                )}
-              </div>
+        {bannerItems.length > 1 && (
+          <div className="banner-dots">
+            {bannerItems.map((_, i) => (
+              <button
+                key={i}
+                className={`banner-dot${i === bannerIdx ? ' active' : ''}`}
+                onClick={() => goToBanner(i)}
+              />
             ))}
           </div>
         )}
       </section>
 
-      {/* ===== 5. OUR CONTENT SECTION ===== */}
-      <section id="konten" className="section-danee section-danee-alt" style={{ padding: '2.5rem 1rem' }}>
-        <div className="section-danee" style={{ padding: 0, maxWidth: '1100px', margin: '0 auto' }}>
-          <div className="section-title-danee">
-            <h2>Our <span>Content</span></h2>
-            <p>Tips edukasi &amp; testimoni dari pelanggan kami</p>
+      {/* ===== 3. KATEGORI LAYANAN ===== */}
+      <section className="category-grid">
+        <button className="category-item" onClick={() => scrollTo('jasa')}>
+          <div className="category-circle">👟</div>
+          <span className="category-label">Cleaning</span>
+        </button>
+        <button className="category-item" onClick={() => scrollTo('jasa')}>
+          <div className="category-circle">🔧</div>
+          <span className="category-label">Repair</span>
+        </button>
+        <button className="category-item" onClick={() => scrollTo('store')}>
+          <div className="category-circle">🛍️</div>
+          <span className="category-label">Produk</span>
+        </button>
+        <button className="category-item" onClick={() => scrollTo('konten')}>
+          <div className="category-circle">📖</div>
+          <span className="category-label">Tips</span>
+        </button>
+        <button className="category-item" onClick={() => scrollTo('tracking')}>
+          <div className="category-circle">📦</div>
+          <span className="category-label">Tracking</span>
+        </button>
+        {instagram && (
+          <a className="category-item" href={instagram.isi_konten} target="_blank" rel="noopener noreferrer">
+            <div className="category-circle">📷</div>
+            <span className="category-label">Instagram</span>
+          </a>
+        )}
+        {youtube && (
+          <a className="category-item" href={youtube.isi_konten} target="_blank" rel="noopener noreferrer">
+            <div className="category-circle">▶️</div>
+            <span className="category-label">YouTube</span>
+          </a>
+        )}
+        <a className="category-item" href={WA_BASE} target="_blank" rel="noopener noreferrer">
+          <div className="category-circle" style={{ background: '#e8f5e9' }}>💬</div>
+          <span className="category-label">WhatsApp</span>
+        </a>
+      </section>
+
+      {/* ===== 4. FLASH SALE / PROMO ===== */}
+      {flashSaleItems.length > 0 && (
+        <section className="shopee-section-white" style={{ paddingTop: 4, paddingBottom: 4 }}>
+          <div className="shopee-section-header">
+            <h2>⚡ Flash Sale</h2>
+            <a href="#jasa" onClick={(e) => { e.preventDefault(); scrollTo('jasa'); }}>Lihat Semua</a>
+          </div>
+          <div className="flashsale-row">
+            {flashSaleItems.map((item) => {
+              const diskonPct = item.harga > 0
+                ? Math.round(((item.harga - (item.harga_promo || 0)) / item.harga) * 100)
+                : 0;
+              return (
+                <div className="flashsale-card" key={item.id} onClick={() => openDeliveryModal(item)}>
+                  <div className="fs-icon">{CATEGORY_ICONS[item.kategori] || '🛠️'}</div>
+                  <div className="fs-name">{item.nama_layanan}</div>
+                  <div className="fs-price-old">{formatCurrency(item.harga)}</div>
+                  <div className="fs-price-new">{formatCurrency(item.harga_promo || 0)}</div>
+                  <div className="fs-discount">-{diskonPct}%</div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ===== 5. DAFTAR LAYANAN ===== */}
+      <section id="jasa" className="shopee-section-bg" style={{ paddingTop: 8, paddingBottom: 4 }}>
+        <div className="shopee-section-header">
+          <h2>🛒 Layanan</h2>
+          <a href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20Care%20Saya%20mau%20order...`} target="_blank" rel="noopener noreferrer">Hubungi Kami</a>
+        </div>
+
+        {jasaError && (
+          <div className="alert alert-danger" style={{ margin: '0 12px 12px' }}>
+            {jasaError}
+          </div>
+        )}
+
+        {!jasaError && filteredJasa.length === 0 && (
+          <p className="text-center text-muted" style={{ padding: '20px 12px' }}>
+            {searchQuery ? `Tidak ada layanan untuk "${searchQuery}"` : 'Belum ada layanan tersedia.'}
+          </p>
+        )}
+
+        {!jasaError && filteredJasa.length > 0 && (
+          <div className="shopee-grid">
+            {filteredJasa.map((service) => {
+              const isComing = service.status === 'Coming Soon';
+              const hasPromo = service.harga_promo && service.harga_promo > 0;
+              return (
+                <div
+                  className={`shopee-card${isComing ? ' dim-card-shopee' : ''}`}
+                  key={service.id}
+                >
+                  <div className="shopee-service-top">
+                    {isComing && <div className="coming-soon-badge-shopee">Coming Soon</div>}
+                    <div className="shopee-service-icon">
+                      {CATEGORY_ICONS[service.kategori] || '🛠️'}
+                    </div>
+                    <div className="shopee-service-name">{service.nama_layanan}</div>
+                    {service.deskripsi && (
+                      <div className="shopee-service-desc">{service.deskripsi}</div>
+                    )}
+                    <div className="shopee-service-price">
+                      {hasPromo ? (
+                        <>
+                          {formatCurrency(service.harga_promo || 0)}{' '}
+                          <span className="shopee-service-promo">{formatCurrency(service.harga)}</span>
+                        </>
+                      ) : (
+                        service.harga > 0 ? formatCurrency(service.harga) : 'Gratis'
+                      )}
+                    </div>
+                  </div>
+                  <div className="shopee-card-footer">
+                    {!isComing ? (
+                      <button
+                        className="btn-shopee-primary"
+                        onClick={() => openDeliveryModal(service)}
+                      >
+                        💬 Order
+                      </button>
+                    ) : (
+                      <button className="btn-shopee-disabled">
+                        ⏳ Segera
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ===== 6. PRODUK STORE ===== */}
+      <section id="store" className="shopee-section-white" style={{ paddingTop: 8, paddingBottom: 4 }}>
+        <div className="shopee-section-header">
+          <h2>🏪 Produk</h2>
+          <a href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20Care%20Saya%20tertarik%20dengan%20produk...`} target="_blank" rel="noopener noreferrer">Tanya Stok</a>
+        </div>
+
+        {storeError && (
+          <div className="alert alert-danger" style={{ margin: '0 12px 12px' }}>
+            {storeError}
+          </div>
+        )}
+
+        {!storeError && filteredStore.length === 0 && (
+          <p className="text-center text-muted" style={{ padding: '20px 12px' }}>
+            {searchQuery ? `Tidak ada produk untuk "${searchQuery}"` : 'Belum ada produk tersedia.'}
+          </p>
+        )}
+
+        {!storeError && filteredStore.length > 0 && (
+          <div className="shopee-grid">
+            {filteredStore.map((product) => {
+              const outOfStock = product.stok <= 0;
+              return (
+                <div
+                  className={`shopee-card${outOfStock ? ' dim-card-shopee' : ''}`}
+                  key={product.id}
+                >
+                  {product.link_foto ? (
+                    <img
+                      className="shopee-store-img"
+                      src={product.link_foto}
+                      alt={product.nama_produk}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="shopee-store-img-placeholder">🛍️</div>
+                  )}
+                  <div className="shopee-store-info">
+                    <div className="shopee-store-name">{product.nama_produk}</div>
+                    <div className="shopee-store-price">
+                      {product.harga_promo && product.harga_promo > 0 ? (
+                        <>
+                          {formatCurrency(product.harga_promo)}{' '}
+                          <span className="shopee-service-promo">{formatCurrency(product.harga)}</span>
+                        </>
+                      ) : (
+                        formatCurrency(product.harga)
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.65rem', color: outOfStock ? '#ef4444' : '#10b981', fontWeight: 600, marginTop: 2 }}>
+                      {outOfStock ? 'Stok Habis' : `Stok: ${product.stok}`}
+                    </div>
+                  </div>
+                  <div className="shopee-card-footer">
+                    {!outOfStock ? (
+                      <button
+                        className="btn-shopee-primary"
+                        onClick={() => {
+                          let msg = `Halo Danee Shoes Care! Saya tertarik dengan produk berikut:\n\n`;
+                          msg += `*Produk:* ${product.nama_produk}\n`;
+                          msg += `*Harga:* ${formatCurrency(product.harga)}\n`;
+                          msg += `*Stok:* ${product.stok}\n`;
+                          if (product.link_marketplace) msg += `\nAtau lihat di marketplace: ${product.link_marketplace}`;
+                          msg += `\n\nTerima kasih.`;
+                          window.open(`${WA_BASE}?text=${encodeURIComponent(msg)}`, '_blank');
+                        }}
+                      >
+                        🛒 Beli
+                      </button>
+                    ) : (
+                      <button className="btn-shopee-disabled">
+                        Habis
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ===== 7. TRACKING ORDER ===== */}
+      <section id="tracking" className="shopee-section-bg" style={{ paddingTop: 12, paddingBottom: 8 }}>
+        <div className="shopee-section-header">
+          <h2>📦 Cek Order</h2>
+        </div>
+
+        <div className="tracking-modern">
+          <div className="track-input-row">
+            <input
+              type="text"
+              placeholder="Cari order (kode / nama)..."
+              value={trackKeyword}
+              onChange={(e) => setTrackKeyword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleTrack(); }}
+            />
+            <button
+              className="track-btn"
+              onClick={handleTrack}
+              disabled={trackLoading}
+            >
+              {trackLoading ? '⚙️' : '🔍 Cari'}
+            </button>
           </div>
 
-          {kontenError && (
-            <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
-              {kontenError}
-            </div>
+          {trackError && (
+            <p style={{ textAlign: 'center', color: '#ef4444', marginTop: '12px', fontSize: '0.82rem', fontWeight: 600 }}>
+              {trackError}
+            </p>
           )}
 
-          {/* Edukasi */}
-          {!kontenError && edukasiList.length > 0 && (
-            <div style={{ marginBottom: '2rem' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--dark)', marginBottom: '1rem', textAlign: 'center' }}>
-                📖 Tips &amp; Edukasi
-              </h3>
-              <div className="grid-danee">
-                {edukasiList.map((item) => (
-                  <div className="card" key={item.id} style={{ textAlign: 'center' }}>
-                    {item.isi_konten && (
-                      <img
-                        src={item.isi_konten}
-                        alt={item.keterangan}
-                        style={{
-                          width: '100%', height: '180px', objectFit: 'cover',
-                          borderRadius: 'var(--radius-sm)', marginBottom: '0.75rem',
-                        }}
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    )}
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-dark)' }}>
-                      {item.keterangan}
-                    </h4>
+          {trackResult && trackResult.length > 0 && (
+            <div style={{ marginTop: '14px' }}>
+              <p style={{ textAlign: 'center', color: 'var(--text-gray)', fontSize: '0.78rem', marginBottom: '10px' }}>
+                {trackResult.length} order ditemukan
+              </p>
+              {trackResult.map((order) => (
+                <div
+                  key={order.id}
+                  style={{
+                    background: '#f8f9fa',
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    marginBottom: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.8rem' }}>
+                      #{order.kode}
+                    </span>
+                    <span className={`badge ${getStatusBadgeClass(order.status)}`} style={{ fontSize: '0.68rem' }}>
+                      {order.status}
+                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Testimoni */}
-          {!kontenError && testimoniList.length > 0 && (
-            <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--dark)', marginBottom: '1rem', textAlign: 'center' }}>
-                <span className="mat-icon" style={{ fontSize: 20, verticalAlign: 'middle', marginRight: 6, color: 'var(--warning)' }}>star</span> Testimoni Pelanggan
-              </h3>
-              <div className="grid-danee">
-                {testimoniList.map((item) => (
-                  <div className="card" key={item.id} style={{ textAlign: 'center' }}>
-                    {item.isi_konten && (
-                      <img
-                        src={item.isi_konten}
-                        alt={item.keterangan}
-                        style={{
-                          width: '64px', height: '64px', borderRadius: '50%',
-                          objectFit: 'cover', marginBottom: '0.75rem',
-                          border: '3px solid #034BB9',
-                        }}
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    )}
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-dark)' }}>
-                      {item.keterangan}
-                    </h4>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dark)', lineHeight: 1.6 }}>
+                    <strong>Nama:</strong> {order.nama_pelanggan}<br />
+                    <strong>Layanan:</strong> {order.layanan}<br />
+                    <strong>Harga:</strong> {formatCurrency(order.harga)}
                   </div>
-                ))}
-              </div>
+                  {order.tanggal && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-gray)', marginTop: 4 }}>
+                      📅 {new Date(order.tanggal).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </div>
+                  )}
+                  {order.catatan && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-gray)', marginTop: 2, fontStyle: 'italic' }}>
+                      CATATAN: {order.catatan}
+                    </div>
+                  )}
+                  {order.diskon_info && (
+                    <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: 2, fontWeight: 600 }}>
+                      💰 Diskon: {order.diskon_info}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          )}
-
-          {!kontenError && edukasiList.length === 0 && testimoniList.length === 0 && (
-            <p className="text-center text-muted">Belum ada konten edukasi atau testimoni.</p>
           )}
         </div>
       </section>
 
-      {/* ===== 6. FOOTER ===== */}
-      <footer className="footer">
-        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>👟</span> Danee Shoes &amp; Clean
-          </div>
-          <p style={{ color: '#94a3b8', marginBottom: '0.75rem', fontSize: '0.9rem' }}>
-            Cuci Sepatu &amp; Reparasi Profesional – Purwakarta
-          </p>
-
-          <div style={{ marginBottom: '1.25rem' }}>
-            <a
-              href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20%26%20Clean%21`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="wa-footer-btn"
-            >
-              <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 6 }}>chat</span> Hubungi via WhatsApp
-            </a>
-          </div>
-
-          <div className="footer-links">
-            <a href="#jasa" onClick={(e) => { e.preventDefault(); scrollTo('jasa'); }}>Layanan</a>
-            <a href="#store" onClick={(e) => { e.preventDefault(); scrollTo('store'); }}>Produk</a>
-            <a href="#tracking" onClick={(e) => { e.preventDefault(); scrollTo('tracking'); }}>Tracking</a>
-            <a href="#konten" onClick={(e) => { e.preventDefault(); scrollTo('konten'); }}>Konten</a>
-          </div>
-
-          {/* Social */}
-          <div className="footer-links" style={{ fontSize: '0.85rem' }}>
-            {instagram && (
-              <a href={instagram.isi_konten} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#94a3b8' }}>
-                📷 Instagram
-              </a>
+      {/* ===== 8. KONTEN + TESTIMONI ===== */}
+      <section id="konten" className="shopee-section-white" style={{ paddingTop: 8, paddingBottom: 4 }}>
+        {!kontenError && (edukasiList.length > 0 || testimoniList.length > 0) ? (
+          <>
+            {edukasiList.length > 0 && (
+              <>
+                <div className="shopee-section-header">
+                  <h2>📖 Edukasi</h2>
+                </div>
+                <div className="konten-grid">
+                  {edukasiList.map((item) => (
+                    <div className="konten-card" key={item.id}>
+                      {item.isi_konten && (
+                        <img
+                          src={item.isi_konten}
+                          alt={item.keterangan}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <div className="konten-label">{item.keterangan}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
-            {youtube && (
-              <a href={youtube.isi_konten} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#94a3b8' }}>
-                ▶️ YouTube
-              </a>
+
+            {testimoniList.length > 0 && (
+              <>
+                <div className="shopee-section-header" style={{ paddingTop: 4 }}>
+                  <h2>⭐ Testimoni</h2>
+                </div>
+                <div className="konten-grid">
+                  {testimoniList.map((item) => (
+                    <div className="konten-card" key={item.id}>
+                      {item.isi_konten && (
+                        <img
+                          src={item.isi_konten}
+                          alt={item.keterangan}
+                          style={{ borderRadius: '50%', width: 64, height: 64, objectFit: 'cover', margin: '16px auto 0' }}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <div className="konten-label" style={{ padding: '10px' }}>⭐ {item.keterangan}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
-            <a href={WA_BASE} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#94a3b8' }}>
-              <span className="mat-icon" style={{ fontSize: 16, verticalAlign: 'middle', marginRight: 4 }}>chat</span> WhatsApp
-            </a>
-            <a href="https://maps.google.com/?q=Danee+Shoes+%26+Clean+Purwakarta" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#94a3b8' }}>
-              <span className="mat-icon" style={{ fontSize: 16, verticalAlign: 'middle', marginRight: 4 }}>location_on</span> Google Maps
-            </a>
+          </>
+        ) : kontenError ? (
+          <div className="alert alert-danger" style={{ margin: '0 12px 12px' }}>
+            {kontenError}
           </div>
-
-          <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.08)', margin: '1rem 0' }} />
-
-          <div className="footer-links" style={{ fontSize: '0.8rem', gap: '16px' }}>
-            <a href="/login" style={{ color: '#64748b' }}>
-              <span className="mat-icon" style={{ fontSize: 16, verticalAlign: 'middle', marginRight: 4 }}>lock</span> Admin
-            </a>
-          </div>
-
-          <p style={{ fontSize: '0.82rem', color: '#64748b' }}>
-            &copy; {new Date().getFullYear()} Danee Shoes &amp; Clean. All rights reserved.
+        ) : (
+          <p className="text-center text-muted" style={{ padding: '20px 12px' }}>
+            Belum ada konten edukasi atau testimoni.
           </p>
+        )}
+      </section>
+
+      {/* ===== 9. FOOTER MINIMAL ===== */}
+      <footer className="footer-minimal">
+        <div className="fm-brand">
+          <span>👟</span> Danee Shoes Care
+        </div>
+        <div className="fm-tagline">
+          Cuci Sepatu & Reparasi Profesional — Purwakarta
+        </div>
+        <a
+          href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20Care`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fm-wa"
+        >
+          💬 Hubungi via WhatsApp
+        </a>
+        <div className="fm-links">
+          {instagram && (
+            <a href={instagram.isi_konten} target="_blank" rel="noopener noreferrer">
+              📷 Instagram
+            </a>
+          )}
+          {youtube && (
+            <a href={youtube.isi_konten} target="_blank" rel="noopener noreferrer">
+              ▶️ YouTube
+            </a>
+          )}
+          <a href={WA_BASE} target="_blank" rel="noopener noreferrer">
+            💬 WhatsApp
+          </a>
+          <a href="https://maps.google.com/?q=Danee+Shoes+Care+Purwakarta" target="_blank" rel="noopener noreferrer">
+            📍 Maps
+          </a>
+          <a href="/login">
+            🔐 Admin
+          </a>
+        </div>
+        <div className="fm-copy">
+          &copy; {new Date().getFullYear()} Danee Shoes Care
         </div>
       </footer>
 
@@ -923,7 +1419,7 @@ export default function Landing() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-white" onClick={() => setModalOpen(false)}>Batal</button>
-              <button className="btn btn-primary" onClick={confirmOrder}>✅ Konfirmasi &amp; Order via WA</button>
+              <button className="btn btn-primary" onClick={confirmOrder}>✅ Konfirmasi & Order via WA</button>
             </div>
           </div>
         </div>

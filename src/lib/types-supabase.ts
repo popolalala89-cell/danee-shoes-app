@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Supabase Type Definitions
+// Danee Shoes Care — Supabase Type Definitions
 // Using snake_case to match SQL schema column names
 
 // ===== Tables =====

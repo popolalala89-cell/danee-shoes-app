@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Menu Store Service
+// Danee Shoes Care — Menu Store Service
 // Full CRUD for menu_store table
 // inventory_store is auto-synced by DB trigger
 

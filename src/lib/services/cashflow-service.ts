@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Cashflow Service
+// Danee Shoes Care — Cashflow Service
 // Cashflow management with filtering and summary
 
 import { getSupabase } from '../supabase';

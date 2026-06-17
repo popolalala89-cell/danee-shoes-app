@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Settings Service
+// Danee Shoes Care — Settings Service
 // Theme, WhatsApp number, and generic key-value settings
 
 import { getSupabase } from '../supabase';

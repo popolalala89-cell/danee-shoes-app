@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Profit Sharing Service
+// Danee Shoes Care — Profit Sharing Service
 // Ported from GAS Code.js profit sharing engine
 
 import { getSupabase } from '../supabase';

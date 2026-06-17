@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Type Definitions
+// Danee Shoes Care — Type Definitions
 // Matching GAS backend exactly
 
 export interface MenuJasa {

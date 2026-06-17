@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Admin Sub-Routing
+// Danee Shoes Care — Admin Sub-Routing
 // All routes under /admin/* are rendered here
 
 import React from 'react';

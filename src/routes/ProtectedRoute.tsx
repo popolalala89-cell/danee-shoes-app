@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Protected Route
+// Danee Shoes Care — Protected Route
 // Redirects unauthenticated users to /login
 
 import React from 'react';

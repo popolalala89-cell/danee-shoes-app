@@ -2,7 +2,7 @@
 
 > **Versi:** 1.0 | **Terakhir diupdate:** 16 Juni 2026
 >
-> **PERHATIAN:** Kamu adalah AI agent yang bekerja di project **Danee Shoes & Clean**.
+> **PERHATIAN:** Kamu adalah AI agent yang bekerja di project **Danee Shoes Care**.
 > BACA SELURUH file ini SEBELUM menulis atau mengubah kode apa pun.
 > File ini adalah **kontrak kerja** antara human (Pa Popo) dan AI agent (kamu).
 
@@ -111,7 +111,7 @@ Semua backend baru menggunakan **Supabase**.
 ## 🧠 Konteks Project
 
 ### Apa ini?
-**Danee Shoes & Clean** — aplikasi manajemen bisnis cuci sepatu & reparasi di Purwakarta.
+**Danee Shoes Care** — aplikasi manajemen bisnis cuci sepatu & reparasi di Purwakarta.
 Fitur: Landing page publik + Admin panel (11 menu) untuk mengelola order, inventory, cashflow, profit sharing.
 
 ### Tech Stack

@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Menu Jasa Service
+// Danee Shoes Care — Menu Jasa Service
 // Full CRUD for menu_jasa table
 
 import { getSupabase } from '../supabase';

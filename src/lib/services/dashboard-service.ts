@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Dashboard Service
+// Danee Shoes Care — Dashboard Service
 // Dashboard summary and leaderboard
 
 import { getSupabase } from '../supabase';

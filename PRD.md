@@ -10,7 +10,7 @@
 ## 1. RINGKASAN PROJEK
 
 ### 1.1 Visi
-Danee Shoes & Clean adalah bisnis cuci sepatu dan perbaikan sepatu di Purwakarta.
+Danee Shoes Care adalah bisnis cuci sepatu dan perbaikan sepatu di Purwakarta.
 Aplikasi ini terdiri dari:
 - **Landing Page** — Website publik untuk pelanggan (order, tracking, info)
 - **Admin Panel** — Dashboard manajemen untuk pemilik bisnis
@@ -615,7 +615,7 @@ Batal           → #EF4444 (red)
 
 ### 8.1 Sections
 1. **Header/Navbar**
-   - Logo "Danee Shoes & Clean"
+   - Logo "Danee Shoes Care"
    - Menu: Layanan, Store, Tracking, Kontak
    - Tombol "Admin" (link ke /login)
 

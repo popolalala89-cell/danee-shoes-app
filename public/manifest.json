@@ -1,7 +1,7 @@
 {
-  "name": "Danee Shoes & Clean",
+  "name": "Danee Shoes Care",
   "short_name": "Danee",
-  "description": "Aplikasi kasir & manajemen Danee Shoes & Clean",
+  "description": "Aplikasi kasir & manajemen Danee Shoes Care",
   "start_url": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],

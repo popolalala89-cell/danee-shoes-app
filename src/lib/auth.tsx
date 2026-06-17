@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Auth Context
+// Danee Shoes Care — Auth Context
 // Provides auth state management via Supabase
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';

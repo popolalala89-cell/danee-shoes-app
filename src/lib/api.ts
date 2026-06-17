@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — API Service Layer
+// Danee Shoes Care — API Service Layer
 // Connects to existing GAS backend via HTTP
 import type { MenuJasa, MenuStore, Order, StoreSale, InventoryItem, BahanItem, Cashflow, DashboardSummary, ProfitSharing, ProfitHistory, KontenWeb, DiskonEvent, Referral, ThemeSettings } from './types';
 

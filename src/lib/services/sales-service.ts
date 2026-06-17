@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Sales Service
+// Danee Shoes Care — Sales Service
 // Store sales management
 
 import { getSupabase } from '../supabase';

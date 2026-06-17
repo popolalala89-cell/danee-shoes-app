@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Auth Service
+// Danee Shoes Care — Auth Service
 // Uses Supabase Auth (email/password)
 
 import { getSupabase } from '../supabase';

@@ -1,4 +1,4 @@
-// Danee Shoes & Clean — Konten Service
+// Danee Shoes Care — Konten Service
 // Content management: konten_web, diskon, referral, settings CRUD
 
 import { getSupabase } from '../supabase';
