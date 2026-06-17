@@ -176,12 +176,9 @@ export default function AdminLayout() {
   /* ================================================================== */
   return (
     <div className="admin-wrap">
-      {/* Status bar spacer (edge-to-edge on Android) */}
-      <div className="status-bar-spacer" />
-
-      {/* ============================================================ */}
-      {/*  TOP APP BAR                                                  */}
-      {/* ============================================================ */}
+      {/* ============================================================
+         TOP APP BAR
+        ============================================================ */}
       <header className="top-app-bar">
         <div className="topbar-left">
           {/* Hamburger */}
@@ -248,9 +245,9 @@ export default function AdminLayout() {
         </div>
       </header>
 
-      {/* ============================================================ */}
-      {/*  MAIN CONTENT                                                 */}
-      {/* ============================================================ */}
+      {/* ============================================================
+         MAIN CONTENT
+        ============================================================ */}
       <main className="admin-content">
         {showMore ? (
           <PageTransition key={pageKey}>
@@ -288,9 +285,9 @@ export default function AdminLayout() {
         )}
       </main>
 
-      {/* ============================================================ */}
-      {/*  BOTTOM NAVIGATION                                            */}
-      {/* ============================================================ */}
+      {/* ============================================================
+         BOTTOM NAVIGATION
+        ============================================================ */}
       <nav className="bottom-nav">
         {bottomNavItems.map((item) => {
           const isActive = item.id === activeTabId;
