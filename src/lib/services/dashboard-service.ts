@@ -17,10 +17,12 @@ import type {
  * - Today's revenue
  * - Low stock items
  * - Active order count
+ * - Active order list
  */
-export async function getRingkasan(): Promise<ServiceResponse<DashboardSummary>> {
+export async function getRingkasan(period?: string): Promise<ServiceResponse<DashboardSummary>> {
   try {
     const supabase = getSupabase();
+    const selectedPeriod = period || 'bulan_ini';
 
     // Get today's date boundaries (WITA/UTC+8)
     const now = new Date();
@@ -56,7 +58,7 @@ export async function getRingkasan(): Promise<ServiceResponse<DashboardSummary>>
     // Active orders (not Selesai or Batal)
     const activeOrders = orders.filter(
       (o) => o.status !== 'Selesai' && o.status !== 'Batal'
-    ).length;
+    );
 
     // Orders by status
     const statusCounts: Record<string, number> = {};
@@ -68,11 +70,11 @@ export async function getRingkasan(): Promise<ServiceResponse<DashboardSummary>>
       success: true,
       data: {
         todayIncome,
-        activeOrders,
+        activeOrders: activeOrders.length,
+        activeOrdersList: activeOrders.slice(0, 10),
         lowStock,
-        topLayanan: calculateTopLayanan(orders),
-        topProduk: calculateTopProduk(sales),
-        // Include extra fields for richer dashboard
+        topLayanan: calculateTopLayanan(orders, selectedPeriod),
+        topProduk: calculateTopProduk(sales, selectedPeriod),
         ...(statusCounts as any),
       },
     };
@@ -97,18 +99,18 @@ export async function getLeaderboard(): Promise<
     const supabase = getSupabase();
 
     const [ordersRes, salesRes] = await Promise.all([
-      supabase.from('orders').select('layanan'),
-      supabase.from('store_sales').select('nama_produk, qty'),
+      supabase.from('orders').select('layanan, tanggal'),
+      supabase.from('store_sales').select('nama_produk, qty, created_at'),
     ]);
 
-    const orders = (ordersRes.data || []) as Pick<OrderRow, 'layanan'>[];
-    const sales = (salesRes.data || []) as Pick<StoreSaleRow, 'nama_produk' | 'qty'>[];
+    const orders = (ordersRes.data || []) as Pick<OrderRow, 'layanan' | 'tanggal'>[];
+    const sales = (salesRes.data || []) as Pick<StoreSaleRow, 'nama_produk' | 'qty' | 'created_at'>[];
 
     return {
       success: true,
       data: {
-        topLayanan: calculateTopLayanan(orders),
-        topProduk: calculateTopProduk(sales),
+        topLayanan: calculateTopLayanan(orders, 'bulan_ini'),
+        topProduk: calculateTopProduk(sales, 'bulan_ini'),
       },
     };
   } catch (err: any) {
@@ -121,13 +123,22 @@ export async function getLeaderboard(): Promise<
 
 /**
  * Calculate top services from orders
+ * With optional period filter
  */
 function calculateTopLayanan(
-  orders: Pick<OrderRow, 'layanan'>[]
+  orders: Pick<OrderRow, 'layanan' | 'tanggal'>[],
+  period?: string
 ): { nama: string; total: number }[] {
-  const layananMap: Record<string, number> = {};
+  const now = new Date();
+  const filtered = period === 'bulan_ini'
+    ? orders.filter((o) => {
+        const t = o.tanggal ? new Date(o.tanggal) : null;
+        return t && t.getMonth() === now.getMonth() && t.getFullYear() === now.getFullYear();
+      })
+    : orders;
 
-  for (const order of orders) {
+  const layananMap: Record<string, number> = {};
+  for (const order of filtered) {
     if (!order.layanan) continue;
     const items = order.layanan.split(/[,;\n]+/);
     for (const item of items) {
@@ -154,13 +165,22 @@ function calculateTopLayanan(
 
 /**
  * Calculate top products from sales
+ * With optional period filter
  */
 function calculateTopProduk(
-  sales: Pick<StoreSaleRow, 'nama_produk' | 'qty'>[]
+  sales: Pick<StoreSaleRow, 'nama_produk' | 'qty' | 'created_at'>[],
+  period?: string
 ): { nama: string; total: number }[] {
+  const now = new Date();
+  const filtered = period === 'bulan_ini'
+    ? sales.filter((s) => {
+        const t = s.created_at ? new Date(s.created_at) : null;
+        return t && t.getMonth() === now.getMonth() && t.getFullYear() === now.getFullYear();
+      })
+    : sales;
   const produkMap: Record<string, number> = {};
 
-  for (const sale of sales) {
+  for (const sale of filtered) {
     const name = (sale.nama_produk || '').trim();
     if (!name) continue;
     produkMap[name] = (produkMap[name] || 0) + (sale.qty || 1);

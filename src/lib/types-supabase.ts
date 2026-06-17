@@ -301,6 +301,7 @@ export interface ReferralUpdate {
 export interface DashboardSummary {
   todayIncome: number;
   activeOrders: number;
+  activeOrdersList?: OrderRow[];
   lowStock: InventoryStoreRow[];
   topLayanan: { nama: string; total: number }[];
   topProduk: { nama: string; total: number }[];
