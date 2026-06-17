@@ -288,6 +288,115 @@ function Orders() {
   }
   // ── End struk helpers ──
 
+  // ── Cetak Struk via iframe (seperti AppScript, biar ga 12 halaman) ──
+  const handlePrintStruk = useCallback(() => {
+    const o = cetakStruk;
+    if (!o) return;
+
+    const items = parseLayananItems(o.layanan || '');
+    const subtotal = items.reduce((s, i) => s + i.hargaSatuan * i.qty, 0);
+    const diskonNominal = extractDiskonNominal(o.diskon_info || '');
+    const total = o.harga ?? 0;
+    const totalAsli = total + diskonNominal;
+    const persenHemat = totalAsli > 0 ? Math.round((diskonNominal / totalAsli) * 100) : 0;
+
+    // Build HTML rows
+    let barisLayanan = '';
+    let totalHematItem = 0;
+
+    items.forEach((item) => {
+      // Cari harga normal dari layananList
+      const svc = layananList.find((s) => s.nama_layanan === item.namaMurni);
+      const normalSatuan = svc ? svc.harga : item.hargaSatuan;
+      const normalTotal = normalSatuan * item.qty;
+      const bayarTotal = item.hargaSatuan * item.qty;
+      const isPromo = normalTotal > bayarTotal;
+      const hematItem = normalTotal - bayarTotal;
+      totalHematItem += isPromo ? hematItem : 0;
+
+      let namaTampil = item.namaMurni + ' (' + item.qty + 'x)';
+      let hargaHtml = formatCurrency(bayarTotal);
+
+      if (isPromo) {
+        hargaHtml = '<del style="font-size:11px;color:#666;">' + formatCurrency(normalTotal) + '</del><br>' + formatCurrency(bayarTotal);
+        barisLayanan += '<tr><td style="vertical-align:top;padding-right:10px;padding-bottom:2px;">' + namaTampil + '</td><td style="text-align:right;vertical-align:top;white-space:nowrap;padding-bottom:2px;">' + hargaHtml + '</td></tr>';
+        const labelPromo = item.promoLabel || 'Promo';
+        barisLayanan += '<tr><td style="font-size:12px;font-style:italic;padding-left:15px;padding-bottom:8px;color:#16a34a;">↳ Diskon ' + labelPromo + '</td><td style="text-align:right;font-size:13px;padding-bottom:8px;color:#16a34a;">-' + formatCurrency(hematItem) + '</td></tr>';
+      } else {
+        barisLayanan += '<tr><td style="vertical-align:top;padding-right:10px;padding-bottom:6px;">' + namaTampil + '<br><span style="font-size:11px;color:#666;">@ ' + formatCurrency(item.hargaSatuan) + '</span></td><td style="text-align:right;vertical-align:top;padding-bottom:6px;white-space:nowrap;">' + formatCurrency(bayarTotal) + '</td></tr>';
+      }
+    });
+
+    const grandTotalHemat = totalHematItem + diskonNominal;
+
+    // Skema diskon global
+    let diskonLabel = '';
+    let diskonNilai = '';
+    if (o.diskon_info) {
+      const dParts = o.diskon_info.split(' @ ');
+      diskonLabel = dParts[0]?.trim() || '';
+      diskonNilai = dParts[1] ? dParts[1].trim() : '';
+    }
+
+    const tipeBayar = o.tipe_pembayaran || 'Bayar di Akhir';
+    const fmtTgl = formatDate(o.tanggal || '');
+
+    // Build full HTML
+    const html = '<!DOCTYPE html><html><head><title>Struk ' + (o.kode || '') + '</title>' +
+      '<meta name="viewport" content="width=device-width,initial-scale=1.0">' +
+      '<style>' +
+      'body{font-family:"Courier New",monospace;padding:15px;color:#000;margin:0;line-height:1.4;font-size:14px;}' +
+      '.center{text-align:center;} ' +
+      '.line{border-bottom:2px dashed #000;margin:15px 0;} ' +
+      'table{width:100%;font-size:14px;border-collapse:collapse;} ' +
+      'td{padding-bottom:5px;} ' +
+      '@media print{body{padding:5px;}}' +
+      '</style></head><body>' +
+      '<div class="center"><h2 style="margin-bottom:5px;">Danee Shoes Care</h2>' +
+      '<p style="font-size:12px;margin-top:0;">Jln. Alternatif Kawasan BIC, Perum Griya Utami 2 Cibening, Blok F No. 11<br>Bungursari, Purwakarta — 41181<br>IG : @daneeshoescare<br>WA : 0851-1161-9226</p></div>' +
+      '<div class="line"></div>' +
+      '<p><strong>NO: ' + (o.kode || o.id?.slice(0, 8) || '') + '</strong><br>Tgl: ' + fmtTgl + '<br>Status Pengerjaan: ' + o.status + '<br>Tipe Pembayaran: <strong>' + tipeBayar + '</strong></p>' +
+      '<p>Pelanggan: ' + o.nama_pelanggan + ' — ' + o.kontak_wa + '</p>' +
+      '<div class="line"></div>' +
+      '<table>' + barisLayanan +
+      (diskonNilai ? '<tr><td style="padding-top:8px;padding-bottom:8px;font-style:italic;font-size:13px;border-top:1px dashed #ccc;">' + diskonLabel + '</td><td style="text-align:right;padding-top:8px;padding-bottom:8px;white-space:nowrap;border-top:1px dashed #ccc;">' + diskonNilai + '</td></tr>' : '') +
+      (o.catatan ? '<tr><td colspan="2" style="font-size:12px;padding-top:8px;border-top:1px dashed #ccc;">Ket: ' + o.catatan + '</td></tr>' : '') +
+      '</table>' +
+      '<div class="line"></div>' +
+      '<h3 style="text-align:right;margin:10px 0 2px 0;">Total: ' + formatCurrency(total) + '</h3>' +
+      '<p style="text-align:right;font-size:12px;margin:0 0 ' + (grandTotalHemat > 0 ? '5px' : '15px') + ' 0;font-style:italic;">(Status: ' + tipeBayar + ')</p>' +
+      (grandTotalHemat > 0
+        ? '<div style="text-align:right;font-size:13px;font-weight:bold;padding:8px 0;border-top:2px solid #000;border-bottom:2px solid #000;margin-bottom:15px;">ANDA HEMAT: ' + formatCurrency(grandTotalHemat) + ' (' + persenHemat + '%)</div>'
+        : '<div class="line"></div>') +
+      '<div class="center"><p style="font-weight:bold;margin-bottom:5px;">Terima Kasih atas Kepercayaan Anda</p><p style="font-size:12px;margin-top:0;font-style:italic;">bersihnya pasti, pedenya kembali !!!</p></div>' +
+      '</body></html>';
+
+    // Buat iframe hidden untuk print
+    const oldIframe = document.getElementById('print-struk-iframe');
+    if (oldIframe) oldIframe.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'print-struk-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      }, 500);
+    }
+  }, [cetakStruk, layananList]);
+
   function handleTambahOrder(e: React.FormEvent, closeAfterSave: boolean = false) {
     e.preventDefault();
     if (!addNama.trim() || !addWa.trim()) {
@@ -854,17 +963,45 @@ function Orders() {
                     const total = cetakStruk.harga ?? 0;
                     return (
                       <>
-                        {items.map((item, idx) => (
-                          <tr key={idx}>
-                            <td style={{ verticalAlign: 'top', paddingRight: 8, paddingBottom: 6 }}>
-                              {item.namaMurni} ({item.qty}x)
-                              {item.promoLabel && <><br /><span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#16a34a' }}>↳ {item.promoLabel}</span></>}
-                            </td>
-                            <td style={{ textAlign: 'right', verticalAlign: 'top', paddingBottom: 6, whiteSpace: 'nowrap' }}>
-                              {formatCurrency(item.hargaSatuan * item.qty)}
-                            </td>
-                          </tr>
-                        ))}
+                        {items.map((item, idx) => {
+                          // Cari harga normal dari layananList untuk coret (seperti AppScript)
+                          const svc = layananList.find((s) => s.nama_layanan === item.namaMurni);
+                          const normalSatuan = svc ? svc.harga : item.hargaSatuan;
+                          const normalTotal = normalSatuan * item.qty;
+                          const bayarTotal = item.hargaSatuan * item.qty;
+                          const isPromo = normalTotal > bayarTotal;
+                          return (
+                            <React.Fragment key={idx}>
+                              <tr>
+                                <td style={{ verticalAlign: 'top', paddingRight: 8, paddingBottom: isPromo ? 2 : 6 }}>
+                                  <div>{item.namaMurni} ({item.qty}x)</div>
+                                  <span style={{ fontSize: '0.72rem', color: '#666' }}>@ {formatCurrency(item.hargaSatuan)}</span>
+                                  {item.promoLabel && <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#16a34a' }}> [{item.promoLabel}]</span>}
+                                </td>
+                                <td style={{ textAlign: 'right', verticalAlign: 'top', paddingBottom: isPromo ? 2 : 6, whiteSpace: 'nowrap' }}>
+                                  {isPromo ? (
+                                    <>
+                                      <del style={{ fontSize: '0.72rem', color: '#666' }}>{formatCurrency(normalTotal)}</del><br />
+                                      <span style={{ fontWeight: 600 }}>{formatCurrency(bayarTotal)}</span>
+                                    </>
+                                  ) : (
+                                    formatCurrency(bayarTotal)
+                                  )}
+                                </td>
+                              </tr>
+                              {isPromo && (
+                                <tr>
+                                  <td style={{ fontSize: '0.72rem', fontStyle: 'italic', paddingLeft: 15, paddingBottom: 6, color: '#16a34a' }}>
+                                    ↳ Diskon {item.promoLabel || 'Spesial'}
+                                  </td>
+                                  <td style={{ textAlign: 'right', fontSize: '0.75rem', paddingBottom: 6, color: '#16a34a' }}>
+                                    -{formatCurrency(normalTotal - bayarTotal)}
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
 
                         {items.length > 1 && (
                           <tr>
@@ -909,12 +1046,20 @@ function Orders() {
                 (Status: {cetakStruk.tipe_pembayaran || '-'})
               </p>
 
-              {/* Anda Hemat */}
+              {/* Anda Hemat — include per-item + global diskon (seperti AppScript) */}
               {(() => {
                 const items = parseLayananItems(cetakStruk.layanan || '');
                 const subtotal = items.reduce((s, i) => s + i.hargaSatuan * i.qty, 0);
                 const diskonNominal = extractDiskonNominal(cetakStruk.diskon_info || '');
-                const hematTotal = diskonNominal;
+                // Hitung total hemat: per-item (selisih normal - bayar) + global
+                let perItemHemat = 0;
+                items.forEach((item) => {
+                  const svc = layananList.find((s) => s.nama_layanan === item.namaMurni);
+                  const normal = svc ? svc.harga * item.qty : item.hargaSatuan * item.qty;
+                  const bayar = item.hargaSatuan * item.qty;
+                  if (normal > bayar) perItemHemat += (normal - bayar);
+                });
+                const hematTotal = perItemHemat + diskonNominal;
                 if (hematTotal > 0) {
                   const totalAsli = (cetakStruk.harga ?? 0) + hematTotal;
                   const persen = totalAsli > 0 ? Math.round((hematTotal / totalAsli) * 100) : 0;
@@ -943,7 +1088,7 @@ function Orders() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-white" onClick={() => setCetakStruk(null)}>Tutup</button>
-              <button className="btn btn-primary" onClick={() => window.print()}>🖨️ Print</button>
+              <button className="btn btn-primary" onClick={handlePrintStruk}>🖨️ Print</button>
             </div>
           </div>
         </div>
