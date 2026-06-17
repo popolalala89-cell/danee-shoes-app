@@ -382,7 +382,7 @@ export default function Landing() {
           <li><a href="#store" onClick={(e) => { e.preventDefault(); scrollTo('store'); }}>Produk</a></li>
           <li><a href="#tracking" onClick={(e) => { e.preventDefault(); scrollTo('tracking'); }}>Tracking</a></li>
           <li><a href="#konten" onClick={(e) => { e.preventDefault(); scrollTo('konten'); }}>Konten</a></li>
-          <li><a href={WA_BASE} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>💬 WhatsApp</a></li>
+          <li><a href={WA_BASE} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="mat-icon" style={{ fontSize: 18 }}>chat</span> WhatsApp</a></li>
         </ul>
       </nav>
 
@@ -417,7 +417,7 @@ export default function Landing() {
               rel="noopener noreferrer"
               className="hero-wa-float"
             >
-              📱 Order via WhatsApp
+              <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 6 }}>smartphone</span> Order via WhatsApp
             </a>
             <button
               className="btn btn-outline"
@@ -453,7 +453,7 @@ export default function Landing() {
                 color: 'rgba(255,255,255,0.85)',
               }}
             >
-              📍 Purwakarta, Jawa Barat
+              <span className="mat-icon" style={{ fontSize: 16, verticalAlign: 'middle', marginRight: 4 }}>location_on</span> Purwakarta, Jawa Barat
             </a>
           </div>
         </div>
@@ -511,7 +511,7 @@ export default function Landing() {
                     onClick={() => openDeliveryModal(service)}
                     style={{ width: '100%' }}
                   >
-                    📱 Order via WhatsApp
+                    <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 6 }}>smartphone</span> Order via WhatsApp
                   </button>
                 )}
                 {isComing && (
@@ -608,7 +608,7 @@ export default function Landing() {
                         window.open(`${WA_BASE}?text=${encodeURIComponent(msg)}`, '_blank');
                       }}
                     >
-                      🛒 Beli via WhatsApp
+                      <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 6 }}>shopping_cart</span> Beli via WhatsApp
                     </button>
                   )}
                   {outOfStock && (
@@ -749,7 +749,7 @@ export default function Landing() {
           {!kontenError && testimoniList.length > 0 && (
             <div>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--dark)', marginBottom: '1rem', textAlign: 'center' }}>
-                💬 Testimoni Pelanggan
+                <span className="mat-icon" style={{ fontSize: 20, verticalAlign: 'middle', marginRight: 6, color: 'var(--warning)' }}>star</span> Testimoni Pelanggan
               </h3>
               <div className="grid-danee">
                 {testimoniList.map((item) => (
@@ -800,7 +800,7 @@ export default function Landing() {
               rel="noopener noreferrer"
               className="wa-footer-btn"
             >
-              💬 Hubungi via WhatsApp
+              <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 6 }}>chat</span> Hubungi via WhatsApp
             </a>
           </div>
 
@@ -824,10 +824,10 @@ export default function Landing() {
               </a>
             )}
             <a href={WA_BASE} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#94a3b8' }}>
-              💬 WhatsApp
+              <span className="mat-icon" style={{ fontSize: 16, verticalAlign: 'middle', marginRight: 4 }}>chat</span> WhatsApp
             </a>
             <a href="https://maps.google.com/?q=Danee+Shoes+%26+Clean+Purwakarta" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#94a3b8' }}>
-              📍 Google Maps
+              <span className="mat-icon" style={{ fontSize: 16, verticalAlign: 'middle', marginRight: 4 }}>location_on</span> Google Maps
             </a>
           </div>
 
@@ -835,7 +835,7 @@ export default function Landing() {
 
           <div className="footer-links" style={{ fontSize: '0.8rem', gap: '16px' }}>
             <a href="/login" style={{ color: '#64748b' }}>
-              🔐 Admin
+              <span className="mat-icon" style={{ fontSize: 16, verticalAlign: 'middle', marginRight: 4 }}>lock</span> Admin
             </a>
           </div>
 

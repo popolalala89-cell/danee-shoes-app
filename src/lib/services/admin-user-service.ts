@@ -19,18 +19,18 @@ export type MenuPermissionId =
   | 'settings';
 
 export const MENU_PERMISSIONS: { id: MenuPermissionId; label: string; icon: string }[] = [
-  { id: 'ringkasan',      label: 'Ringkasan',      icon: '🏠' },
-  { id: 'pesanan',        label: 'Pesanan',        icon: '📋' },
-  { id: 'inventory',      label: 'Inventory',      icon: '📦' },
-  { id: 'keuangan',       label: 'Keuangan',       icon: '📊' },
-  { id: 'menu-jasa',      label: 'Menu Jasa',      icon: '🛎️' },
-  { id: 'menu-store',     label: 'Menu Store',     icon: '🏪' },
-  { id: 'penjualan',      label: 'Penjualan',      icon: '💰' },
-  { id: 'profit-sharing', label: 'Profit Sharing',  icon: '🤝' },
-  { id: 'konten',         label: 'Konten Web',     icon: '🌐' },
-  { id: 'diskon',         label: 'Diskon',         icon: '🏷️' },
-  { id: 'referral',       label: 'Referral',       icon: '🔗' },
-  { id: 'settings',       label: 'Pengaturan',     icon: '⚙️' },
+  { id: 'ringkasan',      label: 'Ringkasan',      icon: 'dashboard' },
+  { id: 'pesanan',        label: 'Pesanan',        icon: 'receipt_long' },
+  { id: 'inventory',      label: 'Inventory',      icon: 'inventory_2' },
+  { id: 'keuangan',       label: 'Keuangan',       icon: 'account_balance' },
+  { id: 'menu-jasa',      label: 'Menu Jasa',      icon: 'cleaning_services' },
+  { id: 'menu-store',     label: 'Menu Store',     icon: 'storefront' },
+  { id: 'penjualan',      label: 'Penjualan',      icon: 'payments' },
+  { id: 'profit-sharing', label: 'Profit Sharing',  icon: 'handshake' },
+  { id: 'konten',         label: 'Konten Web',     icon: 'public' },
+  { id: 'diskon',         label: 'Diskon',         icon: 'local_offer' },
+  { id: 'referral',       label: 'Referral',       icon: 'link' },
+  { id: 'settings',       label: 'Pengaturan',     icon: 'settings' },
 ];
 
 /**

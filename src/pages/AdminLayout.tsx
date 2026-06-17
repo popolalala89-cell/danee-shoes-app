@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import AdminRoutes from '../routes/AdminRoutes';
+import PageTransition from '../components/ui/PageTransition';
 
 /* ------------------------------------------------------------------ */
-/*  Page title map — keyed by route path                              */
+/*  Page title map                                                    */
 /* ------------------------------------------------------------------ */
 const pageTitles: Record<string, string> = {
   '/admin': 'Ringkasan',
@@ -22,6 +23,24 @@ const pageTitles: Record<string, string> = {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Icon name map — Material Symbols                                  */
+/* ------------------------------------------------------------------ */
+const pageIcons: Record<string, string> = {
+  '/admin': 'dashboard',
+  '/admin/orders': 'receipt_long',
+  '/admin/inventory': 'inventory_2',
+  '/admin/cashflow': 'account_balance',
+  '/admin/menu-jasa': 'cleaning_services',
+  '/admin/menu-store': 'storefront',
+  '/admin/penjualan': 'payments',
+  '/admin/profit-sharing': 'handshake',
+  '/admin/konten': 'public',
+  '/admin/diskon': 'local_offer',
+  '/admin/referral': 'link',
+  '/admin/settings': 'settings',
+};
+
+/* ------------------------------------------------------------------ */
 /*  Bottom-nav items (5 visible tabs)                                 */
 /* ------------------------------------------------------------------ */
 interface NavItem {
@@ -32,11 +51,11 @@ interface NavItem {
 }
 
 const bottomNavItems: NavItem[] = [
-  { id: 'ringkasan', label: 'Ringkasan', icon: '🏠', route: '/admin' },
-  { id: 'pesanan',   label: 'Pesanan',   icon: '📋', route: '/admin/orders' },
-  { id: 'inventory', label: 'Inventory', icon: '📦', route: '/admin/inventory' },
-  { id: 'keuangan',  label: 'Keuangan',  icon: '📊', route: '/admin/cashflow' },
-  { id: '__more__',  label: 'Lainnya',   icon: '⋯',  route: '' },
+  { id: 'ringkasan', label: 'Ringkasan', icon: 'dashboard', route: '/admin' },
+  { id: 'pesanan',   label: 'Pesanan',   icon: 'receipt_long', route: '/admin/orders' },
+  { id: 'inventory', label: 'Inventory', icon: 'inventory_2', route: '/admin/inventory' },
+  { id: 'keuangan',  label: 'Keuangan',  icon: 'account_balance', route: '/admin/cashflow' },
+  { id: '__more__',  label: 'Lainnya',   icon: 'more_horiz',  route: '' },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -50,14 +69,14 @@ interface MoreItem {
 }
 
 const moreItems: MoreItem[] = [
-  { id: 'menu-jasa',     label: 'Menu Jasa',       icon: '🛎️', route: '/admin/menu-jasa' },
-  { id: 'menu-store',    label: 'Menu Store',       icon: '🏪', route: '/admin/menu-store' },
-  { id: 'penjualan',     label: 'Penjualan',        icon: '💰', route: '/admin/penjualan' },
-  { id: 'profit-sharing',label: 'Profit Sharing',   icon: '🤝', route: '/admin/profit-sharing' },
-  { id: 'konten',        label: 'Konten Web',       icon: '🌐', route: '/admin/konten' },
-  { id: 'diskon',        label: 'Diskon',           icon: '🏷️', route: '/admin/diskon' },
-  { id: 'referral',      label: 'Referral',         icon: '🔗', route: '/admin/referral' },
-  { id: 'settings',      label: 'Pengaturan',       icon: '⚙️', route: '/admin/settings' },
+  { id: 'menu-jasa',     label: 'Menu Jasa',       icon: 'cleaning_services', route: '/admin/menu-jasa' },
+  { id: 'menu-store',    label: 'Menu Store',       icon: 'storefront',        route: '/admin/menu-store' },
+  { id: 'penjualan',     label: 'Penjualan',        icon: 'payments',          route: '/admin/penjualan' },
+  { id: 'profit-sharing',label: 'Profit Sharing',   icon: 'handshake',         route: '/admin/profit-sharing' },
+  { id: 'konten',        label: 'Konten Web',       icon: 'public',            route: '/admin/konten' },
+  { id: 'diskon',        label: 'Diskon',           icon: 'local_offer',       route: '/admin/diskon' },
+  { id: 'referral',      label: 'Referral',         icon: 'link',              route: '/admin/referral' },
+  { id: 'settings',      label: 'Pengaturan',       icon: 'settings',          route: '/admin/settings' },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -65,10 +84,7 @@ const moreItems: MoreItem[] = [
 /* ------------------------------------------------------------------ */
 function formatDateIndonesian(date: Date): string {
   return date.toLocaleDateString('id-ID', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 }
 
@@ -78,11 +94,6 @@ function getActiveTabId(pathname: string): string {
   if (pathname === '/admin/inventory') return 'inventory';
   if (pathname === '/admin/cashflow') return 'keuangan';
   return '__more__';
-}
-
-function getPageTitle(pathname: string, showMore: boolean): string {
-  if (showMore) return 'Lainnya';
-  return pageTitles[pathname] || 'Ringkasan';
 }
 
 /* ------------------------------------------------------------------ */
@@ -95,6 +106,7 @@ export default function AdminLayout() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [pageKey, setPageKey] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   /* Close hamburger dropdown on outside click */
@@ -108,13 +120,15 @@ export default function AdminLayout() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [menuOpen]);
 
-  /* Sync showMore when navigating directly */
+  /* Sync showMore + trigger page transition on navigate */
   useEffect(() => {
     if (location.pathname.startsWith('/admin') && bottomNavItems.some(
       (n) => n.id !== '__more__' && location.pathname === n.route
     )) {
       setShowMore(false);
     }
+    // Bump key to re-trigger page-enter animation
+    setPageKey((k) => k + 1);
   }, [location.pathname]);
 
   const handleLogout = async () => {
@@ -138,97 +152,95 @@ export default function AdminLayout() {
     navigate(item.route);
   };
 
-  /* ----- filter menus by permissions ----- */
   const permittedMoreItems = useMemo(
     () => moreItems.filter((item) => hasPermission(item.id)),
     [hasPermission]
   );
 
-  /* ----- derived state ----- */
   const today = new Date();
   const dateStr = formatDateIndonesian(today);
   const pageTitle = getPageTitle(location.pathname, showMore);
+  const pageIcon = showMore ? 'apps' : (pageIcons[location.pathname] || 'dashboard');
   const activeTabId = showMore ? '__more__' : getActiveTabId(location.pathname);
 
   const userEmail = user?.email || 'Admin';
   const userInitial = (userEmail as string).charAt(0).toUpperCase();
+
+  function getPageTitle(pathname: string, showingMore: boolean): string {
+    if (showingMore) return 'Lainnya';
+    return pageTitles[pathname] || 'Ringkasan';
+  }
 
   /* ================================================================== */
   /*  Render                                                            */
   /* ================================================================== */
   return (
     <div className="admin-wrap">
+      {/* Status bar spacer (edge-to-edge on Android) */}
+      <div className="status-bar-spacer" />
+
       {/* ============================================================ */}
       {/*  TOP APP BAR                                                  */}
       {/* ============================================================ */}
       <header className="top-app-bar">
-        <div style={styles.topBarLeft}>
+        <div className="topbar-left">
           {/* Hamburger */}
           <button
+            className="hamburger-admin ripple ripple-light"
             onClick={() => setMenuOpen((o) => !o)}
-            style={styles.hamburgerBtn}
             aria-label="Menu"
           >
-            ☰
+            <span className="mat-icon">menu</span>
           </button>
 
-          {/* User avatar initials */}
-          <div style={styles.avatarCircle}>
-            {userInitial}
-          </div>
+          {/* User avatar */}
+          <div className="topbar-avatar">{userInitial}</div>
 
-          <span style={styles.topBarTitle}>{pageTitle}</span>
+          {/* Icon + Title */}
+          <span className="mat-icon topbar-page-icon">{pageIcon}</span>
+          <span className="topbar-title">{pageTitle}</span>
         </div>
 
-        <div style={styles.topBarRight}>
-          <span style={styles.topBarDate}>{dateStr}</span>
+        <div className="topbar-right">
+          <span className="topbar-date">{dateStr}</span>
 
           {/* Hamburger dropdown */}
           {menuOpen && (
-            <div ref={menuRef} style={styles.dropdown}>
+            <div ref={menuRef} className="dropdown-menu">
               {/* User info */}
-              <div style={styles.dropdownUser}>
-                <div style={styles.dropdownAvatar}>{userInitial}</div>
+              <div className="dropdown-user">
+                <div className="dropdown-avatar">{userInitial}</div>
                 <div>
-                  <div style={styles.dropdownName}>{userEmail}</div>
-                  <div style={styles.dropdownRole}>Administrator</div>
+                  <div className="dropdown-name">{userEmail}</div>
+                  <div className="dropdown-role">Administrator</div>
                 </div>
               </div>
-              <div style={styles.dropdownDivider} />
+              <div className="dropdown-divider" />
 
-              <div
-                style={styles.dropdownItem}
-                onClick={() => {
-                  setMenuOpen(false);
-                  setShowMore(false);
-                  navigate('/');
-                }}
-              >
-                <span>🌐</span>
+              <div className="dropdown-item ripple" onClick={() => {
+                setMenuOpen(false);
+                setShowMore(false);
+                navigate('/');
+              }}>
+                <span className="mat-icon">public</span>
                 <span>Kembali ke Website</span>
               </div>
 
               {hasPermission('settings') && (
-              <div
-                style={styles.dropdownItem}
-                onClick={() => {
+                <div className="dropdown-item ripple" onClick={() => {
                   setMenuOpen(false);
                   setShowMore(false);
                   navigate('/admin/settings');
-                }}
-              >
-                <span>⚙️</span>
-                <span>Pengaturan</span>
-              </div>
+                }}>
+                  <span className="mat-icon">settings</span>
+                  <span>Pengaturan</span>
+                </div>
               )}
 
-              <div style={styles.dropdownDivider} />
+              <div className="dropdown-divider" />
 
-              <div
-                style={{ ...styles.dropdownItem, color: '#ef4444' }}
-                onClick={handleLogout}
-              >
-                <span>🚪</span>
+              <div className="dropdown-item ripple" onClick={handleLogout} style={{ color: '#ef4444' }}>
+                <span className="mat-icon">logout</span>
                 <span>Logout</span>
               </div>
             </div>
@@ -239,33 +251,40 @@ export default function AdminLayout() {
       {/* ============================================================ */}
       {/*  MAIN CONTENT                                                 */}
       {/* ============================================================ */}
-      <main style={styles.mainContent}>
+      <main className="admin-content">
         {showMore ? (
-          /* ---------- "Lainnya" grid view ---------- */
-          <div style={styles.moreContainer}>
-            <p style={styles.moreHeading}>Menu Lainnya</p>
-            <div style={styles.moreGrid}>
-              {permittedMoreItems.map((item) => (
-                <button
-                  key={item.id}
-                  style={styles.moreCard}
-                  onClick={() => handleMoreItemClick(item)}
-                >
-                  <span style={styles.moreCardIcon}>{item.icon}</span>
-                  <span style={styles.moreCardLabel}>{item.label}</span>
-                </button>
-              ))}
-            </div>
+          <PageTransition key={pageKey}>
+            {/* ---------- "Lainnya" grid view ---------- */}
+            <div className="more-container">
+              <p className="more-heading">
+                <span className="mat-icon" style={{ verticalAlign: 'middle', marginRight: 8 }}>apps</span>
+                Menu Lainnya
+              </p>
+              <div className="more-grid">
+                {permittedMoreItems.map((item) => (
+                  <button
+                    key={item.id}
+                    className="more-card ripple"
+                    onClick={() => handleMoreItemClick(item)}
+                  >
+                    <span className="mat-icon more-card-icon">{item.icon}</span>
+                    <span className="more-card-label">{item.label}</span>
+                  </button>
+                ))}
+              </div>
 
-            {/* Logout */}
-            <button style={styles.logoutBtn} onClick={handleLogout}>
-              <span>🚪</span>
-              <span>Logout</span>
-            </button>
-          </div>
+              {/* Logout */}
+              <button className="logout-btn ripple" onClick={handleLogout}>
+                <span className="mat-icon">logout</span>
+                <span>Logout</span>
+              </button>
+            </div>
+          </PageTransition>
         ) : (
-          /* ---------- Routed page content ---------- */
-          <AdminRoutes />
+          /* ---------- Routed page content with transition ---------- */
+          <div className="page-enter" key={pageKey}>
+            <AdminRoutes />
+          </div>
         )}
       </main>
 
@@ -278,10 +297,10 @@ export default function AdminLayout() {
           return (
             <button
               key={item.id}
-              className={`bottom-nav-item${isActive ? ' active' : ''}`}
+              className={`bottom-nav-item ripple${isActive ? ' active' : ''}`}
               onClick={() => handleNavClick(item)}
             >
-              <i>{item.icon}</i>
+              <span className="mat-icon">{item.icon}</span>
               <span>{item.label}</span>
             </button>
           );
@@ -290,217 +309,3 @@ export default function AdminLayout() {
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Inline styles (overlays and custom elements not in CSS)            */
-/* ------------------------------------------------------------------ */
-const styles: Record<string, React.CSSProperties> = {
-  /* ---- Top bar left section ---- */
-  topBarLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    overflow: 'hidden',
-    flex: 1,
-  },
-
-  /* ---- Hamburger ---- */
-  hamburgerBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#fff',
-    fontSize: '1.5rem',
-    cursor: 'pointer',
-    padding: '4px 4px',
-    lineHeight: 1,
-    borderRadius: 8,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 40,
-    flexShrink: 0,
-  },
-
-  /* ---- Avatar circle in top bar ---- */
-  avatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: '50%',
-    background: 'rgba(255,255,255,0.25)',
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '0.85rem',
-    fontWeight: 700,
-    flexShrink: 0,
-  },
-
-  /* ---- Title ---- */
-  topBarTitle: {
-    fontSize: '1.1rem',
-    fontWeight: 600,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-
-  topBarRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 0,
-    position: 'relative',
-  },
-
-  topBarDate: {
-    fontSize: '0.72rem',
-    opacity: 0.85,
-    whiteSpace: 'nowrap',
-    display: 'none', /* hidden on small screens */
-  },
-
-  /* ---- Hamburger dropdown ---- */
-  dropdown: {
-    position: 'absolute',
-    top: '100%',
-    right: 0,
-    marginTop: 4,
-    background: '#fff',
-    borderRadius: 14,
-    boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-    minWidth: 220,
-    overflow: 'hidden',
-    zIndex: 1200,
-  },
-
-  dropdownUser: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '14px 16px',
-  },
-
-  dropdownAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #034BB9, #2563eb)',
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '0.9rem',
-    fontWeight: 700,
-    flexShrink: 0,
-  },
-
-  dropdownName: {
-    fontSize: '0.9rem',
-    fontWeight: 600,
-    color: '#1e293b',
-  },
-
-  dropdownRole: {
-    fontSize: '0.75rem',
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-
-  dropdownItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '12px 16px',
-    fontSize: '0.9rem',
-    cursor: 'pointer',
-    transition: 'background 0.1s',
-    color: '#1e293b',
-  },
-
-  dropdownDivider: {
-    height: 1,
-    background: '#e5e7eb',
-    margin: '0 12px',
-  },
-
-  /* ---- Main content area ---- */
-  mainContent: {
-    flex: 1,
-    marginTop: 56,
-    padding: '12px 12px 80px',
-    overflowY: 'auto',
-    background: '#f5f5f5',
-    minHeight: 'calc(100vh - 56px)',
-  },
-
-  /* ---- "Lainnya" grid ---- */
-  moreContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    paddingTop: 8,
-  },
-
-  moreHeading: {
-    fontSize: '1rem',
-    fontWeight: 600,
-    color: '#475569',
-    marginBottom: 16,
-    alignSelf: 'flex-start',
-  },
-
-  moreGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-    gap: 12,
-    width: '100%',
-    maxWidth: 400,
-  },
-
-  moreCard: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    background: '#fff',
-    border: '1px solid #e5e7eb',
-    borderRadius: 14,
-    padding: '18px 8px',
-    cursor: 'pointer',
-    transition: 'transform 0.12s, box-shadow 0.12s',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-  },
-
-  moreCardIcon: {
-    fontSize: '1.8rem',
-    lineHeight: 1,
-  },
-
-  moreCardLabel: {
-    fontSize: '0.78rem',
-    fontWeight: 600,
-    color: '#334155',
-    textAlign: 'center',
-    lineHeight: 1.2,
-  },
-
-  /* ---- Logout button in Lainnya ---- */
-  logoutBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 24,
-    padding: '12px 32px',
-    background: '#fef2f2',
-    color: '#ef4444',
-    border: '1px solid #fecaca',
-    borderRadius: 12,
-    fontSize: '0.95rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-};

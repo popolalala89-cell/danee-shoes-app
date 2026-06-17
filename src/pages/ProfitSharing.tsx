@@ -6,14 +6,14 @@ import type { ProfitSharingData, ProfitHistory } from '../lib/types-supabase';
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
 const WALLET_GROUPS = [
-  { role: 'Owner',    base: 'ownerBase',  pct: 'ownerPct',  color: '#8b5cf6', icon: '👔' },
-  { role: 'Kas (Operasional)', base: 'kasBase', pct: 'kasPct', color: '#3b82f6', icon: '🏢' },
-  { role: 'Spesialis Cuci', base: 'cuciBase', pct: 'cuciPct', color: '#10b981', icon: '🧼' },
-  { role: 'Spesialis Repair', base: null, pct: 'repairPct', color: '#f59e0b', icon: '🔧' },
-  { role: 'Admin (Marketing)', base: 'adminBase', pct: 'adminPct', color: '#ec4899', icon: '🎧' },
-  { role: 'Engineer Web', base: 'webBase', pct: 'webPct', color: '#6366f1', icon: '💻' },
-  { role: 'Zakat (2.5%)', base: null, pct: 'zakatPct', color: '#14b8a6', icon: '🤲' },
-  { role: 'Investor', base: null, pct: 'investorPct', color: '#f43f5e', icon: '📈' },
+  { role: 'Owner',            base: 'ownerBase',      pct: 'ownerPct',      color: '#8b5cf6', icon: 'badge' },
+  { role: 'Kas (Operasional)', base: 'kasBase',        pct: 'kasPct',        color: '#3b82f6', icon: 'account_balance' },
+  { role: 'Spesialis Cuci',    base: 'cuciBase',       pct: 'cuciPct',       color: '#10b981', icon: 'soap' },
+  { role: 'Spesialis Repair',  base: null,             pct: 'repairPct',     color: '#f59e0b', icon: 'build' },
+  { role: 'Admin (Marketing)', base: 'adminBase',      pct: 'adminPct',      color: '#ec4899', icon: 'support_agent' },
+  { role: 'Engineer Web',      base: 'webBase',        pct: 'webPct',        color: '#6366f1', icon: 'code' },
+  { role: 'Zakat (2.5%)',      base: null,             pct: 'zakatPct',      color: '#14b8a6', icon: 'volunteer_activism' },
+  { role: 'Investor',          base: null,             pct: 'investorPct',   color: '#f43f5e', icon: 'trending_up' },
 ];
 
 const ProfitSharing: React.FC = () => {
@@ -138,8 +138,8 @@ const ProfitSharing: React.FC = () => {
                 </div>
                 <div>
                   {isSinkron
-                    ? <span style={{ color: '#10b981', fontSize: '0.9rem' }}>✅ SINKRON (100% Balance)</span>
-                    : <span style={{ color: '#ef4444', fontSize: '0.9rem' }}>⚠️ KEBOCORAN Rp {formatCurrency(audit.totalSelisih)} DETECTED</span>
+                    ? <span style={{ color: '#10b981', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}><span className="mat-icon" style={{ fontSize: 16 }}>check_circle</span> SINKRON (100% Balance)</span>
+                    : <span style={{ color: '#ef4444', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}><span className="mat-icon" style={{ fontSize: 16 }}>warning</span> KEBOCORAN Rp {formatCurrency(audit.totalSelisih)} DETECTED</span>
                   }
                 </div>
               </div>
@@ -178,7 +178,7 @@ const ProfitSharing: React.FC = () => {
               return (
                 <div key={g.role} style={{ background: '#fff', padding: 25, borderRadius: 16, border: '1px solid rgba(0,0,0,0.05)', borderTop: `4px solid ${g.color}`, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04)' }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-gray)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {g.icon} {g.role}
+                    <span className="mat-icon" style={{ fontSize: 20 }}>{g.icon}</span> {g.role}
                   </div>
                   <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-dark)' }}>{formatCurrency(total)}</div>
                   {detail && <div style={{ fontSize: '0.65rem', color: 'var(--text-light)', marginTop: 4 }}>{detail}</div>}
@@ -215,10 +215,10 @@ const ProfitSharing: React.FC = () => {
           {/* ── Histori Buku Besar (3 Bulan Terakhir) ── */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <span style={{ color: 'var(--text-gray)', fontSize: '1rem', fontWeight: 800, letterSpacing: '0.5px' }}>
-              📜 Histori Buku Besar (3 Bulan Terakhir)
+              <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4 }}>history</span> Histori Buku Besar (3 Bulan Terakhir)
             </span>
             <button onClick={fetchData} style={{ background: '#f1f5f9', color: 'var(--text-dark)', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', transition: '0.2s' }}>
-              🔄 Refresh
+              <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4 }}>refresh</span> Refresh
             </button>
           </div>
           {history.length > 0 ? (

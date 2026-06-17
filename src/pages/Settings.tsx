@@ -18,14 +18,14 @@ const PRESET_COLORS = [
 ];
 
 const PERAN_LIST = [
-  { peran: 'owner',       label: 'Owner',               icon: '👔' },
-  { peran: 'kas',         label: 'Kas (Operasional)',   icon: '🏢' },
-  { peran: 'cuci',        label: 'Spesialis Cuci',      icon: '🧼' },
-  { peran: 'repair',      label: 'Spesialis Repair',    icon: '🔧' },
-  { peran: 'admin',       label: 'Admin (Marketing)',   icon: '🎧' },
-  { peran: 'web',         label: 'Engineer Web',        icon: '💻' },
-  { peran: 'zakat',       label: 'Zakat (2.5%)',        icon: '🤲' },
-  { peran: 'investor',    label: 'Investor',            icon: '📈' },
+  { peran: 'owner',       label: 'Owner',               icon: 'badge' },
+  { peran: 'kas',         label: 'Kas (Operasional)',   icon: 'account_balance' },
+  { peran: 'cuci',        label: 'Spesialis Cuci',      icon: 'soap' },
+  { peran: 'repair',      label: 'Spesialis Repair',    icon: 'build' },
+  { peran: 'admin',       label: 'Admin (Marketing)',   icon: 'support_agent' },
+  { peran: 'web',         label: 'Engineer Web',        icon: 'code' },
+  { peran: 'zakat',       label: 'Zakat (2.5%)',        icon: 'volunteer_activism' },
+  { peran: 'investor',    label: 'Investor',            icon: 'trending_up' },
 ];
 
 /* ================================================================== */
@@ -78,7 +78,7 @@ function SettingsPinGate({ onUnlock }: { onUnlock: () => void }) {
           boxShadow: '0 4px 24px rgba(0,0,0,0.08)', width: '100%', maxWidth: 360,
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+          <span className="mat-icon" style={{ fontSize: 32, marginBottom: 12 }}>lock</span>
           <h3 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b' }}>
             Pengaturan Terkunci
           </h3>
@@ -252,7 +252,7 @@ function UserManagementSection() {
 
   return (
     <div className="card" style={{ padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
-      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-md)' }}>👥 Manajemen User</h3>
+      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-md)' }}><span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4 }}>group</span> Manajemen User</h3>
       <p style={{ fontSize: '0.8125rem', color: 'var(--text-gray)', marginBottom: 'var(--space-md)' }}>
         Atur siapa saja yang bisa mengakses menu admin. Setiap user bisa memiliki hak akses ke menu tertentu.
       </p>
@@ -328,7 +328,7 @@ function UserManagementSection() {
                             fontWeight: 500, cursor: 'pointer',
                           }}
                         >
-                          {p.icon} {p.label}
+                          <span className="mat-icon" style={{ fontSize: 16, verticalAlign: 'middle', marginRight: 2 }}>{p.icon}</span> {p.label}
                         </button>
                       ))}
                     </div>
@@ -355,9 +355,9 @@ function UserManagementSection() {
                       return m ? (
                         <span key={permId} style={{
                           fontSize: '0.7rem', background: '#e2e8f0', color: '#475569',
-                          padding: '2px 8px', borderRadius: 10, fontWeight: 500,
+                          padding: '2px 8px', borderRadius: 10, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4,
                         }}>
-                          {m.icon} {m.label}
+                          <span className="mat-icon" style={{ fontSize: 14 }}>{m.icon}</span> {m.label}
                         </span>
                       ) : null;
                     })}
@@ -417,7 +417,7 @@ function UserManagementSection() {
                         fontWeight: 500, cursor: 'pointer',
                       }}
                     >
-                      {p.icon} {p.label}
+                      <span className="mat-icon" style={{ fontSize: 16, verticalAlign: 'middle', marginRight: 2 }}>{p.icon}</span> {p.label}
                     </button>
                   ))}
                 </div>
@@ -491,7 +491,7 @@ function SettingsPinSection() {
 
   return (
     <div className="card" style={{ padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
-      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-sm)' }}>🔐 PIN Pengaturan</h3>
+      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-sm)' }}><span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4 }}>lock</span> PIN Pengaturan</h3>
       <p style={{ fontSize: '0.8125rem', color: 'var(--text-gray)', marginBottom: 'var(--space-md)' }}>
         Lindungi halaman pengaturan dengan PIN. User harus memasukkan PIN untuk bisa mengakses & mengubah pengaturan.
       </p>
@@ -693,7 +693,7 @@ const Settings: React.FC = () => {
 
       {/* Theme Settings */}
       <div className="card" style={{ padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-md)' }}>Tema Warna</h3>
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-md)' }}><span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4 }}>palette</span> Tema Warna</h3>
 
         <div style={{ marginBottom: 'var(--space-md)' }}>
           <label style={{ display: 'block', fontWeight: 500, marginBottom: 4, fontSize: '0.875rem' }}>Warna Preset</label>
@@ -747,7 +747,7 @@ const Settings: React.FC = () => {
 
       {/* WhatsApp Number */}
       <div className="card" style={{ padding: 'var(--space-md)' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-md)' }}>Nomor WhatsApp</h3>
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-md)' }}><span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4 }}>phone_in_talk</span> Nomor WhatsApp</h3>
         <p style={{ fontSize: '0.8125rem', color: 'var(--text-gray)', marginBottom: 'var(--space-sm)' }}>
           Nomor ini digunakan untuk tombol "Hubungi WA" di website pelanggan.
         </p>
@@ -767,7 +767,7 @@ const Settings: React.FC = () => {
 
       {/* Profit Sharing Settings */}
       <div className="card" style={{ padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-sm)' }}>🤝 Pembagian Profit</h3>
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-sm)' }}><span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4 }}>handshake</span> Pembagian Profit</h3>
         <p style={{ fontSize: '0.8125rem', color: 'var(--text-gray)', marginBottom: 'var(--space-md)' }}>
           Atur target omset dan persentase pembagian profit per peran. Clean = jasa cuci, Repair = jasa perbaikan.
         </p>
@@ -784,7 +784,7 @@ const Settings: React.FC = () => {
             const roleData = profitRoles[p.peran] || { cleanPct: 0, repairPct: 0 };
             return (
               <div key={p.peran} style={{ background: '#f8fafc', borderRadius: 'var(--radius-sm)', padding: 'var(--space-sm)' }}>
-                <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: 6 }}>{p.icon} {p.label}</div>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><span className="mat-icon" style={{ fontSize: 18 }}>{p.icon}</span> {p.label}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <div>
                     <label style={{ fontSize: '0.7rem', color: 'var(--text-gray)', fontWeight: 600 }}>Clean (%)</label>

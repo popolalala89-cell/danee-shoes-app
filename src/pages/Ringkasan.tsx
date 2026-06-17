@@ -75,7 +75,7 @@ function Ringkasan() {
         {/* Kartu 1: Pendapatan Hari Ini */}
         <div className="card" style={{ padding: 'var(--space-md)', borderTop: '5px solid var(--success)' }}>
           <div className="s-label" style={{ color: 'var(--success)', fontWeight: 800, letterSpacing: '1px', textTransform: 'uppercase', fontSize: '0.75rem', marginBottom: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
-            💰 Pendapatan Hari Ini
+            <span className="mat-icon" style={{ fontSize: 20, verticalAlign: 'middle', marginRight: 4, color: 'var(--success)' }}>payments</span> Pendapatan Hari Ini
           </div>
           <div className="s-value" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-dark)', margin: 0 }}>
             {formatCurrency(data?.todayIncome ?? 0)}
@@ -152,7 +152,7 @@ function Ringkasan() {
       <div className="card" style={{ padding: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: 10 }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-dark)', display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
-            <span style={{ color: '#f59e0b' }}>🏆</span> Komoditas Terlaris
+            <span className="mat-icon" style={{ fontSize: 20, verticalAlign: 'middle', marginRight: 4, color: 'var(--warning)' }}>emoji_events</span> Komoditas Terlaris
           </h3>
           <select
             value={period}
@@ -197,7 +197,7 @@ function Ringkasan() {
           {/* Kolom Kanan: Top Produk */}
           <div>
             <h4 style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: 700, marginBottom: 12, borderBottom: '2px solid rgba(16,185,129,0.1)', paddingBottom: 6 }}>
-              📦 Top 5 Produk Terlaris
+              <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4, color: 'var(--primary)' }}>inventory_2</span> Top 5 Produk Terlaris
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {data && data.topProduk && data.topProduk.length > 0 ? (
