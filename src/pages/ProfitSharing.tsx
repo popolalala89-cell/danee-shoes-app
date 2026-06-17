@@ -6,14 +6,14 @@ import type { ProfitSharingData, ProfitHistory } from '../lib/types-supabase';
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
 const WALLET_GROUPS = [
-  { role: 'Owner',    base: 'ownerBase',  pct: 'ownerPct',  color: '#2563eb' },
-  { role: 'Cuci',     base: 'cuciBase',   pct: 'cuciPct',   color: '#059669' },
-  { role: 'Repair',   base: null,         pct: 'repairPct', color: '#d97706' },
-  { role: 'Admin',    base: 'adminBase',  pct: 'adminPct',  color: '#7c3aed' },
-  { role: 'Web',      base: 'webBase',    pct: 'webPct',    color: '#0891b2' },
-  { role: 'Kas',      base: 'kasBase',    pct: 'kasPct',    color: '#dc2626' },
-  { role: 'Zakat',    base: null,         pct: 'zakatPct',  color: '#d4af37' },
-  { role: 'Investor', base: null,         pct: 'investorPct', color: '#4f46e5' },
+  { role: 'Owner',    base: 'ownerBase',  pct: 'ownerPct',  color: '#8b5cf6', icon: '👔' },
+  { role: 'Kas (Operasional)', base: 'kasBase', pct: 'kasPct', color: '#3b82f6', icon: '🏢' },
+  { role: 'Spesialis Cuci', base: 'cuciBase', pct: 'cuciPct', color: '#10b981', icon: '🧼' },
+  { role: 'Spesialis Repair', base: null, pct: 'repairPct', color: '#f59e0b', icon: '🔧' },
+  { role: 'Admin (Marketing)', base: 'adminBase', pct: 'adminPct', color: '#ec4899', icon: '🎧' },
+  { role: 'Engineer Web', base: 'webBase', pct: 'webPct', color: '#6366f1', icon: '💻' },
+  { role: 'Zakat (2.5%)', base: null, pct: 'zakatPct', color: '#14b8a6', icon: '🤲' },
+  { role: 'Investor', base: null, pct: 'investorPct', color: '#f43f5e', icon: '📈' },
 ];
 
 const ProfitSharing: React.FC = () => {
@@ -46,8 +46,21 @@ const ProfitSharing: React.FC = () => {
   useEffect(() => { fetchData(); }, [bulan, tahun]);
 
   const penCapaian = data ? (data.omsetNett / (data.target || 1)) * 100 : 0;
-  const cleanedRevenue = data ? data.omsetGross - data.alokasiHPP : 0;
-  const repairRevenue = data?.alokasiHPP ?? 0;
+  const modePersen = data ? data.omsetNett >= data.target : false;
+
+  // Sistem Audit calculations (like AppScript)
+  const calcAudit = (d: ProfitSharingData) => {
+    const totalDistribusi = WALLET_GROUPS.reduce((sum, g) => {
+      const baseVal = (g.base ? (d.dompet as any)[g.base] || 0 : 0);
+      const pctVal = (g.pct ? (d.dompet as any)[g.pct] || 0 : 0);
+      return sum + baseVal + pctVal;
+    }, 0);
+    const uangBelumTarget = d.omsetNett < d.target ? d.omsetNett : 0;
+    const selisihDistribusi = Math.round(d.omsetNett - (totalDistribusi + uangBelumTarget));
+    const selisihGross = Math.round(d.omsetGross - (d.omsetNett + d.alokasiHPP + d.totalKomisi));
+    const totalSelisih = Math.abs(selisihDistribusi) + Math.abs(selisihGross);
+    return { totalSelisih, selisihDistribusi, selisihGross };
+  };
 
   return (
     <div className="admin-main">
@@ -72,54 +85,88 @@ const ProfitSharing: React.FC = () => {
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-gray)' }}>Tidak ada data untuk bulan ini.</div>
       ) : (
         <>
-          {/* Summary */}
-          <div className="summary-grid" style={{ marginBottom: 'var(--space-lg)' }}>
-            <div className="summary-card" style={{ background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)', borderLeft: '4px solid var(--success)' }}>
-              <div className="label">Omset Gross</div>
-              <div className="value" style={{ color: '#059669', fontSize: '1.125rem' }}>{formatCurrency(data.omsetGross)}</div>
+          {/* ── Summary Bar ── like AppScript: Gross | HPP | Komisi | Nett | Target */}
+          <div style={{ background: '#fff', padding: 25, borderRadius: 16, border: '1px solid rgba(0,0,0,0.05)', marginBottom: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 15, flexWrap: 'wrap', gap: 10, borderBottom: '1px solid #f1f5f9', paddingBottom: 15 }}>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-gray)', fontWeight: 700 }}>Omset Kotor (Gross)</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-dark)' }}>{formatCurrency(data.omsetGross)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-gray)', fontWeight: 700 }}>Total Potongan HPP</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f43f5e' }}>- {formatCurrency(data.alokasiHPP)}</div>
+              </div>
+              {data.totalKomisi > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-gray)', fontWeight: 700 }}>Komisi Referral</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ef4444' }}>- {formatCurrency(data.totalKomisi)}</div>
+                </div>
+              )}
+              <div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-gray)', fontWeight: 700 }}>Omset Bersih (Nett)</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#10b981' }}>{formatCurrency(data.omsetNett)}</div>
+              </div>
+              <div style={{ borderLeft: '2px dashed #e2e8f0', paddingLeft: 15 }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-gray)', fontWeight: 700 }}>Target Operasional</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary-blue)' }}>{formatCurrency(data.target)}</div>
+              </div>
             </div>
-            <div className="summary-card" style={{ background: 'linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%)', borderLeft: '4px solid #d97706' }}>
-              <div className="label">Alokasi HPP</div>
-              <div className="value" style={{ color: '#d97706' }}>{formatCurrency(data.alokasiHPP)}</div>
+
+            {/* Progress Bar */}
+            <div style={{ width: '100%', height: 16, background: '#f1f5f9', borderRadius: 20, overflow: 'hidden', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
+              <div style={{ width: `${Math.min(penCapaian, 100)}%`, height: '100%', background: 'linear-gradient(90deg, #0ea5e9, #10b981)', transition: 'width 1s ease' }} />
             </div>
-            <div className="summary-card" style={{ background: 'linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%)', borderLeft: '4px solid var(--danger)' }}>
-              <div className="label">Total Komisi</div>
-              <div className="value" style={{ color: '#dc2626' }}>{formatCurrency(data.totalKomisi)}</div>
-            </div>
-            <div className="summary-card" style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #f0f4ff 100%)', borderLeft: '4px solid var(--primary)' }}>
-              <div className="label">Omset Net</div>
-              <div className="value" style={{ color: '#2563eb', fontSize: '1.125rem' }}>{formatCurrency(data.omsetNett)}</div>
+
+            {/* Status Sistem — like AppScript */}
+            <div style={{ marginTop: 15, fontWeight: 700, fontSize: '0.9rem', textAlign: 'center' }}>
+              Status Sistem:{' '}
+              {modePersen
+                ? <span style={{ color: '#10b981' }}>🚀 MODE PERSEN AKTIF (Target Tercapai)</span>
+                : <span style={{ color: '#f59e0b' }}>🔒 PENGUMPULAN BIAYA OPERASIONAL</span>
+              }
             </div>
           </div>
 
-          {/* Target Progress */}
-          <div className="card" style={{ padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-sm)' }}>
-              <span style={{ fontWeight: 600 }}>Target: {formatCurrency(data.target)}</span>
-              <span style={{ fontWeight: 700, color: penCapaian >= 100 ? '#059669' : '#d97706' }}>
-                {penCapaian.toFixed(1)}% tercapai
-              </span>
-            </div>
-            <div style={{ height: 12, borderRadius: 6, background: '#f1f5f9', overflow: 'hidden' }}>
-              <div style={{ width: `${Math.min(penCapaian, 100)}%`, height: '100%', borderRadius: 6, background: penCapaian >= 100 ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #fbbf24, #d97706)', transition: 'width 0.8s cubic-bezier(0.4,0,0.2,1)' }} />
-            </div>
-          </div>
+          {/* ── Sistem Audit ── like AppScript */}
+          {(() => {
+            const audit = calcAudit(data);
+            const isSinkron = audit.totalSelisih <= 2;
+            return (
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 20px', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-gray)' }}>
+                  <b>Sistem Audit:</b> Gross = Nett + HPP &nbsp;|&nbsp; Distribusi ≤ Nett
+                </div>
+                <div>
+                  {isSinkron
+                    ? <span style={{ color: '#10b981', fontSize: '0.9rem' }}>✅ SINKRON (100% Balance)</span>
+                    : <span style={{ color: '#ef4444', fontSize: '0.9rem' }}>⚠️ KEBOCORAN Rp {formatCurrency(audit.totalSelisih)} DETECTED</span>
+                  }
+                </div>
+              </div>
+            );
+          })()}
 
-          {/* Revenue Breakdown */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
-            <div className="card" style={{ padding: 'var(--space-md)' }}>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-gray)', marginBottom: 4 }}>Cleaning Revenue</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#059669' }}>{formatCurrency(cleanedRevenue)}</div>
-            </div>
-            <div className="card" style={{ padding: 'var(--space-md)' }}>
-              <div style={{ fontSize: '0.8125rem', color: 'var(--text-gray)', marginBottom: 4 }}>Repair Revenue</div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#d97706' }}>{formatCurrency(repairRevenue)}</div>
-            </div>
-          </div>
-
-          {/* Wallet Distribution — grouped by role, base+pct combined */}
+          {/* ── Dompet Distribution ── */}
           <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-sm)' }}>Distribusi Dompet</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20, marginBottom: 'var(--space-lg)' }}>
+            {/* Komisi Referral card first (clickable like AppScript) */}
+            {data.totalKomisi > 0 && (
+              <div style={{ background: '#fff', padding: 25, borderRadius: 16, border: '1px solid rgba(0,0,0,0.05)', borderTop: '4px solid #ef4444', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04)', cursor: 'pointer', transition: '0.2s' }}
+                onClick={() => document.getElementById('komisi-section')?.scrollIntoView({ behavior: 'smooth' })}
+              >
+                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-gray)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  📤 Komisi Referral <span style={{ fontSize: '0.65rem', opacity: 0.5 }}>↗</span>
+                </div>
+                <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-dark)' }}>{formatCurrency(data.totalKomisi)}</div>
+              </div>
+            )}
+            {/* Alokasi Modal (HPP) card */}
+            <div style={{ background: '#fff', padding: 25, borderRadius: 16, border: '1px solid rgba(0,0,0,0.05)', borderTop: '4px solid #64748b', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-gray)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                📦 Alokasi Modal (HPP)
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-dark)' }}>{formatCurrency(data.alokasiHPP)}</div>
+            </div>
             {WALLET_GROUPS.map((g) => {
               const baseVal = g.base ? ((data.dompet as any)[g.base] || 0) : 0;
               const pctVal = g.pct ? ((data.dompet as any)[g.pct] || 0) : 0;
@@ -129,21 +176,21 @@ const ProfitSharing: React.FC = () => {
               if (pctVal > 0) detailParts.push(`pct ${formatCurrency(pctVal)}`);
               const detail = detailParts.join(' + ');
               return (
-                <div key={g.role} className="card" style={{ padding: 'var(--space-sm) var(--space-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: `3px solid ${g.color}` }}>
-                  <div>
-                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-gray)' }}>{g.role}</span>
-                    {detail && <div style={{ fontSize: '0.65rem', color: 'var(--text-light)', marginTop: 1 }}>{detail}</div>}
+                <div key={g.role} style={{ background: '#fff', padding: 25, borderRadius: 16, border: '1px solid rgba(0,0,0,0.05)', borderTop: `4px solid ${g.color}`, boxShadow: '0 10px 15px -3px rgba(0,0,0,0.04)' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-gray)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {g.icon} {g.role}
                   </div>
-                  <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{formatCurrency(total)}</span>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-dark)' }}>{formatCurrency(total)}</div>
+                  {detail && <div style={{ fontSize: '0.65rem', color: 'var(--text-light)', marginTop: 4 }}>{detail}</div>}
                 </div>
               );
             })}
           </div>
 
-          {/* Commission Table */}
+          {/* ── Komisi Referral Table ── */}
           {data.komisiBreakdown && data.komisiBreakdown.length > 0 && (
-            <>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-sm)' }}>Komisi Referral</h3>
+            <div id="komisi-section">
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-sm)' }}>Detail Komisi Referral</h3>
               <div className="table-wrap" style={{ marginBottom: 'var(--space-lg)' }}>
                 <table>
                   <thead>
@@ -162,34 +209,67 @@ const ProfitSharing: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-            </>
+            </div>
           )}
 
-          {/* History */}
-          {history.length > 0 && (
-            <>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-sm)' }}>Riwayat Profit</h3>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr><th>Bulan</th><th>Gross</th><th>HPP</th><th>Net</th><th>Pertumbuhan</th></tr>
-                  </thead>
-                  <tbody>
-                    {history.map((h, idx) => (
-                      <tr key={idx}>
-                        <td style={{ fontWeight: 600 }}>{h.bulan}</td>
-                        <td>{formatCurrency(h.gross)}</td>
-                        <td>{formatCurrency(h.hpp)}</td>
-                        <td style={{ fontWeight: 700 }}>{formatCurrency(h.nett)}</td>
-                        <td style={{ color: (h.growthRp || 0) >= 0 ? '#059669' : '#dc2626', fontWeight: 600 }}>
-                          {h.growthRp !== undefined ? `${(h.growthRp || 0) >= 0 ? '+' : ''}${formatCurrency(h.growthRp)} (${h.growthPct || '0'}%)` : '-'}
+          {/* ── Histori Buku Besar (3 Bulan Terakhir) ── */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <span style={{ color: 'var(--text-gray)', fontSize: '1rem', fontWeight: 800, letterSpacing: '0.5px' }}>
+              📜 Histori Buku Besar (3 Bulan Terakhir)
+            </span>
+            <button onClick={fetchData} style={{ background: '#f1f5f9', color: 'var(--text-dark)', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', transition: '0.2s' }}>
+              🔄 Refresh
+            </button>
+          </div>
+          {history.length > 0 ? (
+            <div className="table-wrap" style={{ marginBottom: 'var(--space-lg)' }}>
+              <table>
+                <thead>
+                  <tr><th>Bulan</th><th>Gross</th><th>Alokasi HPP</th><th>Net</th><th>Status</th><th>Pertumbuhan</th></tr>
+                </thead>
+                <tbody>
+                  {history.map((h, idx) => {
+                    const modePersenHist = h.nett >= h.target;
+                    return (
+                      <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', transition: '0.2s' }}>
+                        <td style={{ padding: 15, fontWeight: 800, color: 'var(--text-dark)' }}>{h.bulan}</td>
+                        <td style={{ padding: 15, fontWeight: 600, color: 'var(--text-gray)' }}>{formatCurrency(h.gross)}</td>
+                        <td style={{ padding: 15, fontWeight: 700, color: '#f43f5e' }}>- {formatCurrency(h.hpp)}</td>
+                        <td style={{ padding: 15, fontWeight: 800, color: '#10b981' }}>{formatCurrency(h.nett)}</td>
+                        <td style={{ padding: 15 }}>
+                          {modePersenHist
+                            ? <span style={{ background: '#dcfce7', color: '#166534', padding: '5px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>🚀 MODE PERSEN</span>
+                            : <span style={{ background: '#fef3c7', color: '#92400e', padding: '5px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>🔒 PENGUMPULAN</span>
+                          }
+                        </td>
+                        <td style={{ padding: 15 }}>
+                          {h.growthRp === undefined ? '-' : h.growthRp > 0 ? (
+                            <div style={{ color: '#10b981', fontWeight: 800, fontSize: '0.9rem' }}>
+                              <span>↑</span> +{formatCurrency(h.growthRp)}{' '}
+                              <span style={{ fontSize: '0.75rem', background: '#dcfce7', color: '#166534', padding: '2px 6px', borderRadius: 6, marginLeft: 4 }}>+{h.growthPct || '0'}%</span>
+                            </div>
+                          ) : h.growthRp < 0 ? (
+                            <div style={{ color: '#ef4444', fontWeight: 800, fontSize: '0.9rem' }}>
+                              <span>↓</span> -{formatCurrency(Math.abs(h.growthRp))}{' '}
+                              <span style={{ fontSize: '0.75rem', background: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: 6, marginLeft: 4 }}>{h.growthPct || '0'}%</span>
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--text-gray)', fontWeight: 700, fontSize: '0.9rem' }}>
+                              <span>−</span> Stabil{' '}
+                              <span style={{ fontSize: '0.75rem', background: '#f1f5f9', padding: '2px 6px', borderRadius: 6, marginLeft: 4 }}>0%</span>
+                            </div>
+                          )}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 30, fontWeight: 600, color: 'var(--text-gray)' }}>
+              Belum ada histori di bulan sebelumnya.
+            </div>
           )}
         </>
       )}
