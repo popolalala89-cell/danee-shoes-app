@@ -74,7 +74,7 @@ export default function Landing() {
   const [pickupAddress, setPickupAddress] = useState('');
 
   // Bottom nav tab
-  const [activeTab, setActiveTab] = useState<'beranda' | 'layanan' | 'produk' | 'lainnya'>('beranda');
+  const [activeTab, setActiveTab] = useState<'beranda' | 'cleaning' | 'repair' | 'produk'>('beranda');
 
   const WA_BASE = `https://wa.me/${waNumber}`;
 
@@ -167,6 +167,15 @@ export default function Landing() {
         p.nama_produk.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : storeList;
+
+  // Filtered by category for tabs
+  const cleaningServices = searchQuery.trim()
+    ? filteredJasa.filter((j) => j.kategori === 'Cleaning')
+    : activeServices.filter((j) => j.kategori === 'Cleaning');
+
+  const repairServices = searchQuery.trim()
+    ? filteredJasa.filter((j) => j.kategori === 'Repair')
+    : activeServices.filter((j) => j.kategori === 'Repair');
 
   /* ── Handlers ──────────────────────────────────────────── */
   const scrollTo = (id: string) => {
@@ -829,7 +838,6 @@ export default function Landing() {
           .flashsale-row { max-width: 900px; margin: 0 auto; padding-left: 0; padding-right: 0; }
           .tracking-modern { margin: 0 auto 20px; }
         }
-        }
 
         /* ===== Bottom Navigation (Android App style) ===== */
         .tab-content {
@@ -1081,176 +1089,6 @@ export default function Landing() {
         </section>
       )}
 
-          </div>
-        )}
-
-        {activeTab === 'layanan' && (
-          <div className="tab-page">
-      {/* ===== 5. DAFTAR LAYANAN ===== */}
-      <section id="jasa" className="shopee-section-bg" style={{ paddingTop: 8, paddingBottom: 4 }}>
-        <div className="shopee-section-header">
-          <h2>🛒 Layanan</h2>
-          <a href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20Care%20Saya%20mau%20order...`} target="_blank" rel="noopener noreferrer">Hubungi Kami</a>
-        </div>
-
-        {jasaError && (
-          <div className="alert alert-danger" style={{ margin: '0 12px 12px' }}>
-            {jasaError}
-          </div>
-        )}
-
-        {!jasaError && filteredJasa.length === 0 && (
-          <p className="text-center text-muted" style={{ padding: '20px 12px' }}>
-            {searchQuery ? `Tidak ada layanan untuk "${searchQuery}"` : 'Belum ada layanan tersedia.'}
-          </p>
-        )}
-
-        {!jasaError && filteredJasa.length > 0 && (
-          <div className="shopee-grid">
-            {filteredJasa.map((service) => {
-              const isComing = service.status === 'Coming Soon';
-              const hasPromo = service.harga_promo && service.harga_promo > 0;
-              return (
-                <div
-                  className={`shopee-card${isComing ? ' dim-card-shopee' : ''}`}
-                  key={service.id}
-                >
-                  <div className="shopee-service-top">
-                    {isComing && <div className="coming-soon-badge-shopee">Coming Soon</div>}
-                    <div className="shopee-service-icon">
-                      {CATEGORY_ICONS[service.kategori] || '🛠️'}
-                    </div>
-                    <div className="shopee-service-name">{service.nama_layanan}</div>
-                    {service.deskripsi && (
-                      <div className="shopee-service-desc">{service.deskripsi}</div>
-                    )}
-                    <div className="shopee-service-price">
-                      {hasPromo ? (
-                        <>
-                          {formatCurrency(service.harga_promo || 0)}{' '}
-                          <span className="shopee-service-promo">{formatCurrency(service.harga)}</span>
-                        </>
-                      ) : (
-                        service.harga > 0 ? formatCurrency(service.harga) : 'Gratis'
-                      )}
-                    </div>
-                  </div>
-                  <div className="shopee-card-footer">
-                    {!isComing ? (
-                      <button
-                        className="btn-shopee-primary"
-                        onClick={() => openDeliveryModal(service)}
-                      >
-                        💬 Order
-                      </button>
-                    ) : (
-                      <button className="btn-shopee-disabled">
-                        ⏳ Segera
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-          </div>
-        )}
-
-        {activeTab === 'produk' && (
-          <div className="tab-page">
-      {/* ===== 6. PRODUK STORE ===== */}
-      <section id="store" className="shopee-section-white" style={{ paddingTop: 8, paddingBottom: 4 }}>
-        <div className="shopee-section-header">
-          <h2>🏪 Produk</h2>
-          <a href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20Care%20Saya%20tertarik%20dengan%20produk...`} target="_blank" rel="noopener noreferrer">Tanya Stok</a>
-        </div>
-
-        {storeError && (
-          <div className="alert alert-danger" style={{ margin: '0 12px 12px' }}>
-            {storeError}
-          </div>
-        )}
-
-        {!storeError && filteredStore.length === 0 && (
-          <p className="text-center text-muted" style={{ padding: '20px 12px' }}>
-            {searchQuery ? `Tidak ada produk untuk "${searchQuery}"` : 'Belum ada produk tersedia.'}
-          </p>
-        )}
-
-        {!storeError && filteredStore.length > 0 && (
-          <div className="shopee-grid">
-            {filteredStore.map((product) => {
-              const outOfStock = product.stok <= 0;
-              return (
-                <div
-                  className={`shopee-card${outOfStock ? ' dim-card-shopee' : ''}`}
-                  key={product.id}
-                >
-                  {product.link_foto ? (
-                    <img
-                      className="shopee-store-img"
-                      src={product.link_foto}
-                      alt={product.nama_produk}
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="shopee-store-img-placeholder">🛍️</div>
-                  )}
-                  <div className="shopee-store-info">
-                    <div className="shopee-store-name">{product.nama_produk}</div>
-                    <div className="shopee-store-price">
-                      {product.harga_promo && product.harga_promo > 0 ? (
-                        <>
-                          {formatCurrency(product.harga_promo)}{' '}
-                          <span className="shopee-service-promo">{formatCurrency(product.harga)}</span>
-                        </>
-                      ) : (
-                        formatCurrency(product.harga)
-                      )}
-                    </div>
-                    <div style={{ fontSize: '0.65rem', color: outOfStock ? '#ef4444' : '#10b981', fontWeight: 600, marginTop: 2 }}>
-                      {outOfStock ? 'Stok Habis' : `Stok: ${product.stok}`}
-                    </div>
-                  </div>
-                  <div className="shopee-card-footer">
-                    {!outOfStock ? (
-                      <button
-                        className="btn-shopee-primary"
-                        onClick={() => {
-                          let msg = `Halo Danee Shoes Care! Saya tertarik dengan produk berikut:\n\n`;
-                          msg += `*Produk:* ${product.nama_produk}\n`;
-                          msg += `*Harga:* ${formatCurrency(product.harga)}\n`;
-                          msg += `*Stok:* ${product.stok}\n`;
-                          if (product.link_marketplace) msg += `\nAtau lihat di marketplace: ${product.link_marketplace}`;
-                          msg += `\n\nTerima kasih.`;
-                          window.open(`${WA_BASE}?text=${encodeURIComponent(msg)}`, '_blank');
-                        }}
-                      >
-                        🛒 Beli
-                      </button>
-                    ) : (
-                      <button className="btn-shopee-disabled">
-                        Habis
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-          </div>
-        )}
-
-        {activeTab === 'lainnya' && (
-          <div className="tab-page">
       {/* ===== 7. TRACKING ORDER ===== */}
       <section id="tracking" className="shopee-section-bg" style={{ paddingTop: 12, paddingBottom: 8 }}>
         <div className="shopee-section-header">
@@ -1439,6 +1277,246 @@ export default function Landing() {
 
           </div>
         )}
+
+        {activeTab === 'cleaning' && (
+          <div className="tab-page">
+      {/* ===== 5. DAFTAR LAYANAN ===== */}
+      <section id="jasa" className="shopee-section-bg" style={{ paddingTop: 8, paddingBottom: 4 }}>
+        <div className="shopee-section-header">
+          <h2>👟 Cleaning</h2>
+          <a href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20Care%20Saya%20mau%20order%20cleaning...`} target="_blank" rel="noopener noreferrer">Hubungi Kami</a>
+        </div>
+
+        {jasaError && (
+          <div className="alert alert-danger" style={{ margin: '0 12px 12px' }}>
+            {jasaError}
+          </div>
+        )}
+
+        {!jasaError && cleaningServices.length === 0 && (
+          <p className="text-center text-muted" style={{ padding: '20px 12px' }}>
+            {searchQuery ? `Tidak ada layanan cleaning untuk "${searchQuery}"` : 'Belum ada layanan cleaning tersedia.'}
+          </p>
+        )}
+
+        {!jasaError && cleaningServices.length > 0 && (
+          <div className="shopee-grid">
+            {cleaningServices.map((service) => {
+              const isComing = service.status === 'Coming Soon';
+              const hasPromo = service.harga_promo && service.harga_promo > 0;
+              return (
+                <div
+                  className={`shopee-card${isComing ? ' dim-card-shopee' : ''}`}
+                  key={service.id}
+                >
+                  <div className="shopee-service-top">
+                    {isComing && <div className="coming-soon-badge-shopee">Coming Soon</div>}
+                    <div className="shopee-service-icon">
+                      {CATEGORY_ICONS[service.kategori] || '🛠️'}
+                    </div>
+                    <div className="shopee-service-name">{service.nama_layanan}</div>
+                    {service.deskripsi && (
+                      <div className="shopee-service-desc">{service.deskripsi}</div>
+                    )}
+                    <div className="shopee-service-price">
+                      {hasPromo ? (
+                        <>
+                          {formatCurrency(service.harga_promo || 0)}{' '}
+                          <span className="shopee-service-promo">{formatCurrency(service.harga)}</span>
+                        </>
+                      ) : (
+                        service.harga > 0 ? formatCurrency(service.harga) : 'Gratis'
+                      )}
+                    </div>
+                  </div>
+                  <div className="shopee-card-footer">
+                    {!isComing ? (
+                      <button
+                        className="btn-shopee-primary"
+                        onClick={() => openDeliveryModal(service)}
+                      >
+                        💬 Order
+                      </button>
+                    ) : (
+                      <button className="btn-shopee-disabled">
+                        ⏳ Segera
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+          </div>
+        )}
+
+        {activeTab === 'produk' && (
+          <div className="tab-page">
+      {/* ===== 6. PRODUK STORE ===== */}
+      <section id="store" className="shopee-section-white" style={{ paddingTop: 8, paddingBottom: 4 }}>
+        <div className="shopee-section-header">
+          <h2>🏪 Produk</h2>
+          <a href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20Care%20Saya%20tertarik%20dengan%20produk...`} target="_blank" rel="noopener noreferrer">Tanya Stok</a>
+        </div>
+
+        {storeError && (
+          <div className="alert alert-danger" style={{ margin: '0 12px 12px' }}>
+            {storeError}
+          </div>
+        )}
+
+        {!storeError && filteredStore.length === 0 && (
+          <p className="text-center text-muted" style={{ padding: '20px 12px' }}>
+            {searchQuery ? `Tidak ada produk untuk "${searchQuery}"` : 'Belum ada produk tersedia.'}
+          </p>
+        )}
+
+        {!storeError && filteredStore.length > 0 && (
+          <div className="shopee-grid">
+            {filteredStore.map((product) => {
+              const outOfStock = product.stok <= 0;
+              return (
+                <div
+                  className={`shopee-card${outOfStock ? ' dim-card-shopee' : ''}`}
+                  key={product.id}
+                >
+                  {product.link_foto ? (
+                    <img
+                      className="shopee-store-img"
+                      src={product.link_foto}
+                      alt={product.nama_produk}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="shopee-store-img-placeholder">🛍️</div>
+                  )}
+                  <div className="shopee-store-info">
+                    <div className="shopee-store-name">{product.nama_produk}</div>
+                    <div className="shopee-store-price">
+                      {product.harga_promo && product.harga_promo > 0 ? (
+                        <>
+                          {formatCurrency(product.harga_promo)}{' '}
+                          <span className="shopee-service-promo">{formatCurrency(product.harga)}</span>
+                        </>
+                      ) : (
+                        formatCurrency(product.harga)
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.65rem', color: outOfStock ? '#ef4444' : '#10b981', fontWeight: 600, marginTop: 2 }}>
+                      {outOfStock ? 'Stok Habis' : `Stok: ${product.stok}`}
+                    </div>
+                  </div>
+                  <div className="shopee-card-footer">
+                    {!outOfStock ? (
+                      <button
+                        className="btn-shopee-primary"
+                        onClick={() => {
+                          let msg = `Halo Danee Shoes Care! Saya tertarik dengan produk berikut:\n\n`;
+                          msg += `*Produk:* ${product.nama_produk}\n`;
+                          msg += `*Harga:* ${formatCurrency(product.harga)}\n`;
+                          msg += `*Stok:* ${product.stok}\n`;
+                          if (product.link_marketplace) msg += `\nAtau lihat di marketplace: ${product.link_marketplace}`;
+                          msg += `\n\nTerima kasih.`;
+                          window.open(`${WA_BASE}?text=${encodeURIComponent(msg)}`, '_blank');
+                        }}
+                      >
+                        🛒 Beli
+                      </button>
+                    ) : (
+                      <button className="btn-shopee-disabled">
+                        Habis
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+          </div>
+        )}
+
+        {activeTab === 'repair' && (
+          <div className="tab-page">
+      {/* ===== 5. DAFTAR REPAIR ===== */}
+      <section id="repair" className="shopee-section-bg" style={{ paddingTop: 8, paddingBottom: 4 }}>
+        <div className="shopee-section-header">
+          <h2>🔧 Repair</h2>
+          <a href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20Care%20Saya%20mau%20order%20repair...`} target="_blank" rel="noopener noreferrer">Hubungi Kami</a>
+        </div>
+
+        {jasaError && (
+          <div className="alert alert-danger" style={{ margin: '0 12px 12px' }}>
+            {jasaError}
+          </div>
+        )}
+
+        {!jasaError && repairServices.length === 0 && (
+          <p className="text-center text-muted" style={{ padding: '20px 12px' }}>
+            {searchQuery ? `Tidak ada layanan repair untuk "${searchQuery}"` : 'Belum ada layanan repair tersedia.'}
+          </p>
+        )}
+
+        {!jasaError && repairServices.length > 0 && (
+          <div className="shopee-grid">
+            {repairServices.map((service) => {
+              const isComing = service.status === 'Coming Soon';
+              const hasPromo = service.harga_promo && service.harga_promo > 0;
+              return (
+                <div
+                  className={`shopee-card${isComing ? ' dim-card-shopee' : ''}`}
+                  key={service.id}
+                >
+                  <div className="shopee-service-top">
+                    {isComing && <div className="coming-soon-badge-shopee">Coming Soon</div>}
+                    <div className="shopee-service-icon">
+                      {CATEGORY_ICONS[service.kategori] || '🛠️'}
+                    </div>
+                    <div className="shopee-service-name">{service.nama_layanan}</div>
+                    {service.deskripsi && (
+                      <div className="shopee-service-desc">{service.deskripsi}</div>
+                    )}
+                    <div className="shopee-service-price">
+                      {hasPromo ? (
+                        <>
+                          {formatCurrency(service.harga_promo || 0)}{' '}
+                          <span className="shopee-service-promo">{formatCurrency(service.harga)}</span>
+                        </>
+                      ) : (
+                        service.harga > 0 ? formatCurrency(service.harga) : 'Gratis'
+                      )}
+                    </div>
+                  </div>
+                  <div className="shopee-card-footer">
+                    {!isComing ? (
+                      <button
+                        className="btn-shopee-primary"
+                        onClick={() => openDeliveryModal(service)}
+                      >
+                        💬 Order
+                      </button>
+                    ) : (
+                      <button className="btn-shopee-disabled">
+                        ⏳ Segera
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+          </div>
+        )}
       </div>
 
       {/* ===== BOTTOM NAV ===== */}
@@ -1451,11 +1529,18 @@ export default function Landing() {
           <span className="bn-label">Beranda</span>
         </button>
         <button
-          className={`bn-item${activeTab === 'layanan' ? ' active' : ''}`}
-          onClick={() => setActiveTab('layanan')}
+          className={`bn-item${activeTab === 'cleaning' ? ' active' : ''}`}
+          onClick={() => setActiveTab('cleaning')}
         >
           <span className="bn-icon">👟</span>
-          <span className="bn-label">Layanan</span>
+          <span className="bn-label">Cleaning</span>
+        </button>
+        <button
+          className={`bn-item${activeTab === 'repair' ? ' active' : ''}`}
+          onClick={() => setActiveTab('repair')}
+        >
+          <span className="bn-icon">🔧</span>
+          <span className="bn-label">Repair</span>
         </button>
         <button
           className={`bn-item${activeTab === 'produk' ? ' active' : ''}`}
@@ -1463,13 +1548,6 @@ export default function Landing() {
         >
           <span className="bn-icon">🛍️</span>
           <span className="bn-label">Produk</span>
-        </button>
-        <button
-          className={`bn-item${activeTab === 'lainnya' ? ' active' : ''}`}
-          onClick={() => setActiveTab('lainnya')}
-        >
-          <span className="bn-icon">📋</span>
-          <span className="bn-label">Lainnya</span>
         </button>
       </nav>
 
