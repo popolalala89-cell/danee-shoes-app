@@ -6,16 +6,19 @@
 Migrasi penuh dari Google Apps Script (GAS) ke Supabase.
 
 ## Status Terkini
+- ✅ **Semua data dari spreadsheet sudah dimigrasi ke Supabase!** (17 Jun 2026)
 - ✅ GAS backend sudah dikembalikan ke asli (tidak disentuh lagi)
 - ✅ Analisis GAS backend selesai (GAS_BACKEND_ANALYSIS.md)
 - ✅ PRD lengkap selesai (PRD.md — 15 bab, 28KB)
-- ✅ AI context structure lengkap (AGENTS.md, CURRENT_STATE, PROJECT_MEMORY, TASK_BOARD, DECISIONS, ERROR_HISTORY, LESSONS_LEARNED)
-- ✅ SQL migration siap (supabase/seed.sql — 12 tabel + RLS + triggers)
-- ✅ Commit + push master (5dc2dd3)
-- 🚧 Supabase project baru — **PERLU DIBUAT OLEH PA POPO**
-- ⬜ SQL dijalankan di Supabase
-- ⬜ Install @supabase/supabase-js
-- ⬜ Frontend redesign
+- ✅ AI context structure lengkap
+- ✅ SQL migration dijalankan (seed.sql — 12 tabel + RLS + triggers)
+- ✅ Supabase project aktif + koneksi berfungsi
+- ✅ Data migrated: 223 rows across 10 tables
+- ✅ Admin user: admin@danee.com (confirmed)
+- ✅ Refaktor frontend dari GAS → Supabase API (build lulus, 0 error)
+- ✅ Semua service layer (`src/lib/services/`) pakai Supabase client
+- ✅ Auth pakai Supabase Auth (login via email/password)
+- ⬜ Build APK via GitHub Actions
 
 ## Struktur File Baru
 ```

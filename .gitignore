@@ -11,3 +11,6 @@ android/.idea
 apk/
 apk-github/
 .env
+js/
+migrate_data.py
+supabase-test.html
