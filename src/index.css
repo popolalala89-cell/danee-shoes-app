@@ -851,23 +851,16 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
 }
 
 .admin-main {
-  padding: 0 var(--space-md) calc(var(--space-md) + 72px);
+  padding: calc(var(--topbar-height) + var(--safe-top)) var(--space-md) calc(var(--space-md) + 72px);
 }
 
-.hamburger-admin {
-  display: flex !important;
+/* ── Admin Page Header (used by some pages) ──────────────────── */
+.page-header-md3 {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: var(--touch-min);
-  height: var(--touch-min);
-  background: none;
-  border: none;
-  font-size: 1.25rem;
-  cursor: pointer;
-  color: var(--white);
-  border-radius: var(--radius-sm);
-  margin-right: var(--space-sm);
-  -webkit-tap-highlight-color: transparent;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+  min-height: 32px;
 }
 
 /* ════════════════════════════════════════════════════════════════
