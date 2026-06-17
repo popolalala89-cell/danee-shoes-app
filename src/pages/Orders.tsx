@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getAll as getOrders, create as createOrder, updateStatus as updateOrderStatus, update as updateOrder, trackOrder } from '../lib/services/order-service';
+import { getAllDiskon } from '../lib/services/konten-service';
 import { formatCurrency, formatDate } from '../lib/utils';
-import type { OrderRow, OrderStatus } from '../lib/types-supabase';
+import type { OrderRow, OrderStatus, DiskonEventRow } from '../lib/types-supabase';
 
 const ORDER_STATUSES = ['Semua', 'Waiting', 'Checking', 'Proses Repair', 'Proses Cleaning', 'Proses Pengeringan', 'Ready', 'Selesai', 'Batal'] as const;
 const TERMINAL_STATUSES = ['Selesai', 'Batal'];
@@ -78,6 +79,14 @@ function Orders() {
   const [addReferral, setAddReferral] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Add order discount state
+  const [availableDiskon, setAvailableDiskon] = useState<DiskonEventRow[]>([]);
+  const [diskonLoading, setDiskonLoading] = useState(false);
+  const [addDiskonTipe, setAddDiskonTipe] = useState<'Tanpa' | 'Event' | 'Manual'>('Tanpa');
+  const [addDiskonEventId, setAddDiskonEventId] = useState('');
+  const [addDiskonNama, setAddDiskonNama] = useState('');
+  const [addDiskonNilai, setAddDiskonNilai] = useState('');
+
   // Detail modal
   const [detailOrder, setDetailOrder] = useState<OrderRow | null>(null);
 
@@ -91,6 +100,18 @@ function Orders() {
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   useEffect(() => { fetchOrders(); }, []);
+
+  // Fetch diskon events when add modal opens
+  useEffect(() => {
+    if (showAddModal) {
+      setDiskonLoading(true);
+      getAllDiskon().then((res) => {
+        if (res.success) {
+          setAvailableDiskon((res.data || []).filter((d) => d.status === 'Aktif'));
+        }
+      }).finally(() => setDiskonLoading(false));
+    }
+  }, [showAddModal]);
 
   async function fetchOrders() {
     setLoading(true);
@@ -147,13 +168,42 @@ function Orders() {
     if (!addNama.trim() || !addWa.trim() || !addLayanan.trim() || !addHarga.trim()) {
       setError('Harap isi Nama, WA, Layanan, dan Harga'); return;
     }
+
+    // Hitung diskon
+    let hargaAsli = parseFloat(addHarga) || 0;
+    let potonganHarga = 0;
+    let diskonTextInfo = '';
+
+    if (addDiskonTipe === 'Event' && addDiskonEventId) {
+      const ev = availableDiskon.find((d) => d.id === addDiskonEventId);
+      if (ev) {
+        diskonTextInfo = ev.nama_event;
+        if (ev.tipe === 'Persentase') {
+          potonganHarga = Math.round(hargaAsli * (ev.potongan / 100));
+          diskonTextInfo += ` (${ev.potongan}%): -${formatCurrency(potonganHarga)}`;
+        } else {
+          potonganHarga = ev.potongan;
+          if (potonganHarga > hargaAsli) potonganHarga = hargaAsli;
+          diskonTextInfo += `: -${formatCurrency(potonganHarga)}`;
+        }
+      }
+    } else if (addDiskonTipe === 'Manual') {
+      const namaDiskon = addDiskonNama.trim() || 'Diskon Manual';
+      const nilaiDiskon = parseFloat(addDiskonNilai) || 0;
+      potonganHarga = nilaiDiskon > hargaAsli ? hargaAsli : nilaiDiskon;
+      diskonTextInfo = `${namaDiskon}: -${formatCurrency(potonganHarga)}`;
+    }
+
+    const hargaFinal = hargaAsli - potonganHarga;
+
     setSubmitting(true);
     createOrder({
       nama_pelanggan: addNama.trim(),
       kontak_wa: addWa.trim(),
       layanan: addLayanan.trim(),
-      harga: parseFloat(addHarga),
+      harga: hargaFinal,
       catatan: addCatatan.trim() || null,
+      diskon_info: potonganHarga > 0 ? diskonTextInfo : null,
       tipe_pembayaran: addTipeBayar as 'Bayar di Awal' | 'Bayar di Akhir',
       referral: addReferral.trim() || null,
     })
@@ -173,6 +223,7 @@ function Orders() {
   function resetAddForm() {
     setAddNama(''); setAddWa(''); setAddLayanan(''); setAddHarga('');
     setAddCatatan(''); setAddTipeBayar('Bayar di Akhir'); setAddReferral('');
+    setAddDiskonTipe('Tanpa'); setAddDiskonEventId(''); setAddDiskonNama(''); setAddDiskonNilai('');
   }
 
   function openEdit(order: OrderRow) {
@@ -314,7 +365,94 @@ function Orders() {
                 <div className="form-group"><label>Kontak WA</label><input type="text" className="form-control" value={addWa} onChange={(e) => setAddWa(e.target.value)} required /></div>
                 <div className="form-group"><label>Layanan</label><input type="text" className="form-control" value={addLayanan} onChange={(e) => setAddLayanan(e.target.value)} required /></div>
                 <div className="form-group"><label>Harga</label><input type="number" className="form-control" value={addHarga} onChange={(e) => setAddHarga(e.target.value)} min={0} required /></div>
-                <div className="form-group"><label>Catatan</label><textarea className="form-control" value={addCatatan} onChange={(e) => setAddCatatan(e.target.value)} rows={3} /></div>
+
+                {/* Diskon Section */}
+                <div className="form-group" style={{ borderTop: '1px solid #e2e8f0', paddingTop: 'var(--space-sm)', marginTop: 'var(--space-sm)' }}>
+                  <label style={{ fontWeight: 700, color: '#1e293b' }}>Diskon</label>
+                  <select className="form-control" value={addDiskonTipe} onChange={(e) => { setAddDiskonTipe(e.target.value as any); setAddDiskonEventId(''); setAddDiskonNama(''); setAddDiskonNilai(''); }}>
+                    <option value="Tanpa">Tanpa Diskon</option>
+                    <option value="Event">Event Diskon</option>
+                    <option value="Manual">Manual</option>
+                  </select>
+                </div>
+
+                {addDiskonTipe === 'Event' && (
+                  <div className="form-group">
+                    <label>Pilih Event</label>
+                    {diskonLoading ? (
+                      <p className="text-muted" style={{ fontSize: '0.85rem' }}>Memuat event diskon...</p>
+                    ) : availableDiskon.length === 0 ? (
+                      <p className="text-muted" style={{ fontSize: '0.85rem' }}>Tidak ada event diskon aktif</p>
+                    ) : (
+                      <select className="form-control" value={addDiskonEventId} onChange={(e) => setAddDiskonEventId(e.target.value)}>
+                        <option value="">-- Pilih Event Promo --</option>
+                        {availableDiskon.map((ev) => (
+                          <option key={ev.id} value={ev.id}>
+                            {ev.nama_event} ({ev.tipe === 'Persentase' ? `${ev.potongan}%` : `Rp${ev.potongan.toLocaleString('id-ID')}`})
+                            {ev.target_layanan ? ` — ${ev.target_layanan}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {addDiskonTipe === 'Manual' && (
+                  <>
+                    <div className="form-group" style={{ marginBottom: 'var(--space-xs)' }}>
+                      <label>Nama Diskon</label>
+                      <input type="text" className="form-control" value={addDiskonNama} onChange={(e) => setAddDiskonNama(e.target.value)} placeholder="Cth: Relasi, Karyawan" />
+                    </div>
+                    <div className="form-group">
+                      <label>Nilai Potongan (Rp)</label>
+                      <input type="number" className="form-control" value={addDiskonNilai} onChange={(e) => setAddDiskonNilai(e.target.value)} min={0} placeholder="0" />
+                    </div>
+                  </>
+                )}
+
+                {/* Ringkasan Harga Setelah Diskon */}
+                {(addDiskonTipe !== 'Tanpa') && (
+                  <div style={{ background: '#f8fafc', padding: 'var(--space-sm)', borderRadius: 'var(--radius)', marginBottom: 'var(--space-sm)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                      <span>Harga Asli</span>
+                      <span style={{ fontWeight: 600 }}>{formatCurrency(parseFloat(addHarga) || 0)}</span>
+                    </div>
+                    {(() => {
+                      const hargaAsli = parseFloat(addHarga) || 0;
+                      let pot = 0;
+                      let lbl = '';
+                      if (addDiskonTipe === 'Event' && addDiskonEventId) {
+                        const ev = availableDiskon.find((d) => d.id === addDiskonEventId);
+                        if (ev) {
+                          if (ev.tipe === 'Persentase') { pot = Math.round(hargaAsli * (ev.potongan / 100)); }
+                          else { pot = ev.potongan; if (pot > hargaAsli) pot = hargaAsli; }
+                          lbl = ev.nama_event;
+                        }
+                      } else if (addDiskonTipe === 'Manual') {
+                        pot = parseFloat(addDiskonNilai) || 0;
+                        if (pot > hargaAsli) pot = hargaAsli;
+                        lbl = addDiskonNama.trim() || 'Diskon Manual';
+                      }
+                      const final = hargaAsli - pot;
+                      return (
+                        <>
+                          {pot > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#16a34a' }}>
+                              <span>Potongan {lbl ? `(${lbl})` : ''}</span>
+                              <span style={{ fontWeight: 600 }}>-{formatCurrency(pot)}</span>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 700, borderTop: '1px solid #e2e8f0', paddingTop: '4px', marginTop: '4px' }}>
+                            <span>Total Akhir</span>
+                            <span style={{ color: '#16a34a' }}>{formatCurrency(final)}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                <div className="form-group"><label>Catatan</label><textarea className="form-control" value={addCatatan} onChange={(e) => setAddCatatan(e.target.value)} rows={2} /></div>
                 <div className="form-group"><label>Tipe Pembayaran</label>
                   <select className="form-control" value={addTipeBayar} onChange={(e) => setAddTipeBayar(e.target.value)}>
                     <option value="Bayar di Awal">Bayar di Awal</option>
