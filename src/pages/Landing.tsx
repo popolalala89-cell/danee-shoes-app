@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getAll } from '../lib/services/menu-jasa-service';
 import { getAllActive } from '../lib/services/menu-store-service';
 import { getAll as getAllKonten, getAllDiskon } from '../lib/services/konten-service';
-import { getWaNumber } from '../lib/services/settings-service';
+import { getWaNumber, getSetting } from '../lib/services/settings-service';
 import { trackOrder } from '../lib/services/order-service';
 import { formatCurrency } from '../lib/utils';
+import Settings from './Settings';
 import type { MenuJasaRow, MenuStoreRow, KontenWebRow, OrderRow, DiskonEventRow } from '../lib/types-supabase';
 
 /* ── Helpers ─────────────────────────────────────────────────── */
@@ -81,6 +82,12 @@ export default function Landing() {
   const [deliveryMethod, setDeliveryMethod] = useState<'antar' | 'jemput'>('antar');
   const [pickupAddress, setPickupAddress] = useState('');
 
+  // Lightbox
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
+  // QRIS image from settings
+  const [qrisImage, setQrisImage] = useState<string | null>(null);
+
   // Cart modal
   const [cartModalOpen, setCartModalOpen] = useState(false);
   const [cartDeliveryMethod, setCartDeliveryMethod] = useState<'antar' | 'jemput'>('antar');
@@ -88,7 +95,7 @@ export default function Landing() {
   const [cartPaymentMethod, setCartPaymentMethod] = useState<'nanti' | 'qris'>('nanti');
 
   // Bottom nav tab
-  const [activeTab, setActiveTab] = useState<'beranda' | 'cleaning' | 'repair' | 'produk'>('beranda');
+  const [activeTab, setActiveTab] = useState<'beranda' | 'cleaning' | 'repair' | 'produk' | 'settings'>('beranda');
 
   const WA_BASE = `https://wa.me/${waNumber}`;
 
@@ -102,6 +109,13 @@ export default function Landing() {
         if (!cancelled && waRes.success && waRes.data) {
           setWaNumber(waRes.data);
         }
+
+        // Load QRIS image from settings
+        getSetting('qris_image').then((res) => {
+          if (!cancelled && res.success && res.data) {
+            setQrisImage(res.data);
+          }
+        }).catch(() => {});
 
         const [jasaRes, storeRes, kontenRes, diskonRes] = await Promise.all([
           getAll().catch(() => ({ success: false as const, error: 'Gagal memuat layanan' })),
@@ -383,6 +397,7 @@ export default function Landing() {
           gap: 14px;
           color: #555;
           font-size: 1.2rem;
+          flex-shrink: 0;
         }
         .shopee-topbar-icons button {
           background: none;
@@ -834,7 +849,7 @@ export default function Landing() {
         .shopee-section-bg { background: #f5f5f5; }
         .shopee-section-white { background: #fff; }
 
-        /* Hamburger overlay */
+        /* Gear menu popup */
         .hamburger-landing {
           display: flex;
           align-items: center;
@@ -847,33 +862,79 @@ export default function Landing() {
           cursor: pointer;
           color: var(--text-dark);
         }
-        .nav-links {
+        .settings-popup {
           display: none;
-          list-style: none;
-          gap: var(--space-lg);
           position: fixed;
-          top: 0;
-          right: -100%;
-          width: 280px;
-          height: 100vh;
-          background: var(--white);
-          flex-direction: column;
-          padding: 80px var(--space-lg) var(--space-lg);
-          box-shadow: var(--elevation-4);
-          transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          top: calc(56px + env(safe-area-inset-top, 0px));
+          right: 12px;
+          width: 220px;
+          background: #fff;
+          border-radius: 12px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.12);
           z-index: 200;
+          padding: 8px;
+          flex-direction: column;
+          gap: 2px;
         }
-        .nav-links.open {
+        .settings-popup.open {
           display: flex;
-          right: 0;
         }
-        .nav-links a {
-          color: var(--text-gray);
+        .settings-popup button,
+        .settings-popup a {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 14px;
+          background: none;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.9rem;
           font-weight: 500;
-          font-size: 0.9375rem;
-          padding: var(--space-md) 0;
-          border-bottom: 1px solid #f1f5f9;
-          display: block;
+          color: var(--text-dark);
+          cursor: pointer;
+          text-decoration: none;
+          width: 100%;
+          box-sizing: border-box;
+          transition: background 0.15s;
+        }
+        .settings-popup button:active,
+        .settings-popup a:active {
+          background: #f1f5f9;
+        }
+
+        /* Lightbox */
+        .lightbox-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.85);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          padding: 20px;
+        }
+        .lightbox-close {
+          position: absolute;
+          top: calc(16px + env(safe-area-inset-top, 0px));
+          right: 16px;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.2);
+          color: #fff;
+          border: none;
+          font-size: 1.3rem;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+        }
+        .lightbox-image {
+          max-width: 100%;
+          max-height: 90vh;
+          object-fit: contain;
+          border-radius: 8px;
         }
 
         /* Misc */
@@ -932,7 +993,7 @@ export default function Landing() {
           bottom: 0;
           left: 0;
           right: 0;
-          height: calc(56px + env(safe-area-inset-bottom, 0px));
+          height: calc(64px + env(safe-area-inset-bottom, 0px));
           padding-bottom: env(safe-area-inset-bottom, 0px);
           box-sizing: border-box;
           background: #fff;
@@ -965,7 +1026,7 @@ export default function Landing() {
           line-height: 1;
         }
         .bn-item .bn-label {
-          font-size: 0.6rem;
+          font-size: 0.65rem;
           font-weight: 500;
           line-height: 1.2;
           letter-spacing: 0;
@@ -1064,8 +1125,9 @@ export default function Landing() {
           className="hamburger-landing"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label={menuOpen ? 'Tutup menu' : 'Buka menu'}
+          title="Menu"
         >
-          {menuOpen ? '✕' : '☰'}
+          {menuOpen ? '✕' : '⚙️'}
         </button>
         <div className="shopee-topbar-logo">
           <span>👟</span> Danee
@@ -1089,7 +1151,7 @@ export default function Landing() {
           </button>
         </div>
 
-        {/* Mobile drawer overlay */}
+        {/* Settings popup menu */}
         {menuOpen && (
           <div
             style={{
@@ -1099,13 +1161,17 @@ export default function Landing() {
             onClick={() => setMenuOpen(false)}
           />
         )}
-        <ul className={`nav-links${menuOpen ? ' open' : ''}`}>
-          <li><a href="#jasa" onClick={(e) => { e.preventDefault(); scrollTo('jasa'); }}>Layanan</a></li>
-          <li><a href="#store" onClick={(e) => { e.preventDefault(); scrollTo('store'); }}>Produk</a></li>
-          <li><a href="#tracking" onClick={(e) => { e.preventDefault(); scrollTo('tracking'); }}>Tracking</a></li>
-          <li><a href="#konten" onClick={(e) => { e.preventDefault(); scrollTo('konten'); }}>Konten</a></li>
-          <li><a href={WA_BASE} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>💬 WhatsApp</a></li>
-        </ul>
+        <div className={`settings-popup${menuOpen ? ' open' : ''}`}>
+          <button onClick={() => {
+            setMenuOpen(false);
+            setActiveTab('settings');
+          }}>
+            <span style={{ fontSize: '1.1rem' }}>⚙️</span> Pengaturan
+          </button>
+          <a href={WA_BASE} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>
+            <span style={{ fontSize: '1.1rem' }}>💬</span> WhatsApp
+          </a>
+        </div>
       </header>
 
       <div className="tab-content">
@@ -1121,7 +1187,12 @@ export default function Landing() {
             bannerItems.map((item) => (
               <div className="banner-slide" key={item.id}>
                 {item.isi_konten && (item.isi_konten.startsWith('http') || item.isi_konten.startsWith('data:')) ? (
-                  <img src={item.isi_konten} alt={item.keterangan} />
+                  <img
+                    src={item.isi_konten}
+                    alt={item.keterangan}
+                    onClick={() => setLightboxImage(item.isi_konten || '')}
+                    style={{ cursor: 'pointer' }}
+                  />
                 ) : (
                   <div className="banner-slide no-img">
                     <h3>👟 {item.keterangan}</h3>
@@ -1622,6 +1693,12 @@ export default function Landing() {
 
           </div>
         )}
+
+        {activeTab === 'settings' && (
+          <div className="tab-page" style={{ padding: 0, background: '#f8fafc' }}>
+            <Settings />
+          </div>
+        )}
       </div>
 
       {/* ===== BOTTOM NAV ===== */}
@@ -1655,6 +1732,24 @@ export default function Landing() {
           <span className="bn-label">Produk</span>
         </button>
       </nav>
+
+      {/* ===== LIGHTBOX OVERLAY ===== */}
+      {lightboxImage && (
+        <div
+          className="lightbox-overlay"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button className="lightbox-close" onClick={() => setLightboxImage(null)}>
+            ✕
+          </button>
+          <img
+            src={lightboxImage}
+            alt="Gambar penuh"
+            className="lightbox-image"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* ===== FLOATING CART BUTTON ===== */}
       {cartCount > 0 && (
@@ -1807,8 +1902,9 @@ export default function Landing() {
                     Scan QRIS di bawah untuk membayar:
                   </p>
                   <img
-                    src="data:image/jpeg;base64,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"
+                    src={qrisImage || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23f0f9ff' rx='12'/%3E%3Ctext x='100' y='90' text-anchor='middle' fill='%231e293b' font-size='14' font-weight='600'%3EQRIS%3C/text%3E%3Ctext x='100' y='120' text-anchor='middle' fill='%2364748b' font-size='11'%3EScan untuk bayar%3C/text%3E%3Ctext x='100' y='145' text-anchor='middle' fill='%23034BB9' font-size='12' font-weight='600'%3EUpload di%3C/text%3E%3Ctext x='100' y='165' text-anchor='middle' fill='%23034BB9' font-size='12' font-weight='600'%3EPengaturan%3C/text%3E%3C/svg%3E"}
                     alt="QRIS Pembayaran"
+                    className="qris-share-img"
                     style={{ maxWidth: '200px', borderRadius: 8, marginBottom: 10, cursor: 'pointer' }}
                     onClick={() => {
                       const img = document.querySelector('.qris-share-img') as HTMLImageElement;

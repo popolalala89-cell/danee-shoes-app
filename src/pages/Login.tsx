@@ -52,7 +52,7 @@ const Login: React.FC = () => {
           <div style={styles.logoCircle}>
             <span style={styles.logoEmoji}>👟</span>
           </div>
-          <h1 style={styles.title}>Danee Shoes</h1>
+          <h1 style={styles.title}>Danee Shoes Care</h1>
           <p style={styles.subtitle}>Dashboard Pengelola</p>
         </div>
 
@@ -127,7 +127,7 @@ const Login: React.FC = () => {
 
         {/* Footer */}
         <p style={styles.footer}>
-          Danee Shoes &amp; Clean — v2.0
+          Danee Shoes Care — v2.0
         </p>
       </div>
     </div>
