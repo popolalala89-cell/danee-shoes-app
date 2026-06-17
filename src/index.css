@@ -53,7 +53,7 @@
   --touch-sm: 40px;
 
   /* Layout */
-  --topbar-height: 28px;
+  --topbar-height: 52px;
   --bottomnav-height: 64px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -851,7 +851,7 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
 }
 
 .admin-main {
-  padding: 0 var(--space-md) calc(var(--space-md) + 72px);
+  padding: var(--space-sm) var(--space-md) calc(var(--space-md) + 72px);
 }
 
 /* ── Admin Page Header (used by some pages) ──────────────────── */
@@ -1396,7 +1396,7 @@ textarea.form-control {
   background: #f1f5f9;
   border-radius: 12px;
   padding: 8px 14px;
-  margin-bottom: 4px;
+  margin-bottom: 12px;
   transition: background 0.2s ease;
 }
 .search-bar-md3:focus-within {

@@ -748,6 +748,8 @@ export default function Landing() {
         }
         .tracking-modern input {
           flex: 1;
+          min-width: 0;
+          width: 0;
           padding: 10px 14px;
           border: 1.5px solid #e2e8f0;
           border-radius: 8px;
