@@ -91,7 +91,7 @@ function getPageTitle(pathname: string, showMore: boolean): string {
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showMore, setShowMore] = useState(false);
@@ -137,6 +137,12 @@ export default function AdminLayout() {
     setShowMore(false);
     navigate(item.route);
   };
+
+  /* ----- filter menus by permissions ----- */
+  const permittedMoreItems = useMemo(
+    () => moreItems.filter((item) => hasPermission(item.id)),
+    [hasPermission]
+  );
 
   /* ----- derived state ----- */
   const today = new Date();
@@ -202,6 +208,7 @@ export default function AdminLayout() {
                 <span>Kembali ke Website</span>
               </div>
 
+              {hasPermission('settings') && (
               <div
                 style={styles.dropdownItem}
                 onClick={() => {
@@ -213,6 +220,7 @@ export default function AdminLayout() {
                 <span>⚙️</span>
                 <span>Pengaturan</span>
               </div>
+              )}
 
               <div style={styles.dropdownDivider} />
 
@@ -237,7 +245,7 @@ export default function AdminLayout() {
           <div style={styles.moreContainer}>
             <p style={styles.moreHeading}>Menu Lainnya</p>
             <div style={styles.moreGrid}>
-              {moreItems.map((item) => (
+              {permittedMoreItems.map((item) => (
                 <button
                   key={item.id}
                   style={styles.moreCard}

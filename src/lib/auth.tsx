@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { getSupabase } from './supabase';
 import * as authService from './services/auth-service';
+import * as adminUserService from './services/admin-user-service';
 import type { ServiceResponse } from './types-supabase';
 
 /* ------------------------------------------------------------------ */
@@ -13,6 +14,8 @@ interface AuthContextValue {
   user: any | null;
   session: any | null;
   loading: boolean;
+  permissions: string[];
+  hasPermission: (menuId: string) => boolean;
   login: (email: string, password: string) => Promise<ServiceResponse>;
   logout: () => Promise<ServiceResponse>;
 }
@@ -29,6 +32,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
   const [session, setSession] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState<string[]>([]);
+
+  /* ---- Load permissions from admin_users table ---- */
+  const loadPermissions = useCallback(async (email?: string) => {
+    if (!email) return;
+    const result = await adminUserService.getUserPermissions(email);
+    if (result.success && result.data) {
+      setPermissions(result.data);
+    }
+  }, []);
+
+  /* ---- Check if user has access to a menu ---- */
+  const hasPermission = useCallback((menuId: string): boolean => {
+    return permissions.length === 0 || permissions.includes(menuId);
+  }, [permissions]);
 
   /* ---- Bootstrap: check existing session + subscribe to changes ---- */
   useEffect(() => {
@@ -44,6 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (currentSession) {
         setSession(currentSession);
         setUser(currentSession.user ?? null);
+        // Load permissions
+        loadPermissions(currentSession.user?.email);
       }
 
       setLoading(false);
@@ -54,6 +74,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (cancelled) return;
           setSession(newSession);
           setUser(newSession?.user ?? null);
+          if (newSession?.user?.email) {
+            loadPermissions(newSession.user.email);
+          } else {
+            setPermissions([]);
+          }
         }
       );
 
@@ -95,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /* ---- Render ---- */
   return (
-    <AuthContext.Provider value={{ user, session, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, session, loading, permissions, hasPermission, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

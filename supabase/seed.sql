@@ -182,8 +182,33 @@ INSERT INTO settings (key, value) VALUES
   ('wa_number', '6285111619226'),
   ('theme_primary', '#034BB9'),
   ('theme_hover', '#023C94'),
-  ('admin_password_hash', '')
+  ('admin_password_hash', ''),
+  ('settings_pin', '123456')
 ON CONFLICT (key) DO NOTHING;
+
+-- 13. TABLE: admin_users — hak akses per user admin
+CREATE TABLE IF NOT EXISTS admin_users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  display_name TEXT NOT NULL,
+  permissions JSONB DEFAULT '[]'::jsonb,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insert default superadmin
+INSERT INTO admin_users (email, display_name, permissions)
+VALUES (
+  'admin@danee.com',
+  'Super Admin',
+  '["ringkasan","pesanan","inventory","keuangan","menu-jasa","menu-store","penjualan","profit-sharing","konten","diskon","referral","settings"]'::jsonb
+)
+ON CONFLICT (email) DO NOTHING;
+
+ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admin all admin_users" ON admin_users
+  FOR ALL USING (auth.role() = 'authenticated');
 
 -- INDEXES
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);

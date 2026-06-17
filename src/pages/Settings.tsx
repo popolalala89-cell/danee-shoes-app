@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
-import { getThemeSettings, saveThemeSettings, getWaNumber, saveSetting } from '../lib/services/settings-service';
+import { useState, useEffect, useCallback } from 'react';
+import { getThemeSettings, saveThemeSettings, getWaNumber, saveSetting, getSetting } from '../lib/services/settings-service';
 import { getAllSettingsProfit, saveSettingsProfitRole } from '../lib/services/profit-service';
+import * as adminUserService from '../lib/services/admin-user-service';
+import { useAuth } from '../lib/auth';
+import type { AdminUserRow } from '../lib/types-supabase';
 import { formatCurrency, parseFormNumber } from '../lib/utils';
 
 const PRESET_COLORS = [
@@ -25,11 +28,519 @@ const PERAN_LIST = [
   { peran: 'investor',    label: 'Investor',            icon: '📈' },
 ];
 
+/* ================================================================== */
+/*  PIN MODAL — proteksi akses halaman Pengaturan                     */
+/* ================================================================== */
+function SettingsPinGate({ onUnlock }: { onUnlock: () => void }) {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!pin.trim()) { setError('Masukkan PIN.'); return; }
+    setLoading(true);
+    setError('');
+    try {
+      const res = await getSetting('settings_pin');
+      const correctPin = res.success ? res.data : null;
+
+      // Kalau belum ada PIN, default 123456
+      if (!correctPin || pin.trim() === correctPin) {
+        onUnlock();
+      } else {
+        setError('PIN salah. Coba lagi.');
+      }
+    } catch {
+      // Fallback: jika gagal fetch, pakai default
+      if (pin.trim() === '123456') {
+        onUnlock();
+      } else {
+        setError('PIN salah. Coba lagi.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !loading) handleSubmit();
+  };
+
+  return (
+    <div className="admin-main">
+      <div className="admin-topbar"><h1>Pengaturan</h1></div>
+      <div style={{
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        padding: '40px 16px',
+      }}>
+        <div style={{
+          background: '#fff', borderRadius: 16, padding: '32px 24px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.08)', width: '100%', maxWidth: 360,
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+          <h3 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b' }}>
+            Pengaturan Terkunci
+          </h3>
+          <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: '#64748b' }}>
+            Masukkan PIN untuk mengakses halaman pengaturan.
+          </p>
+          <input
+            type="password"
+            placeholder="Masukkan PIN..."
+            value={pin}
+            onChange={(e) => { setPin(e.target.value); if (error) setError(''); }}
+            onKeyDown={handleKeyDown}
+            disabled={loading}
+            autoFocus
+            style={{
+              width: '100%', padding: '14px 16px', fontSize: 16, textAlign: 'center',
+              letterSpacing: 8, borderRadius: 12, border: '1.5px solid #e2e8f0',
+              outline: 'none', boxSizing: 'border-box', marginBottom: 12,
+            }}
+          />
+          {error && (
+            <div style={{ color: '#dc2626', fontSize: '0.85rem', marginBottom: 12, fontWeight: 500 }}>
+              {error}
+            </div>
+          )}
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            style={{
+              width: '100%', padding: '14px', fontSize: 15, fontWeight: 700,
+              background: 'linear-gradient(135deg, #034BB9, #2563eb)',
+              color: '#fff', border: 'none', borderRadius: 12,
+              cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? 'Memeriksa...' : 'Buka Pengaturan'}
+          </button>
+          <p style={{ marginTop: 16, fontSize: '0.75rem', color: '#94a3b8' }}>
+            PIN default: 123456
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  MANAJEMEN USER COMPONENT                                           */
+/* ================================================================== */
+function UserManagementSection() {
+  const { user } = useAuth();
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  // Add user form
+  const [newEmail, setNewEmail] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newPermissions, setNewPermissions] = useState<string[]>([]);
+
+  // Edit permissions
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editPermissions, setEditPermissions] = useState<string[]>([]);
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await adminUserService.getAdminUsers();
+      if (res.success && res.data) {
+        setUsers(res.data);
+      } else {
+        setError(res.error || 'Gagal memuat data user.');
+      }
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  const togglePermission = (perm: string) => {
+    setNewPermissions((prev) =>
+      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
+    );
+  };
+
+  const toggleEditPermission = (perm: string) => {
+    setEditPermissions((prev) =>
+      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
+    );
+  };
+
+  const handleAddUser = async () => {
+    if (!newEmail.trim() || !newName.trim()) {
+      setError('Email dan nama harus diisi.');
+      return;
+    }
+    if (newPermissions.length === 0) {
+      setError('Pilih minimal 1 menu untuk user.');
+      return;
+    }
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await adminUserService.createAdminUser(newEmail.trim(), newName.trim(), newPermissions);
+      if (res.success) {
+        setSuccess(`User ${newName.trim()} berhasil ditambahkan!`);
+        setShowAddForm(false);
+        setNewEmail('');
+        setNewName('');
+        setNewPermissions([]);
+        fetchUsers();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(res.error || 'Gagal menambah user.');
+      }
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handleSavePermissions = async (userId: string) => {
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await adminUserService.updateUserPermissions(userId, editPermissions);
+      if (res.success) {
+        setSuccess('Hak akses berhasil diperbarui!');
+        setEditingUserId(null);
+        fetchUsers();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(res.error || 'Gagal menyimpan hak akses.');
+      }
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handleToggleActive = async (userId: string, currentActive: boolean) => {
+    try {
+      await adminUserService.toggleUserActive(userId, !currentActive);
+      fetchUsers();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handleDelete = async (userId: string, displayName: string) => {
+    if (!window.confirm(`Hapus user "${displayName}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+    try {
+      const res = await adminUserService.deleteAdminUser(userId);
+      if (res.success) {
+        setSuccess(`User ${displayName} berhasil dihapus.`);
+        fetchUsers();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(res.error || 'Gagal menghapus user.');
+      }
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const allPermissions = adminUserService.MENU_PERMISSIONS;
+  const currentUserEmail = user?.email || '';
+
+  return (
+    <div className="card" style={{ padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-md)' }}>👥 Manajemen User</h3>
+      <p style={{ fontSize: '0.8125rem', color: 'var(--text-gray)', marginBottom: 'var(--space-md)' }}>
+        Atur siapa saja yang bisa mengakses menu admin. Setiap user bisa memiliki hak akses ke menu tertentu.
+      </p>
+
+      {error && <div className="alert alert-danger" style={{ padding: '8px 12px', marginBottom: 'var(--space-sm)', color: '#dc2626', fontWeight: 500 }} onClick={() => setError(null)}>{error}</div>}
+      {success && <div className="alert alert-success" style={{ padding: '8px 12px', marginBottom: 'var(--space-sm)', color: '#059669', fontWeight: 500, background: '#ecfdf5', borderRadius: 6 }}>{success}</div>}
+
+      {loading ? (
+        <p style={{ fontSize: '0.875rem', color: '#64748b' }}>Memuat data user...</p>
+      ) : (
+        <>
+          {/* Daftar User */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 'var(--space-md)' }}>
+            {users.length === 0 && (
+              <p style={{ fontSize: '0.875rem', color: '#94a3b8', textAlign: 'center', padding: 16 }}>
+                Belum ada user. Tambahkan user baru.
+              </p>
+            )}
+            {users.map((u) => (
+              <div key={u.id} style={{
+                background: '#f8fafc', borderRadius: 12, padding: '12px 16px',
+                border: '1px solid #e2e8f0', opacity: u.is_active ? 1 : 0.5,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>
+                      {u.display_name}
+                      {u.email === currentUserEmail && (
+                        <span style={{ fontSize: '0.7rem', background: '#dbeafe', color: '#2563eb', padding: '2px 8px', borderRadius: 10, marginLeft: 8, fontWeight: 500 }}>Anda</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{u.email}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <button
+                      onClick={() => handleToggleActive(u.id, u.is_active)}
+                      style={{
+                        background: 'none', border: '1px solid #e2e8f0', borderRadius: 8,
+                        padding: '4px 10px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 500,
+                        color: u.is_active ? '#059669' : '#94a3b8',
+                      }}
+                    >
+                      {u.is_active ? 'Aktif' : 'Nonaktif'}
+                    </button>
+                    {u.email !== currentUserEmail && (
+                      <button
+                        onClick={() => handleDelete(u.id, u.display_name)}
+                        style={{
+                          background: 'none', border: '1px solid #fecaca', borderRadius: 8,
+                          padding: '4px 10px', fontSize: '0.75rem', cursor: 'pointer',
+                          color: '#dc2626', fontWeight: 500,
+                        }}
+                      >
+                        Hapus
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Edit permissions */}
+                {editingUserId === u.id ? (
+                  <div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                      {allPermissions.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => toggleEditPermission(p.id)}
+                          style={{
+                            padding: '4px 10px', fontSize: '0.75rem', borderRadius: 8,
+                            border: editPermissions.includes(p.id) ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
+                            background: editPermissions.includes(p.id) ? '#dbeafe' : '#fff',
+                            color: editPermissions.includes(p.id) ? '#1d4ed8' : '#64748b',
+                            fontWeight: 500, cursor: 'pointer',
+                          }}
+                        >
+                          {p.icon} {p.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        className="btn btn-primary"
+                        style={{ padding: '6px 16px', fontSize: '0.8rem' }}
+                        onClick={() => handleSavePermissions(u.id)}
+                      >
+                        Simpan
+                      </button>
+                      <button
+                        style={{ padding: '6px 16px', fontSize: '0.8rem', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', color: '#475569' }}
+                        onClick={() => setEditingUserId(null)}
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {Array.isArray(u.permissions) && u.permissions.map((permId) => {
+                      const m = allPermissions.find((p) => p.id === permId);
+                      return m ? (
+                        <span key={permId} style={{
+                          fontSize: '0.7rem', background: '#e2e8f0', color: '#475569',
+                          padding: '2px 8px', borderRadius: 10, fontWeight: 500,
+                        }}>
+                          {m.icon} {m.label}
+                        </span>
+                      ) : null;
+                    })}
+                    <button
+                      onClick={() => {
+                        setEditingUserId(u.id);
+                        setEditPermissions(Array.isArray(u.permissions) ? [...u.permissions] : []);
+                      }}
+                      style={{
+                        background: 'none', border: 'none', color: '#2563eb',
+                        fontSize: '0.75rem', cursor: 'pointer', fontWeight: 500, marginLeft: 4,
+                      }}
+                    >
+                      Ubah
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Tombol Tambah User */}
+          {!showAddForm ? (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="btn btn-secondary"
+              style={{ width: '100%', padding: '10px', fontSize: '0.875rem' }}
+            >
+              + Tambah User Baru
+            </button>
+          ) : (
+            <div style={{ background: '#f1f5f9', borderRadius: 12, padding: 'var(--space-md)' }}>
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>Tambah User Baru</h4>
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: '0.8rem' }}>Email</label>
+                <input type="email" className="form-control" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="email@contoh.com" />
+              </div>
+              <div className="form-group" style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: '0.8rem' }}>Nama Tampilan</label>
+                <input type="text" className="form-control" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nama User" />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: 6 }}>Hak Akses Menu</label>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: 8 }}>
+                  Pilih menu mana saja yang bisa diakses user ini.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {allPermissions.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => togglePermission(p.id)}
+                      style={{
+                        padding: '6px 12px', fontSize: '0.8rem', borderRadius: 8,
+                        border: newPermissions.includes(p.id) ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
+                        background: newPermissions.includes(p.id) ? '#dbeafe' : '#fff',
+                        color: newPermissions.includes(p.id) ? '#1d4ed8' : '#64748b',
+                        fontWeight: 500, cursor: 'pointer',
+                      }}
+                    >
+                      {p.icon} {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-primary" onClick={handleAddUser} style={{ padding: '8px 20px', fontSize: '0.85rem' }}>
+                  Simpan User
+                </button>
+                <button
+                  onClick={() => { setShowAddForm(false); setNewEmail(''); setNewName(''); setNewPermissions([]); }}
+                  style={{ padding: '8px 20px', fontSize: '0.85rem', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', color: '#475569' }}
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  SETTINGS PIN SETTINGS                                              */
+/* ================================================================== */
+function SettingsPinSection() {
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  const handleChangePin = async () => {
+    if (!currentPin.trim()) { setError('Masukkan PIN saat ini.'); return; }
+    if (!newPin.trim() || newPin.length < 4) { setError('PIN baru minimal 4 karakter.'); return; }
+    if (newPin !== confirmPin) { setError('PIN baru dan konfirmasi tidak cocok.'); return; }
+
+    // Verify current PIN
+    setError(null);
+    setSuccess(null);
+    setSaving(true);
+    try {
+      const res = await getSetting('settings_pin');
+      const correctPin = res.success ? res.data : '123456';
+      if (currentPin.trim() !== correctPin) {
+        setError('PIN saat ini salah.');
+        setSaving(false);
+        return;
+      }
+
+      const saveRes = await saveSetting('settings_pin', newPin.trim());
+      if (saveRes.success) {
+        setSuccess('PIN berhasil diubah!');
+        setShowForm(false);
+        setCurrentPin('');
+        setNewPin('');
+        setConfirmPin('');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(saveRes.error || 'Gagal menyimpan PIN.');
+      }
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card" style={{ padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-dark)', marginBottom: 'var(--space-sm)' }}>🔐 PIN Pengaturan</h3>
+      <p style={{ fontSize: '0.8125rem', color: 'var(--text-gray)', marginBottom: 'var(--space-md)' }}>
+        Lindungi halaman pengaturan dengan PIN. User harus memasukkan PIN untuk bisa mengakses & mengubah pengaturan.
+      </p>
+
+      {error && <div className="alert alert-danger" style={{ padding: '8px 12px', marginBottom: 'var(--space-sm)', color: '#dc2626', fontWeight: 500 }} onClick={() => setError(null)}>{error}</div>}
+      {success && <div className="alert alert-success" style={{ padding: '8px 12px', marginBottom: 'var(--space-sm)', color: '#059669', fontWeight: 500, background: '#ecfdf5', borderRadius: 6 }}>{success}</div>}
+
+      {!showForm ? (
+        <button className="btn btn-secondary" onClick={() => setShowForm(true)} style={{ padding: '8px 20px', fontSize: '0.85rem' }}>
+          Ubah PIN
+        </button>
+      ) : (
+        <div>
+          <div className="form-group" style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: '0.8rem' }}>PIN Saat Ini</label>
+            <input type="password" className="form-control" value={currentPin} onChange={(e) => setCurrentPin(e.target.value)} placeholder="PIN saat ini" style={{ maxWidth: 200 }} />
+          </div>
+          <div className="form-group" style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: '0.8rem' }}>PIN Baru</label>
+            <input type="password" className="form-control" value={newPin} onChange={(e) => setNewPin(e.target.value)} placeholder="PIN baru" style={{ maxWidth: 200 }} />
+          </div>
+          <div className="form-group" style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: '0.8rem' }}>Konfirmasi PIN Baru</label>
+            <input type="password" className="form-control" value={confirmPin} onChange={(e) => setConfirmPin(e.target.value)} placeholder="Konfirmasi PIN baru" style={{ maxWidth: 200 }} />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary" onClick={handleChangePin} disabled={saving} style={{ padding: '8px 20px', fontSize: '0.85rem' }}>
+              {saving ? 'Menyimpan...' : 'Simpan PIN'}
+            </button>
+            <button onClick={() => { setShowForm(false); setError(null); setSuccess(null); }} style={{ padding: '8px 20px', fontSize: '0.85rem', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', color: '#475569' }}>
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  MAIN SETTINGS PAGE                                                 */
+/* ================================================================== */
 const Settings: React.FC = () => {
+  const [unlocked, setUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { hasPermission } = useAuth();
 
   // Theme colors
   const [primaryColor, setPrimaryColor] = useState('#034BB9');
@@ -41,6 +552,8 @@ const Settings: React.FC = () => {
   // Profit sharing percentages
   const [profitRoles, setProfitRoles] = useState<Record<string, { cleanPct: number; repairPct: number }>>({});
   const [targetOmset, setTargetOmset] = useState(0);
+
+  const isSuperAdmin = hasPermission('settings');
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -69,7 +582,9 @@ const Settings: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchSettings(); }, []);
+  useEffect(() => {
+    if (unlocked) fetchSettings();
+  }, [unlocked]);
 
   const applyTheme = (p: string, h: string) => {
     setPrimaryColor(p);
@@ -123,7 +638,6 @@ const Settings: React.FC = () => {
     setError(null);
     setSuccess(null);
     try {
-      // Save each role's percentages
       for (const p of PERAN_LIST) {
         const roleData = profitRoles[p.peran] || { cleanPct: 0, repairPct: 0 };
         const res = await saveSettingsProfitRole(p.peran, p.label, roleData.cleanPct, roleData.repairPct, targetOmset);
@@ -150,6 +664,11 @@ const Settings: React.FC = () => {
     }));
   };
 
+  // If not unlocked yet, show PIN gate
+  if (!unlocked) {
+    return <SettingsPinGate onUnlock={() => setUnlocked(true)} />;
+  }
+
   if (loading) {
     return (
       <div className="admin-main">
@@ -165,6 +684,12 @@ const Settings: React.FC = () => {
 
       {error && <div className="alert alert-danger" style={{ padding: 'var(--space-sm) var(--space-md)', marginBottom: 'var(--space-md)', color: 'var(--danger)', fontWeight: 500, cursor: 'pointer' }} onClick={() => setError(null)}>{error}</div>}
       {success && <div className="alert alert-success" style={{ padding: 'var(--space-sm) var(--space-md)', marginBottom: 'var(--space-md)', color: '#059669', fontWeight: 500, background: '#ecfdf5', borderRadius: 'var(--radius-sm)' }}>{success}</div>}
+
+      {/* PIN Settings — first, before other settings */}
+      <SettingsPinSection />
+
+      {/* User Management — hanya untuk super admin (yang punya akses settings) */}
+      {isSuperAdmin && <UserManagementSection />}
 
       {/* Theme Settings */}
       <div className="card" style={{ padding: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>

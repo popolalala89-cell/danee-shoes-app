@@ -358,6 +358,16 @@ export interface ThemeSettings {
   hover: string;
 }
 
+export interface AdminUserRow {
+  id: string;
+  email: string;
+  display_name: string;
+  permissions: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // ===== Service Response =====
 
 export interface ServiceResponse<T = any> {
