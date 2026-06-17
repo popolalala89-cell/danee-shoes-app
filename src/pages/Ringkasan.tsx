@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getRingkasan } from '../lib/services/dashboard-service';
 import { formatCurrency } from '../lib/utils';
 import type { DashboardSummary, OrderRow } from '../lib/types-supabase';
+import FAB from '../components/ui/FAB';
 
 const STATUS_LABELS: Record<string, string> = {
   Waiting: '⏳ Waiting',
@@ -15,6 +17,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function Ringkasan() {
+  const navigate = useNavigate();
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -223,6 +226,9 @@ function Ringkasan() {
           </div>
         </div>
       </div>
+
+      {/* FAB — Tambah Pesanan Baru */}
+      <FAB icon="add" onClick={() => navigate('/admin/pesanan')} />
     </div>
   );
 }
