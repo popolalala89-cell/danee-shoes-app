@@ -1164,46 +1164,6 @@ export default function Landing() {
         )}
       </section>
 
-      {/* ===== 3. KATEGORI LAYANAN ===== */}
-      <section className="category-grid">
-        <button className="category-item" onClick={() => scrollTo('jasa')}>
-          <div className="category-circle">👟</div>
-          <span className="category-label">Cleaning</span>
-        </button>
-        <button className="category-item" onClick={() => scrollTo('jasa')}>
-          <div className="category-circle">🔧</div>
-          <span className="category-label">Repair</span>
-        </button>
-        <button className="category-item" onClick={() => scrollTo('store')}>
-          <div className="category-circle">🛍️</div>
-          <span className="category-label">Produk</span>
-        </button>
-        <button className="category-item" onClick={() => scrollTo('konten')}>
-          <div className="category-circle">📖</div>
-          <span className="category-label">Tips</span>
-        </button>
-        <button className="category-item" onClick={() => scrollTo('tracking')}>
-          <div className="category-circle">📦</div>
-          <span className="category-label">Tracking</span>
-        </button>
-        {instagram && (
-          <a className="category-item" href={instagram.isi_konten} target="_blank" rel="noopener noreferrer">
-            <div className="category-circle">📷</div>
-            <span className="category-label">Instagram</span>
-          </a>
-        )}
-        {youtube && (
-          <a className="category-item" href={youtube.isi_konten} target="_blank" rel="noopener noreferrer">
-            <div className="category-circle">▶️</div>
-            <span className="category-label">YouTube</span>
-          </a>
-        )}
-        <a className="category-item" href={WA_BASE} target="_blank" rel="noopener noreferrer">
-          <div className="category-circle" style={{ background: '#e8f5e9' }}>💬</div>
-          <span className="category-label">WhatsApp</span>
-        </a>
-      </section>
-
       {/* ===== 4. FLASH SALE / PROMO ===== */}
       {flashSaleItems.length > 0 && (
         <section className="shopee-section-white" style={{ paddingTop: 4, paddingBottom: 4 }}>
