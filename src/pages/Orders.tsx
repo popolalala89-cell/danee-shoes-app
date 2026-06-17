@@ -5,7 +5,7 @@ import { getAll as getMenuJasa } from '../lib/services/menu-jasa-service';
 import { formatCurrency, formatDate } from '../lib/utils';
 import type { OrderRow, OrderStatus, DiskonEventRow, MenuJasaRow } from '../lib/types-supabase';
 
-const ORDER_STATUSES = ['Semua', 'Waiting', 'Checking', 'Proses Repair', 'Proses Cleaning', 'Proses Pengeringan', 'Ready', 'Selesai', 'Batal'] as const;
+const ORDER_STATUSES = ['Semua', 'Waiting', 'Checking', 'Proses Cleaning', 'Proses Repair', 'Proses Pengeringan', 'Ready', 'Selesai', 'Batal'] as const;
 const TERMINAL_STATUSES = ['Selesai', 'Batal'];
 
 const STATUS_CONFIG: Record<string, { icon: string; cls: string }> = {
@@ -33,13 +33,13 @@ function getNextStatuses(status: string): { label: string; target: string; varia
         { label: '▶ Proses Repair', target: 'Proses Repair', variant: 'btn-primary' },
         { label: '✕ Batal', target: 'Batal', variant: 'btn-danger' },
       ];
-    case 'Proses Repair':
+    case 'Proses Cleaning':
       return [
-        { label: '▶ Proses Cleaning', target: 'Proses Cleaning', variant: 'btn-primary' },
+        { label: '▶ Proses Repair', target: 'Proses Repair', variant: 'btn-primary' },
         { label: '✓ Selesai', target: 'Selesai', variant: 'btn-success' },
         { label: '✕ Batal', target: 'Batal', variant: 'btn-danger' },
       ];
-    case 'Proses Cleaning':
+    case 'Proses Repair':
       return [
         { label: '▶ Proses Pengeringan', target: 'Proses Pengeringan', variant: 'btn-primary' },
         { label: '✓ Selesai', target: 'Selesai', variant: 'btn-success' },
@@ -105,6 +105,7 @@ function Orders() {
 
   // Detail modal
   const [detailOrder, setDetailOrder] = useState<OrderRow | null>(null);
+  const [cetakStruk, setCetakStruk] = useState<OrderRow | null>(null);
 
   // Edit modal
   const [editOrder, setEditOrder] = useState<OrderRow | null>(null);
@@ -257,6 +258,35 @@ function Orders() {
   }
 
   // ── End cart functions ──
+
+  // ── Struk / Receipt helpers (seperti AppScript) ──
+  interface StrukItem { namaMurni: string; qty: number; hargaSatuan: number; promoLabel: string; }
+
+  function parseLayananItems(layanan: string): StrukItem[] {
+    if (!layanan) return [];
+    return layanan.split(', ').map((part) => {
+      const p = part.split(' @ ');
+      const namaPart = p[0]?.trim() || '';
+      const hargaStr = p[1]?.trim() || '0';
+      const hargaSatuan = parseInt(hargaStr.replace(/[^0-9]/g, '')) || 0;
+      const qtyMatch = namaPart.match(/\((\d+)x\)/);
+      const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+      const promoMatch = namaPart.match(/\[(.*?)\]/);
+      const promoLabel = promoMatch ? promoMatch[1] : '';
+      const namaMurni = namaPart.replace(/\s*\(\d+x\)/, '').replace(/\s*\[.*?\]/g, '').trim();
+      return { namaMurni, qty, hargaSatuan, promoLabel };
+    });
+  }
+
+  function extractDiskonNominal(info: string): number {
+    if (!info) return 0;
+    // Pattern: "Event Name @ -Rp5.000" or "Event Name: -Rp5.000"
+    const match = info.match(/(?:@|:)\s*-?Rp?\s*([\d.,]+)/i);
+    if (match) return parseInt(match[1].replace(/[.,]/g, '')) || 0;
+    const numMatch = info.match(/[\d.,]+/);
+    return numMatch ? parseInt(numMatch[0].replace(/[.,]/g, '')) || 0 : 0;
+  }
+  // ── End struk helpers ──
 
   function handleTambahOrder(e: React.FormEvent, closeAfterSave: boolean = false) {
     e.preventDefault();
@@ -772,9 +802,148 @@ function Orders() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-white" onClick={() => setDetailOrder(null)}>Tutup</button>
+              <button className="btn btn-white" style={{ borderColor: '#f59e0b', color: '#92400e' }} onClick={() => { setCetakStruk(detailOrder); }}>🖨️ Struk</button>
               {!isTerminal(detailOrder.status) && (
                 <button className="btn btn-primary" onClick={() => { openEdit(detailOrder); setDetailOrder(null); }}>✏️ Edit</button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Struk / Receipt Modal (seperti AppScript) ─── */}
+      {cetakStruk && (
+        <div className="modal-overlay" onClick={() => setCetakStruk(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <h3>🖨️ Struk Pesanan</h3>
+              <button className="modal-close" onClick={() => setCetakStruk(null)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ padding: '20px 24px', background: '#fff', fontFamily: "'Courier New', monospace", color: '#000' }}>
+              {/* Header Toko */}
+              <div style={{ textAlign: 'center', marginBottom: 16, borderBottom: '2px dashed #000', paddingBottom: 14 }}>
+                <h2 style={{ margin: '0 0 4px 0', fontSize: '1.25rem' }}>Danee Shoes Care</h2>
+                <p style={{ fontSize: '0.72rem', margin: 0, lineHeight: 1.6 }}>
+                  Jln. Alternatif Kawasan BIC<br />
+                  Perum Griya Utami 2 Cibening, Blok F No. 11<br />
+                  Bungursari, Purwakarta — 41181<br />
+                  IG: @daneeshoescare | WA: 0851-1161-9226
+                </p>
+              </div>
+
+              {/* Info Order */}
+              <p style={{ fontSize: '0.82rem', margin: '0 0 4px 0', lineHeight: 1.6 }}>
+                <strong>NO: {cetakStruk.kode || cetakStruk.id?.slice(0, 8)}</strong><br />
+                Tgl: {formatDate(cetakStruk.tanggal || '')}<br />
+                Status: {cetakStruk.status}<br />
+                Tipe Bayar: <strong>{cetakStruk.tipe_pembayaran || '-'}</strong>
+              </p>
+              <p style={{ fontSize: '0.82rem', margin: '0 0 16px 0' }}>
+                Pelanggan: {cetakStruk.nama_pelanggan} — {cetakStruk.kontak_wa}
+              </p>
+
+              <div style={{ borderBottom: '2px dashed #000', marginBottom: 16 }} />
+
+              {/* Daftar Item + Perhitungan */}
+              <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
+                <tbody>
+                  {(() => {
+                    const items = parseLayananItems(cetakStruk.layanan || '');
+                    const subtotal = items.reduce((s, i) => s + i.hargaSatuan * i.qty, 0);
+                    const diskonNominal = extractDiskonNominal(cetakStruk.diskon_info || '');
+                    const total = cetakStruk.harga ?? 0;
+                    return (
+                      <>
+                        {items.map((item, idx) => (
+                          <tr key={idx}>
+                            <td style={{ verticalAlign: 'top', paddingRight: 8, paddingBottom: 6 }}>
+                              {item.namaMurni} ({item.qty}x)
+                              {item.promoLabel && <><br /><span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#16a34a' }}>↳ {item.promoLabel}</span></>}
+                            </td>
+                            <td style={{ textAlign: 'right', verticalAlign: 'top', paddingBottom: 6, whiteSpace: 'nowrap' }}>
+                              {formatCurrency(item.hargaSatuan * item.qty)}
+                            </td>
+                          </tr>
+                        ))}
+
+                        {items.length > 1 && (
+                          <tr>
+                            <td style={{ paddingTop: 8, borderTop: '1px dashed #ccc', fontWeight: 600 }}>Subtotal</td>
+                            <td style={{ textAlign: 'right', paddingTop: 8, borderTop: '1px dashed #ccc', fontWeight: 600 }}>
+                              {formatCurrency(subtotal)}
+                            </td>
+                          </tr>
+                        )}
+
+                        {diskonNominal > 0 && (
+                          <tr>
+                            <td style={{ paddingTop: 4, paddingBottom: 4, fontStyle: 'italic', fontSize: '0.78rem', color: '#16a34a' }}>
+                              {cetakStruk.diskon_info?.split('@')[0]?.trim() || 'Diskon'}
+                            </td>
+                            <td style={{ textAlign: 'right', paddingTop: 4, paddingBottom: 4, fontSize: '0.78rem', color: '#16a34a' }}>
+                              -{formatCurrency(diskonNominal)}
+                            </td>
+                          </tr>
+                        )}
+
+                        {cetakStruk.catatan && (
+                          <tr>
+                            <td colSpan={2} style={{ fontSize: '0.78rem', paddingTop: 8, borderTop: '1px dashed #ccc', fontStyle: 'italic' }}>
+                              Ket: {cetakStruk.catatan}
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })()}
+                </tbody>
+              </table>
+
+              <div style={{ borderBottom: '2px dashed #000', margin: '14px 0' }} />
+
+              {/* Total */}
+              <h3 style={{ textAlign: 'right', margin: '10px 0 2px 0', fontSize: '1.1rem' }}>
+                Total: {formatCurrency(cetakStruk.harga ?? 0)}
+              </h3>
+              <p style={{ textAlign: 'right', fontSize: '0.72rem', margin: '0 0 14px 0', fontStyle: 'italic' }}>
+                (Status: {cetakStruk.tipe_pembayaran || '-'})
+              </p>
+
+              {/* Anda Hemat */}
+              {(() => {
+                const items = parseLayananItems(cetakStruk.layanan || '');
+                const subtotal = items.reduce((s, i) => s + i.hargaSatuan * i.qty, 0);
+                const diskonNominal = extractDiskonNominal(cetakStruk.diskon_info || '');
+                const hematTotal = diskonNominal;
+                if (hematTotal > 0) {
+                  const totalAsli = (cetakStruk.harga ?? 0) + hematTotal;
+                  const persen = totalAsli > 0 ? Math.round((hematTotal / totalAsli) * 100) : 0;
+                  return (
+                    <div style={{
+                      textAlign: 'right', fontSize: '0.82rem', fontWeight: 'bold',
+                      padding: '10px 0', borderTop: '2px solid #000', borderBottom: '2px solid #000',
+                      marginBottom: 14
+                    }}>
+                      ANDA HEMAT: {formatCurrency(hematTotal)} ({persen}%)
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Terima Kasih */}
+              <div style={{ textAlign: 'center', marginTop: 16, borderTop: '2px dashed #000', paddingTop: 14 }}>
+                <p style={{ fontWeight: 'bold', margin: '0 0 4px 0', fontSize: '0.9rem' }}>
+                  Terima Kasih atas Kepercayaan Anda
+                </p>
+                <p style={{ fontSize: '0.75rem', margin: 0, fontStyle: 'italic', color: '#666' }}>
+                  bersihnya pasti, pedenya kembali !!!
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-white" onClick={() => setCetakStruk(null)}>Tutup</button>
+              <button className="btn btn-primary" onClick={() => window.print()}>🖨️ Print</button>
             </div>
           </div>
         </div>
