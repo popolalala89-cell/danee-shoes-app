@@ -95,7 +95,7 @@ function Orders() {
   const [submitting, setSubmitting] = useState(false);
 
   // ── Cart (multi-item per order, seperti AppScript) ──
-  interface CartItem { nama: string; harga: number; qty: number; }
+  interface CartItem { nama: string; harga: number; qty: number; service_id?: string; diskon: number; }
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   // Cart input: layanan + harga
   const [cartInputLayanan, setCartInputLayanan] = useState('');
@@ -254,6 +254,12 @@ function Orders() {
     const { namaLabel, hargaFinal } = calcItemDiskon(hargaAsli);
     const namaFinal = cartInputLayanan + (namaLabel || '');
 
+    // Cari service_id dari dropdown yang dipilih
+    const selectedService = layananList.find((s) => s.nama_layanan === cartInputLayanan.trim());
+
+    // Hitung diskon per item
+    const diskonPerItem = hargaAsli - hargaFinal;
+
     // Reset per-item diskon (seperti AppScript)
     setCartDiskonTipe('Tanpa');
     setCartDiskonEventId('');
@@ -269,7 +275,13 @@ function Orders() {
             : x
         );
       }
-      return [...prev, { nama: namaFinal, harga: hargaFinal, qty: 1 }];
+      return [...prev, {
+        nama: namaFinal,
+        harga: hargaFinal,
+        qty: 1,
+        service_id: selectedService?.id,
+        diskon: diskonPerItem,
+      }];
     });
     setCartInputLayanan('');
     setCartInputHarga('');
@@ -471,6 +483,19 @@ function Orders() {
     const hargaFinal = subtotal - potonganGlobal;
     const layananText = buildLayananText();
 
+    // Build structured items array (FASE 1)
+    const structuredItems = cartItems.map((item, idx) => ({
+      service_id: item.service_id || null,
+      store_id: null,
+      tipe: 'jasa' as const,
+      nama_item: item.nama,
+      qty: item.qty,
+      harga_satuan: item.harga,
+      diskon_per_item: item.diskon,
+      subtotal: item.harga * item.qty,
+      urutan: idx + 1,
+    }));
+
     setSubmitting(true);
     setError(null);
     createOrder({
@@ -482,6 +507,7 @@ function Orders() {
       diskon_info: potonganGlobal > 0 ? diskonTextInfo : null,
       tipe_pembayaran: addTipeBayar as 'Bayar di Awal' | 'Bayar di Akhir',
       referral: addReferral.trim() || null,
+      items: structuredItems,
     })
       .then((res) => {
         if (res.success) {

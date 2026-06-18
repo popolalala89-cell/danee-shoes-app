@@ -7,6 +7,8 @@ import type {
   OrderCreate,
   OrderUpdate,
   OrderStatus,
+  OrderItemRow,
+  OrderItemCreate,
   ServiceResponse,
 } from '../types-supabase';
 
@@ -126,9 +128,84 @@ export async function create(
       return { success: false, error: error.message };
     }
 
+    // Simpan structured items (FASE 1)
+    if (payload.items && payload.items.length > 0 && data) {
+      await saveOrderItems(data.id, payload.items);
+    }
+
     return { success: true, data };
   } catch (err: any) {
     return { success: false, error: err.message || 'Gagal membuat order' };
+  }
+}
+
+/**
+ * Save structured order_items (FASE 1)
+ * Replaces all items for an order (delete + insert)
+ */
+export async function saveOrderItems(
+  orderId: string,
+  items: OrderItemCreate[]
+): Promise<ServiceResponse<OrderItemRow[]>> {
+  try {
+    const supabase = getSupabase();
+
+    // Delete existing items
+    await supabase
+      .from('order_items')
+      .delete()
+      .eq('order_id', orderId);
+
+    // Insert new items
+    const inserts = items.map((item, idx) => ({
+      order_id: orderId,
+      service_id: item.service_id || null,
+      store_id: item.store_id || null,
+      tipe: item.tipe,
+      nama_item: item.nama_item,
+      qty: item.qty,
+      harga_satuan: item.harga_satuan,
+      diskon_per_item: item.diskon_per_item || 0,
+      subtotal: item.subtotal,
+      urutan: item.urutan || idx + 1,
+    }));
+
+    const { data, error } = await supabase
+      .from('order_items')
+      .insert(inserts)
+      .select();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data || [] };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Gagal menyimpan item order' };
+  }
+}
+
+/**
+ * Load structured order_items for an order
+ */
+export async function getOrderItems(
+  orderId: string
+): Promise<ServiceResponse<OrderItemRow[]>> {
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('order_items')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('urutan', { ascending: true });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data || [] };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Gagal memuat item order' };
   }
 }
 
@@ -177,6 +254,11 @@ export async function update(
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    // Update items if provided (FASE 1)
+    if (payload.items && data) {
+      await saveOrderItems(data.id, payload.items);
     }
 
     return { success: true, data };

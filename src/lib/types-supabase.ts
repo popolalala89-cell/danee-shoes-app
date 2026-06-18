@@ -224,6 +224,7 @@ export interface OrderCreate {
   diskon_info?: string | null;
   referral?: string | null;
   tipe_pembayaran?: 'Bayar di Awal' | 'Bayar di Akhir';
+  items?: OrderItemCreate[];  // structured item data (FASE 1)
 }
 
 export interface OrderUpdate {
@@ -235,6 +236,36 @@ export interface OrderUpdate {
   diskon_info?: string | null;
   referral?: string | null;
   tipe_pembayaran?: 'Bayar di Awal' | 'Bayar di Akhir';
+  items?: OrderItemCreate[];  // structured item data (FASE 1)
+}
+
+// ===== Order Items (FASE 1 — replace string parsing) =====
+
+export interface OrderItemRow {
+  id: string;
+  order_id: string;
+  service_id: string | null;
+  store_id: string | null;
+  tipe: 'jasa' | 'produk';
+  nama_item: string;
+  qty: number;
+  harga_satuan: number;
+  diskon_per_item: number;
+  subtotal: number;
+  urutan: number;
+  created_at: string;
+}
+
+export interface OrderItemCreate {
+  service_id?: string | null;
+  store_id?: string | null;
+  tipe: 'jasa' | 'produk';
+  nama_item: string;
+  qty: number;
+  harga_satuan: number;
+  diskon_per_item?: number;
+  subtotal: number;
+  urutan?: number;
 }
 
 export interface StoreSaleCreate {
