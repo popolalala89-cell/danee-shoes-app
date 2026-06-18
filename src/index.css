@@ -765,6 +765,21 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
   color: var(--text-dark);
 }
 
+.admin-topbar-controls {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 480px) {
+  .admin-topbar-controls {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
 /* ════════════════════════════════════════════════════════════════
    FLOATING ACTION BUTTON (FAB) — Material Design 3
    ════════════════════════════════════════════════════════════════ */
