@@ -537,76 +537,78 @@ const ProfitSharing: React.FC = () => {
                     Tidak ada data transaksi periode ini.
                   </div>
                 ) : (
-                  <div style={{ background: '#fff', borderRadius: 16, border: '1px solid rgba(0,0,0,0.05)', padding: 20, marginBottom: 'var(--space-md)' }}>
-                    {/* ── P&L Statement ── */}
-                    <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+                  <div className="report-card">
+                    <table>
                       <thead>
-                        <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                          <th colSpan={2} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 800, color: 'var(--text-dark)', fontSize: '1rem' }}>
-                            📊 LAPORAN LABA RUGI — {laporan.periode}
-                          </th>
+                        <tr>
+                          <th style={{ width: '50%' }}>📊 LAPORAN LABA RUGI — {laporan.periode}</th>
+                          <th className="cell-amount">Jumlah</th>
                         </tr>
                       </thead>
                       <tbody>
-                        <tr style={{ background: '#f8fafc' }}>
-                          <td colSpan={2} style={{ padding: '10px 12px', fontWeight: 800, color: 'var(--primary-blue)' }}>PENDAPATAN</td>
+                        {/* ── PENDAPATAN ── */}
+                        <tr className="section-header pendapatan">
+                          <td colSpan={2}>PENDAPATAN</td>
                         </tr>
                         {laporan.pendapatan.cleaning > 0 && (
-                          <tr>
-                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>Jasa Cleaning</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(laporan.pendapatan.cleaning)}</td>
+                          <tr className="row-item">
+                            <td>Jasa Cleaning</td>
+                            <td className="cell-amount">{formatCurrency(laporan.pendapatan.cleaning)}</td>
                           </tr>
                         )}
                         {laporan.pendapatan.repair > 0 && (
-                          <tr>
-                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>Jasa Repair</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(laporan.pendapatan.repair)}</td>
+                          <tr className="row-item">
+                            <td>Jasa Repair</td>
+                            <td className="cell-amount">{formatCurrency(laporan.pendapatan.repair)}</td>
                           </tr>
                         )}
                         {laporan.pendapatan.produk > 0 && (
-                          <tr>
-                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>Produk Store</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(laporan.pendapatan.produk)}</td>
+                          <tr className="row-item">
+                            <td>Produk Store</td>
+                            <td className="cell-amount">{formatCurrency(laporan.pendapatan.produk)}</td>
                           </tr>
                         )}
-                        <tr style={{ borderTop: '1px solid #e2e8f0', fontWeight: 800 }}>
-                          <td style={{ padding: '8px 12px', color: 'var(--text-dark)' }}>TOTAL PENDAPATAN</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', color: '#10b981' }}>{formatCurrency(laporan.pendapatan.total)}</td>
+                        <tr className="row-total pendapatan">
+                          <td>TOTAL PENDAPATAN</td>
+                          <td className="cell-amount">{formatCurrency(laporan.pendapatan.total)}</td>
                         </tr>
 
-                        <tr style={{ background: '#f8fafc' }}>
-                          <td colSpan={2} style={{ padding: '10px 12px', fontWeight: 800, color: '#f43f5e' }}>BIAYA</td>
+                        {/* ── BIAYA ── */}
+                        <tr className="section-header biaya">
+                          <td colSpan={2}>BIAYA</td>
                         </tr>
                         {laporan.biaya.hppCleaning > 0 && (
-                          <tr>
-                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>HPP Cleaning</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600, color: '#ef4444' }}>- {formatCurrency(laporan.biaya.hppCleaning)}</td>
+                          <tr className="row-item">
+                            <td>HPP Cleaning</td>
+                            <td className="cell-amount">- {formatCurrency(laporan.biaya.hppCleaning)}</td>
                           </tr>
                         )}
                         {laporan.biaya.hppRepair > 0 && (
-                          <tr>
-                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>HPP Repair</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600, color: '#ef4444' }}>- {formatCurrency(laporan.biaya.hppRepair)}</td>
+                          <tr className="row-item">
+                            <td>HPP Repair</td>
+                            <td className="cell-amount">- {formatCurrency(laporan.biaya.hppRepair)}</td>
                           </tr>
                         )}
                         {laporan.biaya.komisiReferral > 0 && (
-                          <tr>
-                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>Komisi Referral</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600, color: '#ef4444' }}>- {formatCurrency(laporan.biaya.komisiReferral)}</td>
+                          <tr className="row-item">
+                            <td>Komisi Referral</td>
+                            <td className="cell-amount">- {formatCurrency(laporan.biaya.komisiReferral)}</td>
                           </tr>
                         )}
-                        <tr style={{ borderTop: '1px solid #e2e8f0', fontWeight: 800 }}>
-                          <td style={{ padding: '8px 12px', color: 'var(--text-dark)' }}>TOTAL BIAYA</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', color: '#ef4444' }}>- {formatCurrency(laporan.biaya.total)}</td>
+                        <tr className="row-total biaya">
+                          <td>TOTAL BIAYA</td>
+                          <td className="cell-amount">- {formatCurrency(laporan.biaya.total)}</td>
                         </tr>
 
-                        <tr style={{ borderTop: '2px solid #10b981' }}>
-                          <td style={{ padding: '10px 12px', fontWeight: 900, fontSize: '1rem', color: '#10b981' }}>LABA BERSIH</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 900, fontSize: '1rem', color: '#10b981' }}>{formatCurrency(laporan.labaBersih)}</td>
+                        {/* ── LABA BERSIH ── */}
+                        <tr className="row-laba">
+                          <td>LABA BERSIH</td>
+                          <td className="cell-amount">{formatCurrency(laporan.labaBersih)}</td>
                         </tr>
 
-                        <tr style={{ background: '#f8fafc' }}>
-                          <td colSpan={2} style={{ padding: '10px 12px', fontWeight: 800, color: '#8b5cf6' }}>DISTRIBUSI LABA</td>
+                        {/* ── DISTRIBUSI LABA ── */}
+                        <tr className="section-header distribusi">
+                          <td colSpan={2}>DISTRIBUSI LABA</td>
                         </tr>
                         {laporan.distribusi.map((r, idx) => {
                           const parts: string[] = [];
@@ -614,27 +616,28 @@ const ProfitSharing: React.FC = () => {
                           if (r.pct > 0) parts.push(`pct ${formatCurrency(r.pct)}`);
                           const detail = parts.length > 0 ? ` (${parts.join(' + ')})` : '';
                           return (
-                            <tr key={idx}>
-                              <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>
-                                {r.role}<span style={{ fontSize: '0.7rem', color: 'var(--text-light)' }}>{detail}</span>
+                            <tr key={idx} className="row-item">
+                              <td>
+                                {r.role}
+                                {detail && <span className="detail-note"> {detail}</span>}
                               </td>
-                              <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 700 }}>{formatCurrency(r.total)}</td>
+                              <td className="cell-amount">{formatCurrency(r.total)}</td>
                             </tr>
                           );
                         })}
-                        <tr style={{ borderTop: '2px solid #8b5cf6', fontWeight: 900 }}>
-                          <td style={{ padding: '10px 12px', color: '#8b5cf6' }}>TOTAL DISTRIBUSI</td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: '#8b5cf6' }}>{formatCurrency(laporan.totalDistribusi)}</td>
+                        <tr className="row-distribusi-total">
+                          <td>TOTAL DISTRIBUSI</td>
+                          <td className="cell-amount">{formatCurrency(laporan.totalDistribusi)}</td>
                         </tr>
                       </tbody>
                     </table>
 
-                    {/* Balance verification */}
-                    <div style={{ marginTop: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                    {/* Balance + Clipboard + Target info */}
+                    <div style={{ padding: '12px 16px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                       <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>
                         {laporan.balance
-                          ? <span style={{ color: '#10b981' }}>✅ Balance: Laba Bersih = Total Distribusi (SINKRON)</span>
-                          : <span style={{ color: '#ef4444' }}>⚠️ Balance: Selisih Rp{formatCurrency(Math.abs(laporan.labaBersih - laporan.totalDistribusi))}</span>
+                          ? <span style={{ color: '#10b981' }}>✅ Balance: Laba = Distribusi</span>
+                          : <span style={{ color: '#ef4444' }}>⚠️ Selisih Rp{formatCurrency(Math.abs(laporan.labaBersih - laporan.totalDistribusi))}</span>
                         }
                       </div>
                       <button
@@ -651,15 +654,13 @@ const ProfitSharing: React.FC = () => {
                           transition: '0.2s',
                         }}
                       >
-                        {copied ? '✅ Tersalin!' : '📋 Salin ke Clipboard'}
+                        {copied ? '✅ Tersalin!' : '📋 Salin'}
                       </button>
                     </div>
-
-                    {/* Target info */}
-                    <div style={{ marginTop: 8, fontSize: '0.75rem', color: 'var(--text-light)' }}>
+                    <div style={{ padding: '0 16px 12px', fontSize: '0.75rem', color: 'var(--text-light)' }}>
                       {laporan.modePersen
-                        ? `🚀 Mode Persen Aktif (Omset Rp${formatCurrency(laporan.pendapatan.total - laporan.biaya.total)} ≥ Target Rp${formatCurrency(laporan.target)})`
-                        : `🔒 Pengumpulan Biaya Operasional (Omset Rp${formatCurrency(laporan.pendapatan.total - laporan.biaya.total)} < Target Rp${formatCurrency(laporan.target)})`
+                        ? `🚀 Mode Persen Aktif (Omset ≥ Target Rp${formatCurrency(laporan.target)})`
+                        : `🔒 Pengumpulan Biaya Operasional (Omset < Target Rp${formatCurrency(laporan.target)})`
                       }
                     </div>
                   </div>
