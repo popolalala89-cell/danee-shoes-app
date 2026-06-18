@@ -195,54 +195,15 @@ export async function trackOrder(
     const supabase = getSupabase();
     const keywordLower = keyword.toLowerCase().trim();
 
-    // Search by kode
-    const { data: byKode, error: err1 } = await supabase
-      .from(TABLE)
-      .select('*')
-      .ilike('kode', `%${keywordLower}%`);
+    // Pake RPC function yang bypass RLS (SECURITY DEFINER)
+    const { data, error } = await supabase
+      .rpc('search_orders', { keyword: keywordLower });
 
-    if (err1) {
-      return { success: false, error: err1.message };
+    if (error) {
+      return { success: false, error: error.message };
     }
 
-    // Search by nama_pelanggan
-    const { data: byNama, error: err2 } = await supabase
-      .from(TABLE)
-      .select('*')
-      .ilike('nama_pelanggan', `%${keywordLower}%`);
-
-    if (err2) {
-      return { success: false, error: err2.message };
-    }
-
-    // Search by kontak_wa
-    const { data: byWA, error: err3 } = await supabase
-      .from(TABLE)
-      .select('*')
-      .ilike('kontak_wa', `%${keywordLower}%`);
-
-    if (err3) {
-      return { success: false, error: err3.message };
-    }
-
-    // Merge deduplicated results
-    const seen = new Set<string>();
-    const merged: OrderRow[] = [];
-
-    const addUnique = (items: OrderRow[]) => {
-      for (const item of items || []) {
-        if (!seen.has(item.id)) {
-          seen.add(item.id);
-          merged.push(item);
-        }
-      }
-    };
-
-    addUnique(byKode || []);
-    addUnique(byNama || []);
-    addUnique(byWA || []);
-
-    return { success: true, data: merged };
+    return { success: true, data: data || [] };
   } catch (err: any) {
     return { success: false, error: err.message || 'Gagal melacak order' };
   }
