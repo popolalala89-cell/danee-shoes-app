@@ -1181,6 +1181,16 @@ Saya mau order layanan berikut:
             {menuOpen ? '✕' : '⚙️'}
           </button>
         )}
+        {!user && (
+          <button
+            className="hamburger-landing"
+            onClick={() => window.location.href = '/'}
+            aria-label="Kembali ke awal"
+            title="Kembali"
+          >
+            ↩️
+          </button>
+        )}
         <div className="shopee-topbar-logo">
           <span>👟</span> Danee
         </div>
