@@ -165,7 +165,7 @@ const ProfitSharing: React.FC = () => {
     <div className="admin-main">
       <div className="admin-topbar">
         <h1>Profit Sharing</h1>
-        <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <select className="form-control" value={bulan} onChange={(e) => setBulan(parseInt(e.target.value))} style={{ maxWidth: 140 }}>
             {BULAN.map((nama, idx) => <option key={idx} value={idx + 1}>{nama}</option>)}
           </select>
