@@ -166,15 +166,14 @@ const ProfitSharing: React.FC = () => {
       <div className="admin-topbar">
         <h1>Profit Sharing</h1>
         <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <select className="form-control" value={bulan} onChange={(e) => setBulan(parseInt(e.target.value))} style={{ maxWidth: 140 }}>
+          <select className="form-control" value={bulan} onChange={(e) => setBulan(parseInt(e.target.value))} style={{ maxWidth: 120 }}>
             {BULAN.map((nama, idx) => <option key={idx} value={idx + 1}>{nama}</option>)}
           </select>
-          <select className="form-control" value={tahun} onChange={(e) => setTahun(parseInt(e.target.value))} style={{ maxWidth: 100 }}>
+          <select className="form-control" value={tahun} onChange={(e) => setTahun(parseInt(e.target.value))} style={{ maxWidth: 90 }}>
             {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
-          <button className="btn btn-sm btn-outline" onClick={() => fetchData(false)} disabled={loading} title="Refresh (muat ulang dari snapshot)">&#x21bb;</button>
-          <button className="btn btn-sm btn-primary" onClick={() => fetchData(true)} disabled={loading} title="Hitung ulang dari data transaksi & simpan snapshot baru">
-            {loading ? '...' : '🔄 Hitung Ulang'}
+          <button className="btn btn-sm btn-primary" onClick={() => fetchData(true)} disabled={loading}>
+            {loading ? 'Menghitung...' : '🔄 Hitung Ulang'}
           </button>
         </div>
       </div>
