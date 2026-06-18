@@ -10,6 +10,8 @@ import type {
   MenuStoreRow,
   ProfitSharingData,
   ProfitSnapshotRow,
+  AuditOrderDetail,
+  AuditOrderItem,
   Dompet,
   KomisiBreakdown,
   ProfitHistory,
@@ -540,6 +542,289 @@ export async function getProfitSharingData(
     return {
       success: false,
       error: `Kesalahan Engine Profit: ${err.message || 'Unknown error'}`,
+    };
+  }
+}
+
+/**
+ * Get per-order audit details for a given month/year (FASE 4)
+ * Shows each order's gross, HPP, komisi, nett, and item-level breakdown
+ */
+export async function getAuditOrderDetails(
+  month?: number,
+  year?: number
+): Promise<ServiceResponse<AuditOrderDetail[]>> {
+  try {
+    const supabase = getSupabase();
+    const { startDate, endDate, month: m, year: y } = getMonthRange(month, year);
+
+    // ===== 1. Fetch reference data =====
+    const [
+      { data: ordersRaw },
+      { data: settingsProfitRaw },
+      { data: menuJasaRaw },
+      { data: menuStoreRaw },
+      { data: referralsRaw },
+    ] = await Promise.all([
+      supabase.from('orders').select('*'),
+      supabase.from('settings_profit').select('*'),
+      supabase.from('menu_jasa').select('*'),
+      supabase.from('menu_store').select('*'),
+      supabase.from('referral').select('*').eq('status', 'Aktif'),
+    ]);
+
+    const orders = (ordersRaw || []) as OrderRow[];
+    const settingsProfit = (settingsProfitRaw || []) as SettingsProfitRow[];
+    const menuJasa = (menuJasaRaw || []) as MenuJasaRow[];
+    const menuStore = (menuStoreRaw || []) as MenuStoreRow[];
+    const referrals = (referralsRaw || []) as ReferralRow[];
+
+    if (!orders.length) {
+      return { success: true, data: [] };
+    }
+
+    // ===== 2. Parse config (same as engine) =====
+    const configHPP: Record<string, { hpp: number; kategori: string }> = {};
+    for (const row of settingsProfit) {
+      const keyLayanan = row.nama_layanan.trim().toLowerCase();
+      if (keyLayanan) {
+        configHPP[keyLayanan] = { hpp: row.hpp, kategori: (row.kategori || '').toUpperCase() };
+      }
+    }
+
+    const hargaAsliMenu: Record<string, number> = {};
+    for (const item of menuJasa) {
+      if (item.nama_layanan) hargaAsliMenu[item.nama_layanan.trim().toLowerCase()] = item.harga;
+    }
+    for (const item of menuStore) {
+      if (item.nama_produk) hargaAsliMenu[item.nama_produk.trim().toLowerCase()] = item.harga;
+    }
+
+    const referralMap: Record<string, { nama: string; komisiPct: number }> = {};
+    for (const ref of referrals) {
+      if (ref.kode) {
+        referralMap[ref.kode.trim()] = {
+          nama: ref.nama_referral,
+          komisiPct: ref.komisi_pct,
+        };
+      }
+    }
+
+    const keysHPP = Object.keys(configHPP).sort((a, b) => b.length - a.length);
+
+    // ===== 3. Load order items =====
+    const { data: orderItemsRaw } = await supabase
+      .from('order_items')
+      .select('*');
+    const allOrderItems = (orderItemsRaw || []) as any[];
+    const orderItemsByOrder: Record<string, any[]> = {};
+    for (const oi of allOrderItems) {
+      if (!orderItemsByOrder[oi.order_id]) orderItemsByOrder[oi.order_id] = [];
+      orderItemsByOrder[oi.order_id].push(oi);
+    }
+
+    // ===== 4. Process each order =====
+    const sDate = new Date(startDate + 'T00:00:00.000Z');
+    const eDate = new Date(endDate + 'T23:59:59.999Z');
+
+    const selesaiOrders = orders
+      .filter((o) => o.status === 'Selesai')
+      .sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
+
+    const auditResults: AuditOrderDetail[] = [];
+
+    for (const order of selesaiOrders) {
+      const oDate = new Date(order.tanggal);
+      if (oDate < sDate || oDate > eDate) continue;
+
+      const hargaFinalNota = order.harga;
+      const layananText = order.layanan || '';
+      let orderGrossTotal = 0;
+      let orderQtyTotal = 0;
+      const auditItems: AuditOrderItem[] = [];
+
+      // Try structured order_items first
+      const structuredItems = orderItemsByOrder[order.id];
+      if (structuredItems && structuredItems.length > 0) {
+        for (const si of structuredItems) {
+          const qty = si.qty || 1;
+          const hargaSatuan = si.harga_satuan || 0;
+          const grossItem = hargaSatuan * qty;
+          orderGrossTotal += grossItem;
+          orderQtyTotal += qty;
+
+          const itemName = (si.nama_item || '').toLowerCase();
+          let itemHPP = 0;
+          let jalur: 'A' | 'B' = 'A';
+          let rn = itemName.replace(/\[.*?\]/g, '').trim();
+
+          for (const keyMatch of keysHPP) {
+            if (!rn) break;
+            if (rn.includes(keyMatch)) {
+              itemHPP += configHPP[keyMatch].hpp;
+              if (configHPP[keyMatch].kategori === 'REPAIR') jalur = 'B';
+              rn = rn.replace(keyMatch, '').trim();
+            }
+          }
+
+          auditItems.push({
+            nama: si.nama_item || '',
+            qty,
+            hargaSatuan,
+            gross: grossItem,
+            hpp: itemHPP * qty,
+            jalur,
+          });
+        }
+      } else {
+        // Fallback parse from layanan text
+        const items = layananText.split(/[,;\n]+/);
+
+        const cariHargaAsli = (namaOrder: string): number => {
+          const nama = namaOrder.trim().toLowerCase();
+          if (!nama) return 0;
+          if (hargaAsliMenu[nama] !== undefined) return hargaAsliMenu[nama];
+          for (const key of Object.keys(hargaAsliMenu)) {
+            if (key.includes(nama)) return hargaAsliMenu[key];
+          }
+          for (const key of Object.keys(hargaAsliMenu)) {
+            if (nama.includes(key)) return hargaAsliMenu[key];
+          }
+          return 0;
+        };
+
+        for (const itemStr of items) {
+          const cleanStr = itemStr.trim();
+          if (!cleanStr) continue;
+
+          const noBrackets = cleanStr.replace(/[.*?]/g, '').trim();
+          const qtyMatch = noBrackets.match(/\(?([0-9]+)\s*[xX]\s*\)?/i);
+          let qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+          if (qty < 1) qty = 1;
+
+          const remainingName = noBrackets
+            .replace(/\(?\s*[0-9]+\s*[xX]\s*\)?/gi, '')
+            .replace(/@\s*[Rr][Pp]\s*[0-9.]+/gi, '')
+            .replace(/[Rr][Pp]\s*[0-9.]+/gi, '')
+            .replace(/[•–—]/g, '')
+            .trim()
+            .toLowerCase();
+
+          let hargaAsliSatuan = cariHargaAsli(remainingName);
+          if (hargaAsliSatuan === 0) {
+            const prcMatch = cleanStr.match(/[Rr][Pp]\s*([0-9.]+)/i);
+            if (prcMatch) hargaAsliSatuan = parseInt(prcMatch[1].replace(/\./g, ''));
+          }
+
+          if (qty === 1 && items.length === 1 && hargaAsliSatuan > 0 && hargaFinalNota > 0) {
+            if (hargaFinalNota >= hargaAsliSatuan * 1.4) {
+              qty = Math.round(hargaFinalNota / hargaAsliSatuan);
+              if (qty < 2) qty = 2;
+            }
+          }
+
+          const grossItem = hargaAsliSatuan * qty;
+          orderGrossTotal += grossItem;
+          orderQtyTotal += qty;
+
+          let itemHPP = 0;
+          let jalur: 'A' | 'B' = 'A';
+          let rn = remainingName;
+
+          for (const keyMatch of keysHPP) {
+            if (!rn) break;
+            if (rn.includes(keyMatch)) {
+              itemHPP += configHPP[keyMatch].hpp;
+              if (configHPP[keyMatch].kategori === 'REPAIR') jalur = 'B';
+              rn = rn.replace(keyMatch, '').trim();
+            }
+          }
+
+          if (itemHPP === 0 && rn) {
+            for (const keyRev of keysHPP) {
+              if (keyRev.includes(rn)) {
+                itemHPP += configHPP[keyRev].hpp;
+                if (configHPP[keyRev].kategori === 'REPAIR') jalur = 'B';
+                break;
+              }
+            }
+          }
+
+          auditItems.push({
+            nama: remainingName || cleanStr,
+            qty,
+            hargaSatuan: hargaAsliSatuan,
+            gross: grossItem,
+            hpp: itemHPP * qty,
+            jalur,
+          });
+        }
+
+        // Scan notes for repair keywords
+        const catatan = (order.catatan || '').toLowerCase();
+        if (catatan) {
+          for (const keyRepair of keysHPP) {
+            const cfg = configHPP[keyRepair];
+            if (cfg && cfg.kategori === 'REPAIR' && catatan.includes(keyRepair)) {
+              const alreadyInLayanan = layananText.toLowerCase().includes(keyRepair);
+              if (!alreadyInLayanan) {
+                let repairQty = 1;
+                if (/semua|2 pasang|3 pasang/i.test(catatan)) {
+                  repairQty = orderQtyTotal > 0 ? orderQtyTotal : 1;
+                }
+                auditItems.push({
+                  nama: `[catatan] ${keyRepair}`,
+                  qty: repairQty,
+                  hargaSatuan: 0,
+                  gross: 0,
+                  hpp: cfg.hpp * repairQty,
+                  jalur: 'B',
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Fallback gross
+      if (orderGrossTotal === 0 && auditItems.length > 0 && hargaFinalNota > 0) {
+        orderGrossTotal = hargaFinalNota;
+      }
+      if (orderGrossTotal === 0) continue;
+
+      // Referral commission
+      let komisiOrder = 0;
+      const refCode = (order.referral || '').trim();
+      if (refCode && referralMap[refCode] && referralMap[refCode].komisiPct > 0) {
+        komisiOrder = Math.round(hargaFinalNota * referralMap[refCode].komisiPct / 100);
+      }
+
+      // Calculate per-order totals
+      const totalHPP = auditItems.reduce((sum, i) => sum + i.hpp, 0);
+      const ratio = orderGrossTotal > 0 ? hargaFinalNota / orderGrossTotal : 1;
+      const grossAfterDiscount = Math.round(orderGrossTotal * ratio);
+      const nett = grossAfterDiscount - totalHPP - komisiOrder;
+      const selisih = Math.abs(grossAfterDiscount - totalHPP - komisiOrder - nett);
+
+      auditResults.push({
+        kode: order.kode || order.id,
+        tanggal: order.tanggal,
+        layanan: layananText || '-',
+        gross: grossAfterDiscount,
+        alokasiHPP: totalHPP,
+        komisi: komisiOrder,
+        nett,
+        items: auditItems,
+        status: selisih <= 2 ? 'SINKRON' : 'SELISIH',
+        selisih,
+      });
+    }
+
+    return { success: true, data: auditResults };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: `Gagal memuat audit detail: ${err.message || 'Unknown error'}`,
     };
   }
 }

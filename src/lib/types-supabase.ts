@@ -385,6 +385,30 @@ export interface ProfitHistory {
   growthPct?: string;
 }
 
+// ===== FASE 4: Audit detail per-item =====
+
+export interface AuditOrderItem {
+  nama: string;
+  qty: number;
+  hargaSatuan: number;
+  gross: number;
+  hpp: number;
+  jalur: 'A' | 'B';
+}
+
+export interface AuditOrderDetail {
+  kode: string;
+  tanggal: string;
+  layanan: string;
+  gross: number;
+  alokasiHPP: number;
+  komisi: number;
+  nett: number;
+  items: AuditOrderItem[];
+  status: 'SINKRON' | 'SELISIH';
+  selisih: number;
+} // <-- closes AuditOrderDetail
+
 export interface ThemeSettings {
   primary: string;
   hover: string;

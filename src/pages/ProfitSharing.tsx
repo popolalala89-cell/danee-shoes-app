@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { getProfitSharingData, getProfitHistorySummary } from '../lib/services/profit-service';
+import React, { useState, useEffect } from 'react';
+import { getProfitSharingData, getProfitHistorySummary, getAuditOrderDetails } from '../lib/services/profit-service';
 import { formatCurrency } from '../lib/utils';
-import type { ProfitSharingData, ProfitHistory } from '../lib/types-supabase';
+import type { ProfitSharingData, ProfitHistory, AuditOrderDetail, AuditOrderItem } from '../lib/types-supabase';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
@@ -24,6 +24,10 @@ const ProfitSharing: React.FC = () => {
   const [history, setHistory] = useState<ProfitHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [auditOrders, setAuditOrders] = useState<AuditOrderDetail[] | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditExpanded, setAuditExpanded] = useState(false);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
 
   const fetchData = (forceRecalculate: boolean = false) => {
     setLoading(true);
@@ -43,6 +47,29 @@ const ProfitSharing: React.FC = () => {
   };
 
   useEffect(() => { fetchData(false); }, [bulan, tahun]);
+
+  const loadAuditDetail = () => {
+    if (auditOrders) {
+      setAuditExpanded(!auditExpanded);
+      return;
+    }
+    setAuditLoading(true);
+    getAuditOrderDetails(bulan, tahun).then((res) => {
+      if (res.success) setAuditOrders(res.data || []);
+      setAuditExpanded(true);
+    }).finally(() => {
+      setAuditLoading(false);
+    });
+  };
+
+  const toggleOrderExpand = (kode: string) => {
+    setExpandedOrders((prev) => {
+      const next = new Set(prev);
+      if (next.has(kode)) next.delete(kode);
+      else next.add(kode);
+      return next;
+    });
+  };
 
   const penCapaian = data ? (data.omsetNett / (data.target || 1)) * 100 : 0;
   const modePersen = data ? data.omsetNett >= data.target : false;
@@ -273,6 +300,142 @@ const ProfitSharing: React.FC = () => {
               Belum ada histori di bulan sebelumnya.
             </div>
           )}
+
+          {/* ── Audit Detail per Order (FASE 4) ── */}
+          <div style={{ marginTop: 'var(--space-lg)', borderTop: '1px solid #e2e8f0', paddingTop: 'var(--space-md)' }}>
+            <div
+              onClick={loadAuditDetail}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none', marginBottom: 'var(--space-sm)' }}
+            >
+              <span style={{ color: 'var(--text-gray)', fontSize: '1rem', fontWeight: 800, letterSpacing: '0.5px' }}>
+                <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4 }}>fact_check</span> Audit Detail per Order
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-light)', fontWeight: 400, marginLeft: 8 }}>
+                  {auditExpanded ? '▲ sembunyikan' : '▼ tampilkan'}
+                </span>
+              </span>
+              {auditLoading && <span style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>Memuat...</span>}
+            </div>
+
+            {auditExpanded && (
+              <div>
+                {auditLoading ? (
+                  <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-gray)' }}>
+                    <div className="loading-spinner" style={{ width: 24, height: 24, margin: '0 auto 8px' }} />
+                    Memuat detail audit...
+                  </div>
+                ) : !auditOrders || auditOrders.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 20, fontWeight: 600, color: 'var(--text-gray)' }}>
+                    Tidak ada order Selesai di bulan ini.
+                  </div>
+                ) : (
+                  <div className="table-wrap" style={{ marginBottom: 'var(--space-md)' }}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style={{ width: 30 }}></th>
+                          <th>Kode</th>
+                          <th>Tanggal</th>
+                          <th>Items</th>
+                          <th>Gross</th>
+                          <th>HPP</th>
+                          <th>Komisi</th>
+                          <th>Nett</th>
+                          <th>Audit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {auditOrders.map((ao, idx) => {
+                          const isOpen = expandedOrders.has(ao.kode);
+                          const totalSelisih = Math.abs(ao.gross - ao.alokasiHPP - ao.komisi - ao.nett);
+                          return (
+                            <React.Fragment key={ao.kode}>
+                              <tr
+                                onClick={() => toggleOrderExpand(ao.kode)}
+                                style={{ cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
+                              >
+                                <td style={{ padding: '10px 8px', textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-light)' }}>
+                                  {isOpen ? '▼' : '▶'}
+                                </td>
+                                <td style={{ padding: 10, fontWeight: 700, color: 'var(--text-dark)', fontSize: '0.85rem' }}>{ao.kode}</td>
+                                <td style={{ padding: 10, fontWeight: 500, color: 'var(--text-gray)', fontSize: '0.8rem' }}>{ao.tanggal}</td>
+                                <td style={{ padding: 10, fontWeight: 600, color: 'var(--text-dark)', fontSize: '0.85rem' }}>{ao.items.length}</td>
+                                <td style={{ padding: 10, fontWeight: 600, color: 'var(--text-dark)', fontSize: '0.85rem' }}>{formatCurrency(ao.gross)}</td>
+                                <td style={{ padding: 10, fontWeight: 600, color: '#f43f5e', fontSize: '0.85rem' }}>- {formatCurrency(ao.alokasiHPP)}</td>
+                                <td style={{ padding: 10, fontWeight: 600, color: ao.komisi > 0 ? '#ef4444' : 'var(--text-light)', fontSize: '0.85rem' }}>
+                                  {ao.komisi > 0 ? `- ${formatCurrency(ao.komisi)}` : '-'}
+                                </td>
+                                <td style={{ padding: 10, fontWeight: 800, color: '#10b981', fontSize: '0.85rem' }}>{formatCurrency(ao.nett)}</td>
+                                <td style={{ padding: 10 }}>
+                                  {ao.status === 'SINKRON' ? (
+                                    <span style={{ background: '#dcfce7', color: '#166534', padding: '3px 8px', borderRadius: 12, fontSize: '0.7rem', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                                      ✓ SINKRON
+                                    </span>
+                                  ) : (
+                                    <span style={{ background: '#fee2e2', color: '#991b1b', padding: '3px 8px', borderRadius: 12, fontSize: '0.7rem', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                                      ⚠ SELISIH Rp{formatCurrency(ao.selisih)}
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                              {isOpen && (
+                                <tr>
+                                  <td colSpan={9} style={{ padding: 0, background: '#f8fafc' }}>
+                                    <div style={{ padding: '8px 20px 12px 40px' }}>
+                                      <table style={{ fontSize: '0.78rem', width: '100%' }}>
+                                        <thead>
+                                          <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                            <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: 'var(--text-gray)' }}>Item</th>
+                                            <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 700, color: 'var(--text-gray)' }}>Qty</th>
+                                            <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: 'var(--text-gray)' }}>@Harga</th>
+                                            <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: 'var(--text-gray)' }}>Gross</th>
+                                            <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, color: 'var(--text-gray)' }}>HPP</th>
+                                            <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 700, color: 'var(--text-gray)' }}>Jalur</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {ao.items.map((item, iIdx) => (
+                                            <tr key={iIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                              <td style={{ padding: '5px 8px', fontWeight: 600, color: 'var(--text-dark)' }}>{item.nama}</td>
+                                              <td style={{ padding: '5px 8px', textAlign: 'center', color: 'var(--text-gray)' }}>{item.qty}</td>
+                                              <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--text-gray)' }}>{item.hargaSatuan > 0 ? formatCurrency(item.hargaSatuan) : '-'}</td>
+                                              <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--text-dark)' }}>{item.gross > 0 ? formatCurrency(item.gross) : '-'}</td>
+                                              <td style={{ padding: '5px 8px', textAlign: 'right', fontWeight: 600, color: item.hpp > 0 ? '#f43f5e' : 'var(--text-light)' }}>{item.hpp > 0 ? formatCurrency(item.hpp) : '-'}</td>
+                                              <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                                                <span style={{
+                                                  background: item.jalur === 'B' ? '#fef3c7' : '#dcfce7',
+                                                  color: item.jalur === 'B' ? '#92400e' : '#166534',
+                                                  padding: '2px 6px', borderRadius: 4, fontSize: '0.65rem', fontWeight: 800
+                                                }}>
+                                                  {item.jalur === 'A' ? 'CLEAN' : 'REPAIR'}
+                                                </span>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                          {/* Summary row for this order */}
+                                          <tr style={{ background: '#f1f5f9', fontWeight: 800 }}>
+                                            <td style={{ padding: '6px 8px', color: 'var(--text-dark)' }}>Total</td>
+                                            <td style={{ padding: '6px 8px', textAlign: 'center', color: 'var(--text-dark)' }}></td>
+                                            <td style={{ padding: '6px 8px' }}></td>
+                                            <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--text-dark)' }}>{formatCurrency(ao.gross)}</td>
+                                            <td style={{ padding: '6px 8px', textAlign: 'right', color: '#f43f5e' }}>{formatCurrency(ao.alokasiHPP)}</td>
+                                            <td style={{ padding: '6px 8px' }}></td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
