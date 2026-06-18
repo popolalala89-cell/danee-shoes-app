@@ -424,6 +424,58 @@ export interface AdminUserRow {
   updated_at: string;
 }
 
+// ===== FASE 5: Laporan Laba Rugi =====
+
+export interface LaporanPendapatan {
+  /** Revenue from Cleaning services */
+  cleaning: number;
+  /** Revenue from Repair services */
+  repair: number;
+  /** Revenue from Store products */
+  produk: number;
+  /** Total revenue = cleaning + repair + produk */
+  total: number;
+}
+
+export interface LaporanBiaya {
+  /** HPP from Cleaning services */
+  hppCleaning: number;
+  /** HPP from Repair services */
+  hppRepair: number;
+  /** Referral commissions paid */
+  komisiReferral: number;
+  /** Total costs = hppCleaning + hppRepair + komisiReferral */
+  total: number;
+}
+
+export interface LaporanDistribusiRole {
+  role: string;
+  base: number;
+  pct: number;
+  total: number;
+}
+
+export interface LaporanLabaRugi {
+  /** Periode label — e.g. 'Juni 2026' */
+  periode: string;
+  /** Revenue breakdown */
+  pendapatan: LaporanPendapatan;
+  /** Cost breakdown */
+  biaya: LaporanBiaya;
+  /** Total net profit = pendapatan.total - biaya.total */
+  labaBersih: number;
+  /** Distribution breakdown per role */
+  distribusi: LaporanDistribusiRole[];
+  /** Total distributed amount — should equal labaBersih */
+  totalDistribusi: number;
+  /** Is the distribution balanced? */
+  balance: boolean;
+  /** Total target operasional */
+  target: number;
+  /** Mode persen aktif? (nett >= target) */
+  modePersen: boolean;
+}
+
 // ===== Service Response =====
 
 export interface ProfitSnapshotRow {

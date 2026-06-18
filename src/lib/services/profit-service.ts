@@ -12,6 +12,10 @@ import type {
   ProfitSnapshotRow,
   AuditOrderDetail,
   AuditOrderItem,
+  LaporanLabaRugi,
+  LaporanPendapatan,
+  LaporanBiaya,
+  LaporanDistribusiRole,
   Dompet,
   KomisiBreakdown,
   ProfitHistory,
@@ -825,6 +829,346 @@ export async function getAuditOrderDetails(
     return {
       success: false,
       error: `Gagal memuat audit detail: ${err.message || 'Unknown error'}`,
+    };
+  }
+}
+
+/**
+ * FASE 5: Get full P&L (Laba Rugi) report for a given month/year
+ * Categorizes revenue by Cleaning / Repair / Store
+ * Categorizes HPP by Cleaning / Repair
+ * Shows distribution breakdown with balance verification
+ */
+export async function getLaporanLabaRugi(
+  month?: number,
+  year?: number
+): Promise<ServiceResponse<LaporanLabaRugi>> {
+  try {
+    const supabase = getSupabase();
+    const { startDate, endDate, month: m, year: y } = getMonthRange(month, year);
+    const bulanNum = m + 1;
+
+    const namaBulan = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+    ];
+    const periode = `${namaBulan[m]} ${y}`;
+
+    // ===== 1. Fetch all reference data =====
+    const [
+      { data: ordersRaw },
+      { data: settingsProfitRaw },
+      { data: menuJasaRaw },
+      { data: menuStoreRaw },
+      { data: referralsRaw },
+    ] = await Promise.all([
+      supabase.from('orders').select('*'),
+      supabase.from('settings_profit').select('*'),
+      supabase.from('menu_jasa').select('*'),
+      supabase.from('menu_store').select('*'),
+      supabase.from('referral').select('*').eq('status', 'Aktif'),
+    ]);
+
+    const orders = (ordersRaw || []) as OrderRow[];
+    const settingsProfit = (settingsProfitRaw || []) as SettingsProfitRow[];
+    const menuJasa = (menuJasaRaw || []) as MenuJasaRow[];
+    const menuStore = (menuStoreRaw || []) as MenuStoreRow[];
+    const referrals = (referralsRaw || []) as ReferralRow[];
+
+    // ===== 2. Parse config =====
+    const configHPP: Record<string, { hpp: number; kategori: string }> = {};
+    for (const row of settingsProfit) {
+      const key = row.nama_layanan.trim().toLowerCase();
+      if (key) configHPP[key] = { hpp: row.hpp, kategori: (row.kategori || '').toUpperCase() };
+    }
+    const keysHPP = Object.keys(configHPP).sort((a, b) => b.length - a.length);
+
+    // Build price lookup from menu_jasa
+    const skipHargaMenu: Record<string, number> = {};
+    for (const item of menuJasa) {
+      if (item.nama_layanan) skipHargaMenu[item.nama_layanan.trim().toLowerCase()] = item.harga;
+    }
+    // Track which menu items are store products
+    const storeNames: Set<string> = new Set();
+    for (const item of menuStore) {
+      if (item.nama_produk) storeNames.add(item.nama_produk.trim().toLowerCase());
+    }
+
+    // ===== 3. Referral map =====
+    const referralMap: Record<string, { komisiPct: number }> = {};
+    for (const ref of referrals) {
+      if (ref.kode) referralMap[ref.kode.trim()] = { komisiPct: ref.komisi_pct };
+    }
+
+    // ===== 4. Load order_items =====
+    const { data: orderItemsRaw } = await supabase
+      .from('order_items')
+      .select('*');
+    const orderItemsByOrder: Record<string, any[]> = {};
+    for (const oi of (orderItemsRaw || []) as any[]) {
+      if (!orderItemsByOrder[oi.order_id]) orderItemsByOrder[oi.order_id] = [];
+      orderItemsByOrder[oi.order_id].push(oi);
+    }
+
+    // ===== 5. Categorize and sum =====
+    const sDate = new Date(startDate + 'T00:00:00.000Z');
+    const eDate = new Date(endDate + 'T23:59:59.999Z');
+
+    const selesaiOrders = orders
+      .filter((o) => o.status === 'Selesai')
+      .sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
+
+    let pendapatanCleaning = 0;
+    let pendapatanRepair = 0;
+    let pendapatanProduk = 0;
+    let hppCleaning = 0;
+    let hppRepair = 0;
+    let totalKomisi = 0;
+
+    for (const order of selesaiOrders) {
+      const oDate = new Date(order.tanggal);
+      if (oDate < sDate || oDate > eDate) continue;
+
+      const hargaFinalNota = order.harga;
+      const layananText = order.layanan || '';
+      let orderGrossTotal = 0;
+      let orderQtyTotal = 0;
+
+      // Track per-item categories for this order
+      const itemCategories: { gross: number; category: 'cleaning' | 'repair' | 'produk'; hpp: number }[] = [];
+
+      // Try structured items first
+      const structuredItems = orderItemsByOrder[order.id];
+      if (structuredItems && structuredItems.length > 0) {
+        for (const si of structuredItems) {
+          const qty = si.qty || 1;
+          const hargaSatuan = si.harga_satuan || 0;
+          const grossItem = hargaSatuan * qty;
+          orderGrossTotal += grossItem;
+          orderQtyTotal += qty;
+
+          const itemName = (si.nama_item || '').toLowerCase();
+          const tipe = (si.tipe || '').toLowerCase();
+
+          // Determine category from tipe field or name lookup
+          let category: 'cleaning' | 'repair' | 'produk' = 'cleaning';
+          if (tipe === 'produk' || storeNames.has(itemName)) {
+            category = 'produk';
+          } else {
+            // Check if name matches repair HPP
+            for (const key of keysHPP) {
+              if (itemName.includes(key) && configHPP[key]?.kategori === 'REPAIR') {
+                category = 'repair';
+                break;
+              }
+            }
+          }
+
+          // Calculate item HPP
+          let itemHPP = 0;
+          let rn = itemName.replace(/\[.*?\]/g, '').trim();
+          for (const keyMatch of keysHPP) {
+            if (!rn) break;
+            if (rn.includes(keyMatch)) {
+              itemHPP += configHPP[keyMatch].hpp * qty;
+              rn = rn.replace(keyMatch, '').trim();
+            }
+          }
+
+          itemCategories.push({ gross: grossItem, category, hpp: itemHPP });
+        }
+      } else {
+        // Fallback: parse from layanan text
+        const items = layananText.split(/[,;\n]+/);
+
+        for (const itemStr of items) {
+          const cleanStr = itemStr.trim();
+          if (!cleanStr) continue;
+
+          const qtyMatch = cleanStr.match(/\(?([0-9]+)\s*[xX]\s*\)?/i);
+          let qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+          if (qty < 1) qty = 1;
+
+          const noBrackets = cleanStr.replace(/[.*?]/g, '').trim();
+          const remainingName = noBrackets
+            .replace(/\(?\s*[0-9]+\s*[xX]\s*\)?/gi, '')
+            .replace(/@\s*[Rr][Pp]\s*[0-9.]+/gi, '')
+            .replace(/[Rr][Pp]\s*[0-9.]+/gi, '')
+            .replace(/[•–—]/g, '')
+            .trim()
+            .toLowerCase();
+
+          if (!remainingName) continue;
+
+          // Get price
+          let hargaSatuan = skipHargaMenu[remainingName] || 0;
+          if (hargaSatuan === 0) {
+            const prcMatch = cleanStr.match(/[Rr][Pp]\s*([0-9.]+)/i);
+            if (prcMatch) hargaSatuan = parseInt(prcMatch[1].replace(/\./g, ''));
+          }
+
+          if (qty === 1 && items.length === 1 && hargaSatuan > 0 && hargaFinalNota > 0) {
+            if (hargaFinalNota >= hargaSatuan * 1.4) {
+              qty = Math.round(hargaFinalNota / hargaSatuan);
+              if (qty < 2) qty = 2;
+            }
+          }
+
+          const grossItem = hargaSatuan * qty;
+          orderGrossTotal += grossItem;
+          orderQtyTotal += qty;
+
+          // Determine category
+          let category: 'cleaning' | 'repair' | 'produk' = 'cleaning';
+          if (storeNames.has(remainingName)) {
+            category = 'produk';
+          } else {
+            for (const key of keysHPP) {
+              if (remainingName.includes(key) && configHPP[key]?.kategori === 'REPAIR') {
+                category = 'repair';
+                break;
+              }
+            }
+          }
+
+          // HPP
+          let itemHPP = 0;
+          let rn = remainingName;
+          for (const keyMatch of keysHPP) {
+            if (!rn) break;
+            if (rn.includes(keyMatch)) {
+              itemHPP += configHPP[keyMatch].hpp * qty;
+              rn = rn.replace(keyMatch, '').trim();
+            }
+          }
+
+          // Reverse match fallback
+          if (itemHPP === 0 && rn) {
+            for (const keyRev of keysHPP) {
+              if (keyRev.includes(rn)) {
+                itemHPP += configHPP[keyRev].hpp * qty;
+                break;
+              }
+            }
+          }
+
+          itemCategories.push({ gross: grossItem, category, hpp: itemHPP });
+        }
+
+        // Scan notes for repair HPP
+        const catatan = (order.catatan || '').toLowerCase();
+        if (catatan) {
+          for (const keyRepair of keysHPP) {
+            const cfg = configHPP[keyRepair];
+            if (cfg && cfg.kategori === 'REPAIR' && catatan.includes(keyRepair)) {
+              const alreadyInLayanan = layananText.toLowerCase().includes(keyRepair);
+              if (!alreadyInLayanan) {
+                let repairQty = 1;
+                if (/semua|2 pasang|3 pasang/i.test(catatan)) {
+                  repairQty = orderQtyTotal > 0 ? orderQtyTotal : 1;
+                }
+                itemCategories.push({
+                  gross: 0,
+                  category: 'repair',
+                  hpp: cfg.hpp * repairQty,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      if (orderGrossTotal === 0 && itemCategories.length > 0 && hargaFinalNota > 0) {
+        orderGrossTotal = hargaFinalNota;
+      }
+      if (orderGrossTotal === 0) continue;
+
+      // Proportional allocation for discount
+      const ratio = orderGrossTotal > 0 ? hargaFinalNota / orderGrossTotal : 1;
+
+      // Referral commission
+      const refCode = (order.referral || '').trim();
+      let komisiOrder = 0;
+      if (refCode && referralMap[refCode] && referralMap[refCode].komisiPct > 0) {
+        komisiOrder = Math.round(hargaFinalNota * referralMap[refCode].komisiPct / 100);
+        totalKomisi += komisiOrder;
+      }
+
+      for (const ic of itemCategories) {
+        const discountedGross = Math.round(ic.gross * ratio);
+        switch (ic.category) {
+          case 'cleaning':
+            pendapatanCleaning += discountedGross;
+            hppCleaning += ic.hpp;
+            break;
+          case 'repair':
+            pendapatanRepair += discountedGross;
+            hppRepair += ic.hpp;
+            break;
+          case 'produk':
+            pendapatanProduk += discountedGross;
+            break;
+        }
+      }
+    }
+
+    // ===== 6. Get distribution from existing snapshot/engine =====
+    const distRes = await getProfitSharingData(bulanNum, y, false);
+    const target = distRes.data?.target || 0;
+    const omsetNett = distRes.data?.omsetNett || 0;
+    const modePersen = omsetNett >= target;
+
+    // Build distribution array
+    const WALLET_MAP: { role: string; baseKey: string | null; pctKey: string }[] = [
+      { role: 'Owner', baseKey: 'ownerBase', pctKey: 'ownerPct' },
+      { role: 'Kas (Operasional)', baseKey: 'kasBase', pctKey: 'kasPct' },
+      { role: 'Spesialis Cuci', baseKey: 'cuciBase', pctKey: 'cuciPct' },
+      { role: 'Spesialis Repair', baseKey: null, pctKey: 'repairPct' },
+      { role: 'Admin (Marketing)', baseKey: 'adminBase', pctKey: 'adminPct' },
+      { role: 'Engineer Web', baseKey: 'webBase', pctKey: 'webPct' },
+      { role: 'Zakat (2.5%)', baseKey: null, pctKey: 'zakatPct' },
+      { role: 'Investor', baseKey: null, pctKey: 'investorPct' },
+    ];
+
+    const dompet = distRes.data?.dompet || {} as Dompet;
+    const distribusi: LaporanDistribusiRole[] = WALLET_MAP.map((w) => {
+      const base = w.baseKey ? (dompet as any)[w.baseKey] || 0 : 0;
+      const pct = (dompet as any)[w.pctKey] || 0;
+      return { role: w.role, base, pct, total: base + pct };
+    });
+
+    const totalDistribusi = distribusi.reduce((s, d) => s + d.total, 0);
+    const totalPendapatan = pendapatanCleaning + pendapatanRepair + pendapatanProduk;
+    const totalBiaya = hppCleaning + hppRepair + totalKomisi;
+    const labaBersih = totalPendapatan - totalBiaya;
+
+    const laporan: LaporanLabaRugi = {
+      periode,
+      pendapatan: {
+        cleaning: Math.round(pendapatanCleaning),
+        repair: Math.round(pendapatanRepair),
+        produk: Math.round(pendapatanProduk),
+        total: Math.round(totalPendapatan),
+      },
+      biaya: {
+        hppCleaning: Math.round(hppCleaning),
+        hppRepair: Math.round(hppRepair),
+        komisiReferral: Math.round(totalKomisi),
+        total: Math.round(totalBiaya),
+      },
+      labaBersih: Math.round(labaBersih),
+      distribusi,
+      totalDistribusi: Math.round(totalDistribusi),
+      balance: Math.abs(labaBersih - totalDistribusi) <= 2,
+      target,
+      modePersen,
+    };
+
+    return { success: true, data: laporan };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: `Gagal memuat laporan laba rugi: ${err.message || 'Unknown error'}`,
     };
   }
 }

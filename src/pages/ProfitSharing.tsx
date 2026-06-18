@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getProfitSharingData, getProfitHistorySummary, getAuditOrderDetails } from '../lib/services/profit-service';
+import { getProfitSharingData, getProfitHistorySummary, getAuditOrderDetails, getLaporanLabaRugi } from '../lib/services/profit-service';
 import { formatCurrency } from '../lib/utils';
-import type { ProfitSharingData, ProfitHistory, AuditOrderDetail, AuditOrderItem } from '../lib/types-supabase';
+import type { ProfitSharingData, ProfitHistory, AuditOrderDetail, AuditOrderItem, LaporanLabaRugi } from '../lib/types-supabase';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
@@ -28,6 +28,10 @@ const ProfitSharing: React.FC = () => {
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditExpanded, setAuditExpanded] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [laporan, setLaporan] = useState<LaporanLabaRugi | null>(null);
+  const [laporanLoading, setLaporanLoading] = useState(false);
+  const [laporanExpanded, setLaporanExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const fetchData = (forceRecalculate: boolean = false) => {
     setLoading(true);
@@ -69,6 +73,75 @@ const ProfitSharing: React.FC = () => {
       else next.add(kode);
       return next;
     });
+  };
+
+  const loadLaporan = () => {
+    if (laporan) {
+      setLaporanExpanded(!laporanExpanded);
+      return;
+    }
+    setLaporanLoading(true);
+    getLaporanLabaRugi(bulan, tahun).then((res) => {
+      if (res.success) {
+        setLaporan(res.data || null);
+        setLaporanExpanded(true);
+      }
+    }).finally(() => {
+      setLaporanLoading(false);
+    });
+  };
+
+  const salinLaporan = async () => {
+    if (!laporan) return;
+    const p = laporan.pendapatan;
+    const b = laporan.biaya;
+    const d = laporan.distribusi;
+    const lines = [
+      `📊 LAPORAN LABA RUGI`,
+      `Periode: ${laporan.periode}`,
+      `─────────────────────────`,
+      `PENDAPATAN:`,
+      `  Jasa Cleaning       ${formatCurrency(p.cleaning)}`,
+      `  Jasa Repair         ${formatCurrency(p.repair)}`,
+      `  Produk Store        ${formatCurrency(p.produk)}`,
+      `  TOTAL PENDAPATAN    ${formatCurrency(p.total)}`,
+      ``,
+      `BIAYA:`,
+      `  HPP Cleaning        ${formatCurrency(b.hppCleaning)}`,
+      `  HPP Repair          ${formatCurrency(b.hppRepair)}`,
+      `  Komisi Referral     ${formatCurrency(b.komisiReferral)}`,
+      `  TOTAL BIAYA         ${formatCurrency(b.total)}`,
+      ``,
+      `LABA BERSIH           ${formatCurrency(laporan.labaBersih)}`,
+      `─────────────────────────`,
+      `DISTRIBUSI LABA:`,
+      ...d.map((r) => {
+        const parts: string[] = [];
+        if (r.base > 0) parts.push(`base ${formatCurrency(r.base)}`);
+        if (r.pct > 0) parts.push(`pct ${formatCurrency(r.pct)}`);
+        const detail = parts.length > 0 ? ` (${parts.join(' + ')})` : '';
+        return `  ${r.role.padEnd(22)} ${formatCurrency(r.total).padStart(12)}${detail}`;
+      }),
+      `─────────────────────────`,
+      `TOTAL DISTRIBUSI       ${formatCurrency(laporan.totalDistribusi)}`,
+      laporan.balance ? `✅ BALANCE OK (Laba = Distribusi)` : `⚠️ SELISIH Rp${formatCurrency(Math.abs(laporan.labaBersih - laporan.totalDistribusi))}`,
+    ];
+    const text = lines.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // fallback for non-HTTPS
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
   };
 
   const penCapaian = data ? (data.omsetNett / (data.target || 1)) * 100 : 0;
@@ -431,6 +504,164 @@ const ProfitSharing: React.FC = () => {
                         })}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Laporan Laba Rugi (FASE 5) ── */}
+          <div style={{ marginTop: 'var(--space-lg)', borderTop: '1px solid #e2e8f0', paddingTop: 'var(--space-md)' }}>
+            <div
+              onClick={loadLaporan}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none', marginBottom: 'var(--space-sm)' }}
+            >
+              <span style={{ color: 'var(--text-gray)', fontSize: '1rem', fontWeight: 800, letterSpacing: '0.5px' }}>
+                <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4 }}>account_balance</span> Laporan Laba Rugi
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-light)', fontWeight: 400, marginLeft: 8 }}>
+                  {laporanExpanded ? '▲ sembunyikan' : '▼ tampilkan'}
+                </span>
+              </span>
+              {laporanLoading && <span style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>Menghitung...</span>}
+            </div>
+
+            {laporanExpanded && (
+              <div>
+                {laporanLoading ? (
+                  <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-gray)' }}>
+                    <div className="loading-spinner" style={{ width: 24, height: 24, margin: '0 auto 8px' }} />
+                    Menghitung laporan laba rugi...
+                  </div>
+                ) : !laporan ? (
+                  <div style={{ textAlign: 'center', padding: 20, fontWeight: 600, color: 'var(--text-gray)' }}>
+                    Tidak ada data transaksi periode ini.
+                  </div>
+                ) : (
+                  <div style={{ background: '#fff', borderRadius: 16, border: '1px solid rgba(0,0,0,0.05)', padding: 20, marginBottom: 'var(--space-md)' }}>
+                    {/* ── P&L Statement ── */}
+                    <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                          <th colSpan={2} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 800, color: 'var(--text-dark)', fontSize: '1rem' }}>
+                            📊 LAPORAN LABA RUGI — {laporan.periode}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ background: '#f8fafc' }}>
+                          <td colSpan={2} style={{ padding: '10px 12px', fontWeight: 800, color: 'var(--primary-blue)' }}>PENDAPATAN</td>
+                        </tr>
+                        {laporan.pendapatan.cleaning > 0 && (
+                          <tr>
+                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>Jasa Cleaning</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(laporan.pendapatan.cleaning)}</td>
+                          </tr>
+                        )}
+                        {laporan.pendapatan.repair > 0 && (
+                          <tr>
+                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>Jasa Repair</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(laporan.pendapatan.repair)}</td>
+                          </tr>
+                        )}
+                        {laporan.pendapatan.produk > 0 && (
+                          <tr>
+                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>Produk Store</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(laporan.pendapatan.produk)}</td>
+                          </tr>
+                        )}
+                        <tr style={{ borderTop: '1px solid #e2e8f0', fontWeight: 800 }}>
+                          <td style={{ padding: '8px 12px', color: 'var(--text-dark)' }}>TOTAL PENDAPATAN</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', color: '#10b981' }}>{formatCurrency(laporan.pendapatan.total)}</td>
+                        </tr>
+
+                        <tr style={{ background: '#f8fafc' }}>
+                          <td colSpan={2} style={{ padding: '10px 12px', fontWeight: 800, color: '#f43f5e' }}>BIAYA</td>
+                        </tr>
+                        {laporan.biaya.hppCleaning > 0 && (
+                          <tr>
+                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>HPP Cleaning</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600, color: '#ef4444' }}>- {formatCurrency(laporan.biaya.hppCleaning)}</td>
+                          </tr>
+                        )}
+                        {laporan.biaya.hppRepair > 0 && (
+                          <tr>
+                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>HPP Repair</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600, color: '#ef4444' }}>- {formatCurrency(laporan.biaya.hppRepair)}</td>
+                          </tr>
+                        )}
+                        {laporan.biaya.komisiReferral > 0 && (
+                          <tr>
+                            <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>Komisi Referral</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 600, color: '#ef4444' }}>- {formatCurrency(laporan.biaya.komisiReferral)}</td>
+                          </tr>
+                        )}
+                        <tr style={{ borderTop: '1px solid #e2e8f0', fontWeight: 800 }}>
+                          <td style={{ padding: '8px 12px', color: 'var(--text-dark)' }}>TOTAL BIAYA</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', color: '#ef4444' }}>- {formatCurrency(laporan.biaya.total)}</td>
+                        </tr>
+
+                        <tr style={{ borderTop: '2px solid #10b981' }}>
+                          <td style={{ padding: '10px 12px', fontWeight: 900, fontSize: '1rem', color: '#10b981' }}>LABA BERSIH</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 900, fontSize: '1rem', color: '#10b981' }}>{formatCurrency(laporan.labaBersih)}</td>
+                        </tr>
+
+                        <tr style={{ background: '#f8fafc' }}>
+                          <td colSpan={2} style={{ padding: '10px 12px', fontWeight: 800, color: '#8b5cf6' }}>DISTRIBUSI LABA</td>
+                        </tr>
+                        {laporan.distribusi.map((r, idx) => {
+                          const parts: string[] = [];
+                          if (r.base > 0) parts.push(`base ${formatCurrency(r.base)}`);
+                          if (r.pct > 0) parts.push(`pct ${formatCurrency(r.pct)}`);
+                          const detail = parts.length > 0 ? ` (${parts.join(' + ')})` : '';
+                          return (
+                            <tr key={idx}>
+                              <td style={{ padding: '6px 12px 6px 24px', color: 'var(--text-dark)' }}>
+                                {r.role}<span style={{ fontSize: '0.7rem', color: 'var(--text-light)' }}>{detail}</span>
+                              </td>
+                              <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 700 }}>{formatCurrency(r.total)}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr style={{ borderTop: '2px solid #8b5cf6', fontWeight: 900 }}>
+                          <td style={{ padding: '10px 12px', color: '#8b5cf6' }}>TOTAL DISTRIBUSI</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', color: '#8b5cf6' }}>{formatCurrency(laporan.totalDistribusi)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Balance verification */}
+                    <div style={{ marginTop: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                        {laporan.balance
+                          ? <span style={{ color: '#10b981' }}>✅ Balance: Laba Bersih = Total Distribusi (SINKRON)</span>
+                          : <span style={{ color: '#ef4444' }}>⚠️ Balance: Selisih Rp{formatCurrency(Math.abs(laporan.labaBersih - laporan.totalDistribusi))}</span>
+                        }
+                      </div>
+                      <button
+                        onClick={salinLaporan}
+                        style={{
+                          background: copied ? '#dcfce7' : '#f1f5f9',
+                          color: copied ? '#166534' : 'var(--text-dark)',
+                          border: copied ? '1px solid #86efac' : '1px solid #e2e8f0',
+                          padding: '8px 16px',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          transition: '0.2s',
+                        }}
+                      >
+                        {copied ? '✅ Tersalin!' : '📋 Salin ke Clipboard'}
+                      </button>
+                    </div>
+
+                    {/* Target info */}
+                    <div style={{ marginTop: 8, fontSize: '0.75rem', color: 'var(--text-light)' }}>
+                      {laporan.modePersen
+                        ? `🚀 Mode Persen Aktif (Omset Rp${formatCurrency(laporan.pendapatan.total - laporan.biaya.total)} ≥ Target Rp${formatCurrency(laporan.target)})`
+                        : `🔒 Pengumpulan Biaya Operasional (Omset Rp${formatCurrency(laporan.pendapatan.total - laporan.biaya.total)} < Target Rp${formatCurrency(laporan.target)})`
+                      }
+                    </div>
                   </div>
                 )}
               </div>
