@@ -804,7 +804,32 @@ Saya mau order layanan berikut:
           padding: 8px 10px;
           font-size: 0.78rem;
           font-weight: 600;
-          color: var(--text-dark);
+        }
+
+        /* Testimoni — single column, full-width images, clickable */
+        .testimoni-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          padding: 0 12px 16px;
+        }
+        .testimoni-card {
+          background: #fff;
+          border-radius: 10px;
+          overflow: hidden;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .testimoni-card img {
+          width: 100%;
+          display: block;
+          cursor: pointer;
+        }
+        .testimoni-card .testimoni-label {
+          padding: 8px 12px 10px;
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: var(--text-gray);
+          text-align: center;
         }
 
         /* Footer minimal */
@@ -975,6 +1000,7 @@ Saya mau order layanan berikut:
         @media (min-width: 600px) {
           .shopee-grid { grid-template-columns: 1fr 1fr 1fr; }
           .konten-grid { grid-template-columns: 1fr 1fr 1fr; }
+          .testimoni-grid { padding: 0 24px 20px; max-width: 500px; margin: 0 auto; }
           .category-grid { grid-template-columns: repeat(4, 1fr); padding: 16px 24px; margin: 0 24px 16px; }
           .banner-carousel-wrap { margin: 12px 24px; }
           .tracking-modern { margin: 0 24px 20px; max-width: 600px; }
@@ -1403,20 +1429,20 @@ Saya mau order layanan berikut:
                 <div className="shopee-section-header" style={{ paddingTop: 4 }}>
                   <h2>⭐ Testimoni</h2>
                 </div>
-                <div className="konten-grid">
+                <div className="testimoni-grid">
                   {testimoniList.map((item) => (
-                    <div className="konten-card" key={item.id}>
+                    <div className="testimoni-card" key={item.id}>
                       {item.isi_konten && (
                         <img
                           src={item.isi_konten}
                           alt={item.keterangan}
-                          style={{ borderRadius: '50%', width: 64, height: 64, objectFit: 'cover', margin: '16px auto 0' }}
+                          onClick={() => setLightboxImage(item.isi_konten || '')}
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).style.display = 'none';
                           }}
                         />
                       )}
-                      <div className="konten-label" style={{ padding: '10px' }}>⭐ {item.keterangan}</div>
+                      <div className="testimoni-label">⭐ {item.keterangan}</div>
                     </div>
                   ))}
                 </div>
