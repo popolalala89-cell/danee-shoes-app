@@ -725,6 +725,10 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
   padding: var(--space-md) var(--space-md) 0;
   flex-wrap: wrap;
   gap: var(--space-sm);
+  position: sticky;
+  top: calc(var(--topbar-height) + var(--safe-top));
+  z-index: 100;
+  background: var(--background);
 }
 
 .admin-topbar h1 {
