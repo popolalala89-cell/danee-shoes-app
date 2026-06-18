@@ -246,14 +246,14 @@ export default function Landing() {
       deliveryMethod === 'antar'
         ? 'Antar Sendiri (Drop-off)'
         : 'Jemput (Pickup)';
-    let msg = `Halo Danee Shoes Care! Saya ingin order jasa berikut:\\n\\n`;
-    msg += `*Layanan:* ${modalService.nama_layanan}\\n`;
-    msg += `*Harga:* ${formatCurrency(modalService.harga)}\\n`;
-    msg += `*Metode Penyerahan:* ${methodLabel}\\n`;
+    let msg = `Halo Danee Shoes Care! Saya ingin order jasa berikut:\n\n`;
+    msg += `*Layanan:* ${modalService.nama_layanan}\n`;
+    msg += `*Harga:* ${formatCurrency(modalService.harga)}\n`;
+    msg += `*Metode Penyerahan:* ${methodLabel}\n`;
     if (deliveryMethod === 'jemput' && pickupAddress.trim()) {
-      msg += `*Alamat Jemput:* ${pickupAddress.trim()}\\n`;
+      msg += `*Alamat Jemput:* ${pickupAddress.trim()}\n`;
     }
-    msg += `\\nTerima kasih.`;
+    msg += `\nTerima kasih.`;
     window.open(`${WA_BASE}?text=${encodeURIComponent(msg)}`, '_blank');
     setModalOpen(false);
     setModalService(null);
@@ -293,33 +293,41 @@ export default function Landing() {
     if (cartItems.length === 0) return;
     if (cartDeliveryMethod === 'jemput' && !cartPickupAddress.trim()) return;
 
-    let msg = `Halo *Danee Shoes Care Purwakarta*,\\nSaya mau order layanan berikut:\\n\\n`;
+    let msg = `Halo *Danee Shoes Care Purwakarta*,
+Saya mau order layanan berikut:
+
+`;
     cartItems.forEach((item, i) => {
       const sub = item.harga * item.qty;
-      msg += `${i + 1}. *${item.nama}* (${item.qty}x)\\n   Subtotal: ${formatCurrency(sub)}\\n`;
+      msg += `${i + 1}. *${item.nama}* (${item.qty}x)
+   Subtotal: ${formatCurrency(sub)}
+`;
     });
-    msg += `\\n*Total Tagihan: ${formatCurrency(cartTotal)}*\\n\\n`;
+    msg += `
+*Total Tagihan: ${formatCurrency(cartTotal)}*
+
+`;
 
     if (cartDeliveryMethod === 'antar') {
-      msg += 'Saya akan *Antar Sendiri* ke workshop. Boleh minta alamat lengkapnya?\\n';
+      msg += 'Saya akan *Antar Sendiri* ke workshop. Boleh minta alamat lengkapnya?\n';
     } else {
-      msg += `Mohon *Pickup* (jemput) pesanan saya di alamat:\\n*${cartPickupAddress.trim()}*\\n`;
+      msg += `Mohon *Pickup* (jemput) pesanan saya di alamat:\n*${cartPickupAddress.trim()}*\n`;
     }
 
     // Payment method
     if (cartPaymentMethod === 'qris') {
-      msg += '\\n*Metode Pembayaran:* Lunas via QRIS ✅ (Bukti transfer saya lampirkan di bawah).';
+      msg += '\n*Metode Pembayaran:* Lunas via QRIS ✅ (Bukti transfer saya lampirkan di bawah).';
     } else {
-      msg += '\\n*Metode Pembayaran:* Bayar Nanti (Di Toko / COD) ⏳.';
+      msg += '\n*Metode Pembayaran:* Bayar Nanti (Di Toko / COD) ⏳.';
     }
 
     // Referral — check localStorage
     const refCode = localStorage.getItem('danee_ref');
     if (refCode) {
-      msg += `\\n\\n*Kode Referral:* ${refCode}`;
+      msg += `\n\n*Kode Referral:* ${refCode}`;
     }
 
-    msg += '\\n\\nTerima kasih!';
+    msg += '\n\nTerima kasih!';
     window.open(`${WA_BASE}?text=${encodeURIComponent(msg)}`, '_blank');
 
     setCartItems([]);
