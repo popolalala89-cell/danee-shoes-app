@@ -166,13 +166,13 @@ const ProfitSharing: React.FC = () => {
       <div className="admin-topbar">
         <h1>Profit Sharing</h1>
         <div className="admin-topbar-controls">
-          <select className="form-control form-control-select" value={bulan} onChange={(e) => setBulan(parseInt(e.target.value))}>
+          <select className="form-control form-control-select" value={bulan} onChange={(e) => setBulan(parseInt(e.target.value))} style={{ maxWidth: 100 }}>
             {BULAN.map((nama, idx) => <option key={idx} value={idx + 1}>{nama}</option>)}
           </select>
-          <select className="form-control form-control-select" value={tahun} onChange={(e) => setTahun(parseInt(e.target.value))}>
+          <select className="form-control form-control-select" value={tahun} onChange={(e) => setTahun(parseInt(e.target.value))} style={{ maxWidth: 95 }}>
             {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
-          <button className="btn btn-sm btn-primary" onClick={() => fetchData(true)} disabled={loading}>
+          <button className="btn btn-sm btn-primary" onClick={() => fetchData(true)} disabled={loading} style={{ whiteSpace: 'nowrap' }}>
             {loading ? '...' : '🔄 Recount'}
           </button>
         </div>

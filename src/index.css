@@ -769,23 +769,21 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
   display: flex;
   gap: var(--space-sm);
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   flex: 1;
 }
 
 .admin-topbar-controls .form-control-select {
-  flex: 1;
   min-width: 0;
-}
-
-.admin-topbar-controls .btn {
-  white-space: nowrap;
 }
 
 @media (max-width: 480px) {
   .admin-topbar {
+    flex-direction: column;
+    align-items: stretch;
     padding: var(--space-sm) var(--space-sm) 0;
+    gap: 6px;
   }
   .admin-topbar-controls {
     justify-content: space-between;
