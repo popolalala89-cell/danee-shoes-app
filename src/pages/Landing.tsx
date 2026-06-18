@@ -221,13 +221,15 @@ export default function Landing() {
     setTrackResult(null);
     try {
       const res = await trackOrder(keyword);
-      if (res.success && res.data && res.data.length > 0) {
+      if (!res.success) {
+        setTrackError(res.error || 'Gagal mencari order.');
+      } else if (res.data && res.data.length > 0) {
         setTrackResult(res.data);
       } else {
         setTrackError('Order tidak ditemukan.');
       }
-    } catch {
-      setTrackError('Gagal melakukan tracking. Coba lagi.');
+    } catch (err: any) {
+      setTrackError(err?.message || 'Gagal melakukan tracking. Coba lagi.');
     } finally {
       setTrackLoading(false);
     }
@@ -1288,6 +1290,43 @@ Saya mau order layanan berikut:
             ))}
           </div>
         )}
+      </section>
+
+      {/* ===== 3. KATEGORI LAYANAN ===== */}
+      <section className="shopee-section-white" style={{ paddingTop: 4, paddingBottom: 4 }}>
+        <div className="shopee-section-header">
+          <h2>📂 Kategori</h2>
+        </div>
+        <div className="category-grid">
+          <button className="category-item" onClick={() => setActiveTab('cleaning')}>
+            <div className="category-circle">👟</div>
+            <span className="category-label">Cleaning</span>
+          </button>
+          <button className="category-item" onClick={() => setActiveTab('repair')}>
+            <div className="category-circle">🔧</div>
+            <span className="category-label">Repair</span>
+          </button>
+          <button className="category-item" onClick={() => setActiveTab('produk')}>
+            <div className="category-circle">🛍️</div>
+            <span className="category-label">Produk</span>
+          </button>
+          <button className="category-item" onClick={() => window.open(WA_BASE, '_blank')}>
+            <div className="category-circle">💬</div>
+            <span className="category-label">Hubungi</span>
+          </button>
+          <button className="category-item" onClick={() => { const el = document.getElementById('tracking'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }}>
+            <div className="category-circle">📦</div>
+            <span className="category-label">Cek Order</span>
+          </button>
+          <button className="category-item" onClick={() => { const el = document.getElementById('konten'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }}>
+            <div className="category-circle">⭐</div>
+            <span className="category-label">Testimoni</span>
+          </button>
+          <button className="category-item" onClick={() => { const el = document.querySelector('.footer-minimal'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }}>
+            <div className="category-circle">📍</div>
+            <span className="category-label">Lokasi</span>
+          </button>
+        </div>
       </section>
 
       {/* ===== 4. FLASH SALE / PROMO ===== */}

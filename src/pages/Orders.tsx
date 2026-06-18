@@ -600,15 +600,7 @@ function Orders() {
       });
   }
 
-  function handleSetQRIS() {
-    const url = prompt('Tempel data URL QRIS (base64) atau URL gambar QRIS:');
-    if (url && url.trim()) {
-      const trimmed = url.trim();
-      setQrisImage(trimmed);
-      saveSetting('qris_image', trimmed).catch(() => {});
-    }
-  }
-
+  // Loading state
   if (loading && orders.length === 0) {
     return (
       <div className="admin-main">
@@ -1233,18 +1225,19 @@ function Orders() {
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
                     <button className="btn btn-primary" onClick={handleShareQRIS}>📤 Bagikan</button>
                     <button className="btn btn-success" onClick={() => { const a = document.createElement('a'); a.href = qrisImage; a.download = 'QRIS_Danee_Shoes.png'; a.click(); }}>⬇️ Unduh</button>
-                    <button className="btn btn-white" onClick={handleSetQRIS}>🔄 Ganti QRIS</button>
                   </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-gray)', marginTop: 'var(--space-sm)' }}>
+                    Ganti gambar QRIS di menu <strong>Pengaturan</strong>
+                  </p>
                 </>
               ) : (
                 <>
-                  <div style={{ width: 120, height: 120, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem', margin: '0 auto ' + 'var(--space-md)', color: 'var(--text-gray)' }}>
+                  <div style={{ width: 120, height: 120, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem', margin: '0 auto var(--space-md)', color: 'var(--text-gray)' }}>
                     📷
                   </div>
                   <p style={{ fontSize: '0.9rem', color: 'var(--text-gray)', marginBottom: 'var(--space-md)' }}>
-                    Belum ada gambar QRIS. Silakan tempel data URL QRIS (base64) dari AppScript.
+                    QRIS belum diatur. Upload gambar QRIS di menu <strong>Pengaturan</strong>.
                   </p>
-                  <button className="btn btn-primary" onClick={handleSetQRIS}>📷 Set QRIS</button>
                 </>
               )}
             </div>
