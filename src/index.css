@@ -771,11 +771,24 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
+  flex: 1;
+}
+
+.admin-topbar-controls .form-control-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-topbar-controls .btn {
+  white-space: nowrap;
 }
 
 @media (max-width: 480px) {
+  .admin-topbar {
+    padding: var(--space-sm) var(--space-sm) 0;
+  }
   .admin-topbar-controls {
-    justify-content: center;
+    justify-content: space-between;
     width: 100%;
   }
 }
