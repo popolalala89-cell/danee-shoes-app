@@ -402,6 +402,20 @@ export interface AdminUserRow {
 
 // ===== Service Response =====
 
+export interface ProfitSnapshotRow {
+  id: number;
+  bulan: number;
+  tahun: number;
+  omset_gross: number;
+  alokasi_hpp: number;
+  total_komisi: number;
+  omset_nett: number;
+  target_omset: number;
+  dompet: Dompet;
+  komisi_breakdown: KomisiBreakdown[];
+  terakhir_update: string;
+}
+
 export interface ServiceResponse<T = any> {
   success: boolean;
   data?: T;

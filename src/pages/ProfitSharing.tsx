@@ -25,25 +25,24 @@ const ProfitSharing: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = (forceRecalculate: boolean = false) => {
     setLoading(true);
     setError(null);
-    try {
-      const [profitRes, historyRes] = await Promise.all([
-        getProfitSharingData(bulan, tahun),
-        getProfitHistorySummary(),
-      ]);
+    Promise.all([
+      getProfitSharingData(bulan, tahun, forceRecalculate),
+      getProfitHistorySummary(),
+    ]).then(([profitRes, historyRes]) => {
       if (profitRes.success) setData(profitRes.data || null);
       else setError(profitRes.error || 'Gagal memuat profit sharing.');
       if (historyRes.success) setHistory(historyRes.data || []);
-    } catch (e: any) {
+    }).catch((e: any) => {
       setError(e.message || 'Gagal memuat data.');
-    } finally {
+    }).finally(() => {
       setLoading(false);
-    }
+    });
   };
 
-  useEffect(() => { fetchData(); }, [bulan, tahun]);
+  useEffect(() => { fetchData(false); }, [bulan, tahun]);
 
   const penCapaian = data ? (data.omsetNett / (data.target || 1)) * 100 : 0;
   const modePersen = data ? data.omsetNett >= data.target : false;
@@ -73,7 +72,10 @@ const ProfitSharing: React.FC = () => {
           <select className="form-control" value={tahun} onChange={(e) => setTahun(parseInt(e.target.value))} style={{ maxWidth: 100 }}>
             {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
-          <button className="btn btn-sm btn-outline" onClick={fetchData} disabled={loading}>&#x21bb;</button>
+          <button className="btn btn-sm btn-outline" onClick={() => fetchData(false)} disabled={loading} title="Refresh (muat ulang dari snapshot)">&#x21bb;</button>
+          <button className="btn btn-sm btn-primary" onClick={() => fetchData(true)} disabled={loading} title="Hitung ulang dari data transaksi & simpan snapshot baru">
+            {loading ? '...' : '🔄 Hitung Ulang'}
+          </button>
         </div>
       </div>
 
@@ -217,7 +219,7 @@ const ProfitSharing: React.FC = () => {
             <span style={{ color: 'var(--text-gray)', fontSize: '1rem', fontWeight: 800, letterSpacing: '0.5px' }}>
               <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4 }}>history</span> Histori Buku Besar (3 Bulan Terakhir)
             </span>
-            <button onClick={fetchData} style={{ background: '#f1f5f9', color: 'var(--text-dark)', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', transition: '0.2s' }}>
+            <button onClick={() => fetchData(false)} style={{ background: '#f1f5f9', color: 'var(--text-dark)', border: '1px solid #e2e8f0', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', transition: '0.2s' }}>
               <span className="mat-icon" style={{ fontSize: 18, verticalAlign: 'middle', marginRight: 4 }}>refresh</span> Refresh
             </button>
           </div>

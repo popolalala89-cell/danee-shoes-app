@@ -9,6 +9,7 @@ import type {
   MenuJasaRow,
   MenuStoreRow,
   ProfitSharingData,
+  ProfitSnapshotRow,
   Dompet,
   KomisiBreakdown,
   ProfitHistory,
@@ -26,6 +27,73 @@ function getMonthRange(month?: number, year?: number) {
   const lastDay = new Date(y, m + 1, 0).getDate();
   const endDate = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
   return { startDate, endDate, month: m, year: y };
+}
+
+// ===== FASE 3: Snapshot helpers =====
+
+/**
+ * Load profit snapshot for a given month/year
+ * Returns null if no snapshot exists yet
+ */
+async function loadProfitSnapshot(
+  bulan: number,
+  tahun: number
+): Promise<ProfitSharingData | null> {
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('profit_snapshot')
+      .select('*')
+      .eq('bulan', bulan)
+      .eq('tahun', tahun)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    const row = data as unknown as ProfitSnapshotRow;
+
+    return {
+      omsetGross: row.omset_gross,
+      alokasiHPP: row.alokasi_hpp,
+      totalKomisi: row.total_komisi,
+      omsetNett: row.omset_nett,
+      target: row.target_omset,
+      dompet: row.dompet,
+      komisiBreakdown: row.komisi_breakdown,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save/upsert profit snapshot for a given month/year
+ */
+async function saveProfitSnapshot(
+  bulan: number,
+  tahun: number,
+  data: ProfitSharingData
+): Promise<void> {
+  try {
+    const supabase = getSupabase();
+    await supabase.from('profit_snapshot').upsert(
+      {
+        bulan,
+        tahun,
+        omset_gross: data.omsetGross,
+        alokasi_hpp: data.alokasiHPP,
+        total_komisi: data.totalKomisi,
+        omset_nett: data.omsetNett,
+        target_omset: data.target,
+        dompet: data.dompet as any,
+        komisi_breakdown: data.komisiBreakdown as any,
+        terakhir_update: new Date().toISOString(),
+      },
+      { onConflict: 'bulan, tahun' }
+    );
+  } catch {
+    // Silent — snapshot is optional, calculation result already returned
+  }
 }
 
 /**
@@ -54,11 +122,21 @@ function parsePercent(val: number | string): number {
  */
 export async function getProfitSharingData(
   month?: number,
-  year?: number
+  year?: number,
+  forceRecalculate: boolean = false
 ): Promise<ServiceResponse<ProfitSharingData>> {
   try {
     const supabase = getSupabase();
-    const { startDate, endDate } = getMonthRange(month, year);
+    const { startDate, endDate, month: m, year: y } = getMonthRange(month, year);
+
+    // ═══ FASE 3: Check snapshot first (unless force recalculate) ═══
+    const bulanNum = m + 1;
+    if (!forceRecalculate) {
+      const snapshot = await loadProfitSnapshot(bulanNum, y);
+      if (snapshot) {
+        return { success: true, data: snapshot };
+      }
+    }
 
     // ===== 1. Fetch reference data =====
     const [
@@ -441,17 +519,22 @@ export async function getProfitSharingData(
       }
     }
 
+    const result: ProfitSharingData = {
+      omsetGross: Math.round(omsetGrossBulanan),
+      alokasiHPP: Math.round(alokasiHPPBulanan),
+      totalKomisi: Math.round(totalKomisiBulanan),
+      omsetNett: Math.round(omsetNettBulanan),
+      target: targetOmset,
+      dompet,
+      komisiBreakdown,
+    };
+
+    // ═══ FASE 3: Save snapshot for future loads ═══
+    await saveProfitSnapshot(bulanNum, y, result);
+
     return {
       success: true,
-      data: {
-        omsetGross: Math.round(omsetGrossBulanan),
-        alokasiHPP: Math.round(alokasiHPPBulanan),
-        totalKomisi: Math.round(totalKomisiBulanan),
-        omsetNett: Math.round(omsetNettBulanan),
-        target: targetOmset,
-        dompet,
-        komisiBreakdown,
-      },
+      data: result,
     };
   } catch (err: any) {
     return {
@@ -463,8 +546,83 @@ export async function getProfitSharingData(
 
 /**
  * Get profit history summary for last 4 months with growth tracking
+ * Reads from profit_snapshot table (FASE 3)
  */
 export async function getProfitHistorySummary(): Promise<ServiceResponse<ProfitHistory[]>> {
+  try {
+    const supabase = getSupabase();
+    const namaBulan = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+    ];
+
+    // Read all snapshots ordered by year/month descending
+    const { data: snapshots, error } = await supabase
+      .from('profit_snapshot')
+      .select('*')
+      .order('tahun', { ascending: false })
+      .order('bulan', { ascending: false })
+      .limit(6); // Get up to 6 to ensure we have enough for growth calc
+
+    if (error) {
+      // Fallback: recalculate via engine
+      return getProfitHistorySummaryLegacy();
+    }
+
+    if (!snapshots || snapshots.length === 0) {
+      return getProfitHistorySummaryLegacy();
+    }
+
+    const rows = snapshots as unknown as ProfitSnapshotRow[];
+
+    // Build temp results
+    const tempResults: ProfitHistory[] = rows.map((r) => ({
+      bulan: `${namaBulan[r.bulan - 1]} ${r.tahun}`,
+      gross: r.omset_gross,
+      hpp: r.alokasi_hpp,
+      nett: r.omset_nett,
+      target: r.target_omset,
+    }));
+
+    // Take top 4
+    const top4 = tempResults.slice(0, 4);
+
+    // Calculate growth between consecutive months (current vs next in array = previous chronologically)
+    const finalResults: ProfitHistory[] = [];
+    for (let j = 0; j < top4.length - 1; j++) {
+      const currMonth = { ...top4[j] };
+      const nextMonth = top4[j + 1]; // next in desc order = previous month
+
+      const growthRp = currMonth.nett - nextMonth.nett;
+      let growthPct = 0;
+
+      if (nextMonth.nett !== 0) {
+        growthPct = (growthRp / Math.abs(nextMonth.nett)) * 100;
+      } else {
+        growthPct = growthRp > 0 ? 100 : growthRp < 0 ? -100 : 0;
+      }
+
+      currMonth.growthRp = growthRp;
+      currMonth.growthPct = growthPct.toFixed(1);
+      finalResults.push(currMonth);
+    }
+
+    // Last entry has no comparison
+    if (top4.length > 0) {
+      finalResults.push(top4[top4.length - 1]);
+    }
+
+    return { success: true, data: finalResults };
+  } catch {
+    // Fallback on any error
+    return getProfitHistorySummaryLegacy();
+  }
+}
+
+/**
+ * Legacy fallback: recalculate profit history by running the engine for each month
+ */
+async function getProfitHistorySummaryLegacy(): Promise<ServiceResponse<ProfitHistory[]>> {
   try {
     const now = new Date();
     const namaBulan = [
@@ -480,7 +638,7 @@ export async function getProfitHistorySummary(): Promise<ServiceResponse<ProfitH
       const month = d.getMonth() + 1;
       const year = d.getFullYear();
 
-      const res = await getProfitSharingData(month, year);
+      const res = await getProfitSharingData(month, year, false); // false = don't force recalc, use snapshot if exists
 
       tempResults.push({
         bulan: `${namaBulan[d.getMonth()]} ${year}`,
