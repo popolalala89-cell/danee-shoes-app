@@ -221,14 +221,20 @@ export default function Landing() {
     setTrackResult(null);
     try {
       const res = await trackOrder(keyword);
+      console.log('[TRACK] keyword:', keyword, 'res:', JSON.stringify(res));
       if (!res.success) {
         setTrackError(res.error || 'Gagal mencari order.');
       } else if (res.data && res.data.length > 0) {
         setTrackResult(res.data);
       } else {
-        setTrackError('Order tidak ditemukan.');
+        // Debug: tampilkan response mentah
+        setTrackError(
+          `Data tidak ditemukan untuk "${keyword}". ` +
+          `Response: ${JSON.stringify(res).substring(0, 300)}`
+        );
       }
     } catch (err: any) {
+      console.error('[TRACK] error:', err);
       setTrackError(err?.message || 'Gagal melakukan tracking. Coba lagi.');
     } finally {
       setTrackLoading(false);
