@@ -99,7 +99,7 @@ export async function getProfitSharingData(
     // ===== 2. Parse configuration =====
     const configHPP: Record<string, { hpp: number; kategori: string }> = {};
     let targetOmset = 0;
-    const configPct: Record<string, { clean: number; repair: number }> = {};
+    const configPct: Record<string, { clean: number; repair: number; baseGaji: number }> = {};
 
     for (const row of settingsProfit) {
       const keyLayanan = row.nama_layanan.trim().toLowerCase();
@@ -111,10 +111,12 @@ export async function getProfitSharingData(
       }
       if (row.peran) {
         const peran = row.peran.trim().toLowerCase();
-        configPct[peran] = {
-          clean: parsePercent(row.clean_pct),
-          repair: parsePercent(row.repair_pct),
-        };
+        if (!configPct[peran]) {
+          configPct[peran] = { clean: 0, repair: 0, baseGaji: 0 };
+        }
+        configPct[peran].clean = parsePercent(row.clean_pct);
+        configPct[peran].repair = parsePercent(row.repair_pct);
+        configPct[peran].baseGaji = row.base_gaji || 0;
       }
     }
 
@@ -384,12 +386,14 @@ export async function getProfitSharingData(
             porsiKePersenNett = nettItem - sisaKeTarget;
             targetTerpenuhi = targetOmset;
 
-            // Distribute base amounts when target is reached
-            dompet.ownerBase = 50000;
-            dompet.cuciBase = 50000;
-            dompet.adminBase = 50000;
-            dompet.webBase = 50000;
-            dompet.kasBase = targetOmset - 200000;
+            // Distribute base amounts when target is reached (from DB config)
+            dompet.ownerBase = configPct['owner']?.baseGaji ?? 50000;
+            dompet.cuciBase = configPct['cuci']?.baseGaji ?? 50000;
+            dompet.adminBase = configPct['admin']?.baseGaji ?? 50000;
+            dompet.webBase = configPct['web']?.baseGaji ?? 50000;
+            const totalBase =
+              dompet.ownerBase + dompet.cuciBase + dompet.adminBase + dompet.webBase;
+            dompet.kasBase = Math.max(0, targetOmset - totalBase);
           }
         } else {
           porsiKePersenNett = nettItem;
@@ -543,13 +547,13 @@ function createEmptyDompet(): Dompet {
  * - roles: { [peran]: { cleanPct, repairPct } }
  * - targetOmset: sum of target_omset across rows
  */
-export async function getAllSettingsProfit(): Promise<ServiceResponse<{ roles: Record<string, { cleanPct: number; repairPct: number }>; targetOmset: number }>> {
+export async function getAllSettingsProfit(): Promise<ServiceResponse<{ roles: Record<string, { cleanPct: number; repairPct: number; baseGaji: number }>; targetOmset: number }>> {
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase.from('settings_profit').select('*');
     if (error) return { success: false, error: error.message };
 
-    const roles: Record<string, { cleanPct: number; repairPct: number }> = {};
+    const roles: Record<string, { cleanPct: number; repairPct: number; baseGaji: number }> = {};
     let targetOmset = 0;
 
     for (const row of data || []) {
@@ -558,13 +562,14 @@ export async function getAllSettingsProfit(): Promise<ServiceResponse<{ roles: R
         roles[row.peran.trim().toLowerCase()] = {
           cleanPct: row.clean_pct || 0,
           repairPct: row.repair_pct || 0,
+          baseGaji: row.base_gaji || 0,
         };
       }
     }
 
     // Initialize empty for all known roles
     for (const peran of ['owner', 'kas', 'cuci', 'repair', 'admin', 'web', 'zakat', 'investor']) {
-      if (!roles[peran]) roles[peran] = { cleanPct: 0, repairPct: 0 };
+      if (!roles[peran]) roles[peran] = { cleanPct: 0, repairPct: 0, baseGaji: 0 };
     }
 
     return { success: true, data: { roles, targetOmset } };
@@ -582,7 +587,8 @@ export async function saveSettingsProfitRole(
   roleName: string,
   cleanPct: number,
   repairPct: number,
-  targetOmset: number
+  targetOmset: number,
+  baseGaji: number = 0
 ): Promise<ServiceResponse> {
   try {
     const supabase = getSupabase();
@@ -604,6 +610,7 @@ export async function saveSettingsProfitRole(
       peran: peranKey,
       clean_pct: cleanPct,
       repair_pct: repairPct,
+      base_gaji: baseGaji,
     };
 
     if (existing) {

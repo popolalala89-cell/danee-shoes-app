@@ -158,6 +158,7 @@ export interface SettingsProfitRow {
   peran: string | null;
   clean_pct: number;
   repair_pct: number;
+  base_gaji: number;
   created_at: string;
   updated_at: string;
 }

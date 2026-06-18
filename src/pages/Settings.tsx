@@ -554,7 +554,7 @@ const Settings: React.FC = () => {
   const [logoImage, setLogoImage] = useState('');
 
   // Profit sharing percentages
-  const [profitRoles, setProfitRoles] = useState<Record<string, { cleanPct: number; repairPct: number }>>({});
+  const [profitRoles, setProfitRoles] = useState<Record<string, { cleanPct: number; repairPct: number; baseGaji: number }>>({});
   const [targetOmset, setTargetOmset] = useState(0);
 
   const isSuperAdmin = hasPermission('settings');
@@ -651,15 +651,15 @@ const Settings: React.FC = () => {
     setSuccess(null);
     try {
       for (const p of PERAN_LIST) {
-        const roleData = profitRoles[p.peran] || { cleanPct: 0, repairPct: 0 };
-        const res = await saveSettingsProfitRole(p.peran, p.label, roleData.cleanPct, roleData.repairPct, targetOmset);
+        const roleData = profitRoles[p.peran] || { cleanPct: 0, repairPct: 0, baseGaji: 0 };
+        const res = await saveSettingsProfitRole(p.peran, p.label, roleData.cleanPct, roleData.repairPct, targetOmset, roleData.baseGaji);
         if (!res.success) {
           setError(res.error || `Gagal menyimpan ${p.label}`);
           setSaving(false);
           return;
         }
       }
-      setSuccess('Persentase profit sharing berhasil disimpan!');
+      setSuccess('Profit sharing berhasil disimpan!');
       setTimeout(() => setSuccess(null), 3000);
     } catch (e: any) {
       setError(e.message || 'Gagal menyimpan persentase profit.');
@@ -672,7 +672,15 @@ const Settings: React.FC = () => {
     const num = parseFormNumber(val) || 0;
     setProfitRoles((prev) => ({
       ...prev,
-      [peran]: { ...(prev[peran] || { cleanPct: 0, repairPct: 0 }), [field]: num },
+      [peran]: { ...(prev[peran] || { cleanPct: 0, repairPct: 0, baseGaji: 0 }), [field]: num },
+    }));
+  };
+
+  const updateBaseGaji = (peran: string, val: string) => {
+    const num = parseInt(val.replace(/\D/g, '')) || 0;
+    setProfitRoles((prev) => ({
+      ...prev,
+      [peran]: { ...(prev[peran] || { cleanPct: 0, repairPct: 0, baseGaji: 0 }), baseGaji: num },
     }));
   };
 
@@ -912,7 +920,7 @@ const Settings: React.FC = () => {
         {/* Per-role percentages */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-sm)', marginBottom: 'var(--space-md)' }}>
           {PERAN_LIST.map((p) => {
-            const roleData = profitRoles[p.peran] || { cleanPct: 0, repairPct: 0 };
+            const roleData = profitRoles[p.peran] || { cleanPct: 0, repairPct: 0, baseGaji: 0 };
             return (
               <div key={p.peran} style={{ background: '#f8fafc', borderRadius: 'var(--radius-sm)', padding: 'var(--space-sm)' }}>
                 <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><span className="mat-icon" style={{ fontSize: 18 }}>{p.icon}</span> {p.label}</div>
@@ -925,6 +933,10 @@ const Settings: React.FC = () => {
                     <label style={{ fontSize: '0.7rem', color: 'var(--text-gray)', fontWeight: 600 }}>Repair (%)</label>
                     <input type="number" className="form-control" value={roleData.repairPct} onChange={(e) => updatePct(p.peran, 'repairPct', e.target.value)} min={0} max={100} step={0.5} style={{ padding: '6px 8px', fontSize: '0.875rem' }} />
                   </div>
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  <label style={{ fontSize: '0.7rem', color: 'var(--text-gray)', fontWeight: 600 }}>Gaji Pokok (Rp)</label>
+                  <input type="number" className="form-control" value={roleData.baseGaji} onChange={(e) => updateBaseGaji(p.peran, e.target.value)} min={0} step={1000} style={{ padding: '6px 8px', fontSize: '0.875rem' }} />
                 </div>
               </div>
             );
