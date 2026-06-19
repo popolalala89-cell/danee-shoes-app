@@ -110,6 +110,8 @@ export default function AdminLayout() {
   const [navDirection, setNavDirection] = useState<'forward' | 'backward'>('forward');
   const prevTabRef = useRef<string>('ringkasan');
   const menuRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<number | null>(null);
 
   /* Close hamburger dropdown on outside click */
   useEffect(() => {
@@ -145,7 +147,7 @@ export default function AdminLayout() {
     }
     // Bump key to re-trigger animation
     setPageKey((k) => k + 1);
-  }, [location.pathname]);
+  }, [location.pathname, showMore]);
 
   const handleLogout = async () => {
     setMenuOpen(false);
@@ -166,6 +168,50 @@ export default function AdminLayout() {
   const handleMoreItemClick = (item: MoreItem) => {
     setShowMore(false);
     navigate(item.route);
+  };
+
+  /* ── Swipe gesture: geser kiri/kanan untuk ganti tab ──────────── */
+  const getSwipeDirection = (deltaX: number) => {
+    const SWIPE_THRESHOLD = 60;
+    if (deltaX > SWIPE_THRESHOLD) return 'right'; // swipe kanan → tab sebelumnya
+    if (deltaX < -SWIPE_THRESHOLD) return 'left'; // swipe kiri → tab berikutnya
+    return null;
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = e.touches[0]?.clientX ?? null;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartRef.current === null) return;
+    const endX = e.changedTouches[0]?.clientX;
+    if (endX === undefined) return;
+    const deltaX = endX - touchStartRef.current;
+    touchStartRef.current = null;
+
+    const swipeDir = getSwipeDirection(deltaX);
+    if (!swipeDir) return;
+
+    const tabOrder = ['ringkasan', 'pesanan', 'inventory', 'keuangan', '__more__'] as const;
+    const currentIdx = tabOrder.indexOf((showMore ? '__more__' : getActiveTabId(location.pathname)) as typeof tabOrder[number]);
+    if (currentIdx === -1) return;
+
+    let nextIdx: number;
+    if (swipeDir === 'left') {
+      nextIdx = Math.min(currentIdx + 1, tabOrder.length - 1);
+    } else {
+      nextIdx = Math.max(currentIdx - 1, 0);
+    }
+    if (nextIdx === currentIdx) return;
+
+    const nextTab = tabOrder[nextIdx];
+    if (nextTab === '__more__') {
+      setShowMore(true);
+    } else {
+      setShowMore(false);
+      const route = bottomNavItems.find(n => n.id === nextTab)?.route;
+      if (route) navigate(route);
+    }
   };
 
   const permittedMoreItems = useMemo(
@@ -264,7 +310,9 @@ export default function AdminLayout() {
       {/* ============================================================
          MAIN CONTENT
         ============================================================ */}
-      <main className="admin-content">
+      <main className="admin-content" ref={contentRef}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}>
         {showMore ? (
           <PageTransition key={pageKey} direction={navDirection}>
             {/* ---------- "Lainnya" grid view ---------- */}
