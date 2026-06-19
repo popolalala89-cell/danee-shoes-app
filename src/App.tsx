@@ -6,15 +6,16 @@ import AdminLayout from './pages/AdminLayout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import EntryScreen from './pages/EntryScreen';
+import PageTransition from './components/ui/PageTransition';
 
 function App() {
   return (
     <AuthProvider>
       <SnackbarProvider>
         <Routes>
-          <Route path="/" element={<EntryScreen />} />
-          <Route path="/home" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<PageTransition><EntryScreen /></PageTransition>} />
+          <Route path="/home" element={<PageTransition><Landing /></PageTransition>} />
+          <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
           <Route
             path="/admin/*"
             element={
