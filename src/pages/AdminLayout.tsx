@@ -147,7 +147,7 @@ export default function AdminLayout() {
     }
     // Bump key to re-trigger animation
     setPageKey((k) => k + 1);
-  }, [location.pathname, showMore]);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     setMenuOpen(false);
@@ -159,11 +159,20 @@ export default function AdminLayout() {
     setMenuOpen(false);
     if (item.id === '__more__') {
       setShowMore(true);
+      // Bump key for transition animation
+      const currentIdx = 4; // __more__
+      const prevIdx = tabIdOrder.indexOf(getActiveTabId(location.pathname));
+      setNavDirection(prevIdx < currentIdx ? 'forward' : 'backward');
+      prevTabRef.current = '__more__';
+      setPageKey((k) => k + 1);
     } else {
       setShowMore(false);
       navigate(item.route);
     }
   };
+
+  /* Helper for tab ordering */
+  const tabIdOrder = ['ringkasan', 'pesanan', 'inventory', 'keuangan', '__more__'];
 
   const handleMoreItemClick = (item: MoreItem) => {
     setShowMore(false);
@@ -207,6 +216,11 @@ export default function AdminLayout() {
     const nextTab = tabOrder[nextIdx];
     if (nextTab === '__more__') {
       setShowMore(true);
+      const moreTargetIdx = tabOrder.length - 1;
+      const prevSwipeIdx = tabOrder.indexOf(showMore ? '__more__' : getActiveTabId(location.pathname) as typeof tabOrder[number]);
+      setNavDirection(prevSwipeIdx < moreTargetIdx ? 'forward' : 'backward');
+      prevTabRef.current = '__more__';
+      setPageKey((k) => k + 1);
     } else {
       setShowMore(false);
       const route = bottomNavItems.find(n => n.id === nextTab)?.route;
