@@ -98,6 +98,42 @@ export default function Landing() {
 
   // Bottom nav tab
   const [activeTab, setActiveTab] = useState<'beranda' | 'cleaning' | 'repair' | 'produk' | 'settings'>('beranda');
+  const [tabKey, setTabKey] = useState(0);
+  const [tabDirection, setTabDirection] = useState<'forward' | 'backward'>('forward');
+  const prevTabRef = useRef<string>('beranda');
+
+  const tabIdOrder = ['beranda', 'cleaning', 'repair', 'produk', 'settings'];
+  const handleSetActiveTab = (tab: typeof activeTab) => {
+    const prevIdx = tabIdOrder.indexOf(prevTabRef.current);
+    const currIdx = tabIdOrder.indexOf(tab);
+    setTabDirection(prevIdx < currIdx ? 'forward' : 'backward');
+    prevTabRef.current = tab;
+    setTabKey((k) => k + 1);
+    setActiveTab(tab);
+  };
+
+  /* ── Swipe gesture untuk tab landing ───────────────────────────── */
+  const tabTouchStartRef = useRef<number | null>(null);
+  const handleTabTouchStart = (e: React.TouchEvent) => {
+    tabTouchStartRef.current = e.touches[0]?.clientX ?? null;
+  };
+  const handleTabTouchEnd = (e: React.TouchEvent) => {
+    if (tabTouchStartRef.current === null) return;
+    const endX = e.changedTouches[0]?.clientX;
+    if (endX === undefined) return;
+    const deltaX = endX - tabTouchStartRef.current;
+    tabTouchStartRef.current = null;
+    const THRESHOLD = 60;
+    if (deltaX > THRESHOLD) {
+      // Swipe kanan → tab sebelumnya
+      const currIdx = tabIdOrder.indexOf(activeTab);
+      if (currIdx > 0) handleSetActiveTab(tabIdOrder[currIdx - 1] as typeof activeTab);
+    } else if (deltaX < -THRESHOLD) {
+      // Swipe kiri → tab berikutnya
+      const currIdx = tabIdOrder.indexOf(activeTab);
+      if (currIdx < tabIdOrder.length - 1) handleSetActiveTab(tabIdOrder[currIdx + 1] as typeof activeTab);
+    }
+  };
 
   const WA_BASE = `https://wa.me/${waNumber}`;
 
@@ -1233,7 +1269,7 @@ Saya mau order layanan berikut:
           <div className={`settings-popup${menuOpen ? ' open' : ''}`}>
             <button onClick={() => {
               setMenuOpen(false);
-              setActiveTab('settings');
+              handleSetActiveTab('settings');
             }}>
               <span style={{ fontSize: '1.1rem' }}>⚙️</span> Pengaturan
             </button>
@@ -1244,9 +1280,9 @@ Saya mau order layanan berikut:
         )}
       </header>
 
-      <div className="tab-content">
+      <div className="tab-content" onTouchStart={handleTabTouchStart} onTouchEnd={handleTabTouchEnd}>
         {activeTab === 'beranda' && (
-          <div className="tab-page">
+          <div className={`tab-page page-slide-${tabDirection}`} key={tabKey}>
       {/* ===== 2. BANNER CAROUSEL ===== */}
       <section className="banner-carousel-wrap">
         <div
@@ -1314,15 +1350,15 @@ Saya mau order layanan berikut:
           <h2>📂 Kategori</h2>
         </div>
         <div className="category-grid">
-          <button className="category-item" onClick={() => setActiveTab('cleaning')}>
+          <button className="category-item" onClick={() => handleSetActiveTab('cleaning')}>
             <div className="category-circle">👟</div>
             <span className="category-label">Cleaning</span>
           </button>
-          <button className="category-item" onClick={() => setActiveTab('repair')}>
+          <button className="category-item" onClick={() => handleSetActiveTab('repair')}>
             <div className="category-circle">🔧</div>
             <span className="category-label">Repair</span>
           </button>
-          <button className="category-item" onClick={() => setActiveTab('produk')}>
+          <button className="category-item" onClick={() => handleSetActiveTab('produk')}>
             <div className="category-circle">🛍️</div>
             <span className="category-label">Produk</span>
           </button>
@@ -1563,7 +1599,7 @@ Saya mau order layanan berikut:
         )}
 
         {activeTab === 'cleaning' && (
-          <div className="tab-page">
+          <div className={`tab-page page-slide-${tabDirection}`} key={tabKey}>
       {/* ===== 5. DAFTAR LAYANAN ===== */}
       <section id="jasa" className="shopee-section-bg" style={{ paddingTop: 8, paddingBottom: 4 }}>
         <div className="shopee-section-header">
@@ -1641,7 +1677,7 @@ Saya mau order layanan berikut:
         )}
 
         {activeTab === 'produk' && (
-          <div className="tab-page">
+          <div className={`tab-page page-slide-${tabDirection}`} key={tabKey}>
       {/* ===== 6. PRODUK STORE ===== */}
       <section id="store" className="shopee-section-white" style={{ paddingTop: 8, paddingBottom: 4 }}>
         <div className="shopee-section-header">
@@ -1726,7 +1762,7 @@ Saya mau order layanan berikut:
         )}
 
         {activeTab === 'repair' && (
-          <div className="tab-page">
+          <div className={`tab-page page-slide-${tabDirection}`} key={tabKey}>
       {/* ===== 5. DAFTAR REPAIR ===== */}
       <section id="repair" className="shopee-section-bg" style={{ paddingTop: 8, paddingBottom: 4 }}>
         <div className="shopee-section-header">
@@ -1804,7 +1840,7 @@ Saya mau order layanan berikut:
         )}
 
         {activeTab === 'settings' && (
-          <div className="tab-page" style={{ padding: 0, background: '#f8fafc' }}>
+          <div className={`tab-page page-slide-${tabDirection}`} key={tabKey} style={{ padding: 0, background: '#f8fafc' }}>
             <Settings />
           </div>
         )}
@@ -1814,28 +1850,28 @@ Saya mau order layanan berikut:
       <nav className="bottom-nav-shopee">
         <button
           className={`bn-item${activeTab === 'beranda' ? ' active' : ''}`}
-          onClick={() => setActiveTab('beranda')}
+          onClick={() => handleSetActiveTab('beranda')}
         >
           <span className="bn-icon">🏠</span>
           <span className="bn-label">Beranda</span>
         </button>
         <button
           className={`bn-item${activeTab === 'cleaning' ? ' active' : ''}`}
-          onClick={() => setActiveTab('cleaning')}
+          onClick={() => handleSetActiveTab('cleaning')}
         >
           <span className="bn-icon">👟</span>
           <span className="bn-label">Cleaning</span>
         </button>
         <button
           className={`bn-item${activeTab === 'repair' ? ' active' : ''}`}
-          onClick={() => setActiveTab('repair')}
+          onClick={() => handleSetActiveTab('repair')}
         >
           <span className="bn-icon">🔧</span>
           <span className="bn-label">Repair</span>
         </button>
         <button
           className={`bn-item${activeTab === 'produk' ? ' active' : ''}`}
-          onClick={() => setActiveTab('produk')}
+          onClick={() => handleSetActiveTab('produk')}
         >
           <span className="bn-icon">🛍️</span>
           <span className="bn-label">Produk</span>
