@@ -111,7 +111,7 @@ export default function AdminLayout() {
   const prevTabRef = useRef<string>('ringkasan');
   const menuRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const touchStartRef = useRef<number | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   /* Close hamburger dropdown on outside click */
   useEffect(() => {
@@ -180,25 +180,52 @@ export default function AdminLayout() {
   };
 
   /* ── Swipe gesture: geser kiri/kanan untuk ganti tab ──────────── */
-  const getSwipeDirection = (deltaX: number) => {
-    const SWIPE_THRESHOLD = 60;
-    if (deltaX > SWIPE_THRESHOLD) return 'right'; // swipe kanan → tab sebelumnya
-    if (deltaX < -SWIPE_THRESHOLD) return 'left'; // swipe kiri → tab berikutnya
-    return null;
+  const SWIPE_THRESHOLD = 60;
+
+  /** True if the touch target or any parent is a horizontally-scrollable container */
+  const isInsideScrollableX = (target: EventTarget | null): boolean => {
+    if (!target || !(target as HTMLElement).closest) return false;
+    const el = (target as HTMLElement).closest(
+      '.table-wrap, [style*="overflow-x: auto"], [style*="overflow-x:scroll"], ' +
+      '[style*="overflow: auto"], [style*="overflow:scroll"], ' +
+      'table, .audit-detail-table'
+    );
+    if (el) return true;
+    // Also check computed style for overflow-x auto/scroll on any parent
+    let node = target as HTMLElement | null;
+    while (node && node !== contentRef.current) {
+      const style = window.getComputedStyle(node);
+      if (style.overflowX === 'auto' || style.overflowX === 'scroll') return true;
+      node = node.parentElement;
+    }
+    return false;
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartRef.current = e.touches[0]?.clientX ?? null;
+    const t = e.touches[0];
+    if (!t) return;
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartRef.current === null) return;
-    const endX = e.changedTouches[0]?.clientX;
-    if (endX === undefined) return;
-    const deltaX = endX - touchStartRef.current;
+    const start = touchStartRef.current;
     touchStartRef.current = null;
+    if (!start) return;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
 
-    const swipeDir = getSwipeDirection(deltaX);
+    // ═══ Skip swipe if touch started on a horizontally-scrollable element ═══
+    if (isInsideScrollableX(e.target)) return;
+
+    // Only trigger navigation if swipe is predominantly horizontal
+    // (prevents scroll gestures from triggering tab change)
+    if (Math.abs(deltaY) > Math.abs(deltaX) * 0.5) return;
+
+    let swipeDir: 'left' | 'right' | null = null;
+    if (deltaX > SWIPE_THRESHOLD) swipeDir = 'right';
+    else if (deltaX < -SWIPE_THRESHOLD) swipeDir = 'left';
     if (!swipeDir) return;
 
     const tabOrder = ['ringkasan', 'pesanan', 'inventory', 'keuangan', '__more__'] as const;
