@@ -140,17 +140,31 @@ input, textarea, select { font-family: inherit; }
 }
 
 /* ── Page Transition Animations ─────────────────────────────────── */
-.page-enter {
-  animation: pageSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+.page-slide-forward {
+  animation: slideInRight 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
-@keyframes pageSlideIn {
+.page-slide-backward {
+  animation: slideInLeft 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInRight {
   from {
-    opacity: 0;
-    transform: translateY(12px);
+    opacity: 0.5;
+    transform: translateX(30px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(0);
+  }
+}
+@keyframes slideInLeft {
+  from {
+    opacity: 0.5;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -518,7 +532,7 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
   flex: 1;
   padding-top: calc(var(--topbar-height) + var(--safe-top));
   padding-bottom: calc(var(--bottomnav-height) + var(--safe-bottom) + 8px);
-  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .topbar-left {

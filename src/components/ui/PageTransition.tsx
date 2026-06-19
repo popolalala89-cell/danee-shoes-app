@@ -1,20 +1,23 @@
 import React from 'react';
 
 /* ================================================================== */
-/*  PageTransition — animasi slide-in setiap ganti halaman             */
-/*  Usage: wrap your page content:                                     */
-/*    <PageTransition><Orders /></PageTransition>                      */
+/*  PageTransition — animasi slide horizontal antar halaman            */
+/*  Usage:                                                             */
+/*    <PageTransition direction="forward"><Orders /></PageTransition>  */
 /* ================================================================== */
 
 interface PageTransitionProps {
   children: React.ReactNode;
+  direction?: 'forward' | 'backward';
   className?: string;
   style?: React.CSSProperties;
 }
 
-function PageTransition({ children, className = '', style }: PageTransitionProps) {
+function PageTransition({ children, direction = 'forward', className = '', style }: PageTransitionProps) {
+  const animClass = direction === 'forward' ? 'page-slide-forward' : 'page-slide-backward';
+
   return (
-    <div className={`page-enter ${className}`} style={style}>
+    <div className={`${animClass} ${className}`} style={style}>
       {children}
     </div>
   );

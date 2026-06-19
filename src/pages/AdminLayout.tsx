@@ -107,6 +107,8 @@ export default function AdminLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [pageKey, setPageKey] = useState(0);
+  const [navDirection, setNavDirection] = useState<'forward' | 'backward'>('forward');
+  const prevTabRef = useRef<string>('ringkasan');
   const menuRef = useRef<HTMLDivElement>(null);
 
   /* Close hamburger dropdown on outside click */
@@ -122,12 +124,26 @@ export default function AdminLayout() {
 
   /* Sync showMore + trigger page transition on navigate */
   useEffect(() => {
+    // Determine tab index for direction
+    const tabOrder: Record<string, number> = {
+      ringkasan: 0, pesanan: 1, inventory: 2, keuangan: 3, __more__: 4,
+    };
+    const currentActive = showMore ? '__more__' : getActiveTabId(location.pathname);
+    const prevIdx = tabOrder[prevTabRef.current] ?? 0;
+    const currIdx = tabOrder[currentActive] ?? 0;
+
+    if (prevIdx < currIdx) setNavDirection('forward');
+    else if (prevIdx > currIdx) setNavDirection('backward');
+    else setNavDirection('forward');
+
+    prevTabRef.current = currentActive;
+
     if (location.pathname.startsWith('/admin') && bottomNavItems.some(
       (n) => n.id !== '__more__' && location.pathname === n.route
     )) {
       setShowMore(false);
     }
-    // Bump key to re-trigger page-enter animation
+    // Bump key to re-trigger animation
     setPageKey((k) => k + 1);
   }, [location.pathname]);
 
@@ -250,7 +266,7 @@ export default function AdminLayout() {
         ============================================================ */}
       <main className="admin-content">
         {showMore ? (
-          <PageTransition key={pageKey}>
+          <PageTransition key={pageKey} direction={navDirection}>
             {/* ---------- "Lainnya" grid view ---------- */}
             <div className="more-container">
               <p className="more-heading">
@@ -279,9 +295,9 @@ export default function AdminLayout() {
           </PageTransition>
         ) : (
           /* ---------- Routed page content with transition ---------- */
-          <div className="page-enter" key={pageKey}>
+          <PageTransition key={pageKey} direction={navDirection}>
             <AdminRoutes />
-          </div>
+          </PageTransition>
         )}
       </main>
 
