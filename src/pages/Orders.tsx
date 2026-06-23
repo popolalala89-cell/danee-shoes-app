@@ -594,8 +594,24 @@ function Orders() {
 
   function handleShareQRIS() {
     if (!qrisImage) return;
+
+    // Helper: fallback ke copy QRIS info ke clipboard
+    function fallbackClipboard() {
+      try {
+        const tmp = document.createElement('textarea');
+        tmp.value = 'QRIS Danee Shoes Care — Scan untuk pembayaran';
+        document.body.appendChild(tmp);
+        tmp.select();
+        document.execCommand('copy');
+        document.body.removeChild(tmp);
+        alert('Teks QRIS sudah disalin. Silakan tempel di chat pelanggan.\n\nAtau screenshot QRIS ini langsung.');
+      } catch (_) {
+        alert('Silakan screenshot QRIS ini untuk dibagikan ke pelanggan.');
+      }
+    }
+
     try {
-      // Convert base64 → blob synchronously (works in both browser & Capacitor WebView)
+      // Convert base64 → blob synchronously
       const parts = qrisImage.split(',');
       if (parts.length < 2) return;
       const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
@@ -605,34 +621,35 @@ function Orders() {
       const blob = new Blob([arr], { type: mime });
       const file = new File([blob], 'QRIS_Danee_Shoes.png', { type: mime });
 
-      // Try Web Share API with file (browser desktop/HP Android 12+)
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        navigator.share({
-          files: [file],
-          title: 'QRIS Pembayaran Danee Shoes',
-          text: 'Scan QRIS untuk pembayaran'
-        }).catch(() => {
-          // File share ditolak — fallback share teks
-          showQRISGuide();
-        });
-      } else if (navigator.share) {
-        // Share teks aja (works di Capacitor WebView / APK)
-        navigator.share({
-          title: 'QRIS Pembayaran Danee Shoes',
-          text: 'Scan QRIS Danee Shoes Care untuk pembayaran'
-        }).catch(() => {
-          // User cancel — abaikan
-        });
-      } else {
-        showQRISGuide();
+      // Fallback chain: file share → text share → clipboard → guide
+      function tryShareFile() {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({
+            files: [file],
+            title: 'QRIS Pembayaran Danee Shoes',
+            text: 'Scan QRIS untuk pembayaran'
+          }).catch(() => tryShareText());
+        } else {
+          tryShareText();
+        }
       }
-    } catch (e) {
-      showQRISGuide();
-    }
-  }
 
-  function showQRISGuide() {
-    alert('Silakan screenshot QRIS ini untuk dibagikan ke pelanggan.');
+      function tryShareText() {
+        if (navigator.share) {
+          navigator.share({
+            title: 'QRIS Pembayaran Danee Shoes',
+            text: 'Scan QRIS Danee Shoes Care untuk pembayaran',
+            url: window.location.href
+          }).catch(() => fallbackClipboard());
+        } else {
+          fallbackClipboard();
+        }
+      }
+
+      tryShareFile();
+    } catch (e) {
+      fallbackClipboard();
+    }
   }
 
   // Loading state
