@@ -99,6 +99,7 @@ export interface Dompet {
   kasPct: number;
   zakatPct: number;
   investorPct: number;
+  labaDitahan: number;
 }
 
 export interface ProfitSharing {

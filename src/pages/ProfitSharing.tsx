@@ -14,6 +14,7 @@ const WALLET_GROUPS = [
   { role: 'Engineer Web',      base: 'webBase',        pct: 'webPct',        color: '#6366f1', icon: 'code' },
   { role: 'Zakat (2.5%)',      base: null,             pct: 'zakatPct',      color: '#14b8a6', icon: 'volunteer_activism' },
   { role: 'Investor',          base: null,             pct: 'investorPct',   color: '#f43f5e', icon: 'trending_up' },
+  { role: 'Laba Ditahan',      base: 'labaDitahan',    pct: null,            color: '#64748b', icon: 'savings' },
 ];
 
 const ProfitSharing: React.FC = () => {
@@ -154,8 +155,7 @@ const ProfitSharing: React.FC = () => {
       const pctVal = (g.pct ? (d.dompet as any)[g.pct] || 0 : 0);
       return sum + baseVal + pctVal;
     }, 0);
-    const uangBelumTarget = d.omsetNett < d.target ? d.omsetNett : 0;
-    const selisihDistribusi = Math.round(d.omsetNett - (totalDistribusi + uangBelumTarget));
+    const selisihDistribusi = Math.round(d.omsetNett - totalDistribusi);
     const selisihGross = Math.round(d.omsetGross - (d.omsetNett + d.alokasiHPP + d.totalKomisi));
     const totalSelisih = Math.abs(selisihDistribusi) + Math.abs(selisihGross);
     return { totalSelisih, selisihDistribusi, selisihGross };

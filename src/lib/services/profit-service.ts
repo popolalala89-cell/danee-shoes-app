@@ -525,6 +525,11 @@ export async function getProfitSharingData(
       }
     }
 
+    // ═══ Laba Ditahan = sisa laba dari target yang belum terdistribusi ═══
+    const totalBaseTerpakai =
+      dompet.ownerBase + dompet.cuciBase + dompet.adminBase + dompet.webBase + dompet.kasBase;
+    dompet.labaDitahan = Math.max(0, targetTerpenuhi - totalBaseTerpakai);
+
     const result: ProfitSharingData = {
       omsetGross: Math.round(omsetGrossBulanan),
       alokasiHPP: Math.round(alokasiHPPBulanan),
@@ -1119,7 +1124,7 @@ export async function getLaporanLabaRugi(
     const modePersen = omsetNett >= target;
 
     // Build distribution array
-    const WALLET_MAP: { role: string; baseKey: string | null; pctKey: string }[] = [
+    const WALLET_MAP: { role: string; baseKey: string | null; pctKey: string | null }[] = [
       { role: 'Owner', baseKey: 'ownerBase', pctKey: 'ownerPct' },
       { role: 'Kas (Operasional)', baseKey: 'kasBase', pctKey: 'kasPct' },
       { role: 'Spesialis Cuci', baseKey: 'cuciBase', pctKey: 'cuciPct' },
@@ -1128,12 +1133,13 @@ export async function getLaporanLabaRugi(
       { role: 'Engineer Web', baseKey: 'webBase', pctKey: 'webPct' },
       { role: 'Zakat (2.5%)', baseKey: null, pctKey: 'zakatPct' },
       { role: 'Investor', baseKey: null, pctKey: 'investorPct' },
+      { role: 'Laba Ditahan', baseKey: 'labaDitahan', pctKey: null },
     ];
 
     const dompet = distRes.data?.dompet || {} as Dompet;
     const distribusi: LaporanDistribusiRole[] = WALLET_MAP.map((w) => {
       const base = w.baseKey ? (dompet as any)[w.baseKey] || 0 : 0;
-      const pct = (dompet as any)[w.pctKey] || 0;
+      const pct = w.pctKey ? (dompet as any)[w.pctKey] || 0 : 0;
       return { role: w.role, base, pct, total: base + pct };
     });
 
@@ -1326,6 +1332,7 @@ function createEmptyDompet(): Dompet {
     kasPct: 0,
     zakatPct: 0,
     investorPct: 0,
+    labaDitahan: 0,
   };
 }
 
