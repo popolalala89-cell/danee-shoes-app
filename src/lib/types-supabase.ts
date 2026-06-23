@@ -24,6 +24,7 @@ export interface MenuStoreRow {
   kategori: string | null;
   harga: number;
   harga_promo: number | null;
+  harga_beli: number;
   stok: number;
   status: 'Aktif' | 'Nonaktif';
   deskripsi: string | null;
@@ -197,6 +198,7 @@ export interface MenuStoreCreate {
   kategori?: string | null;
   harga: number;
   harga_promo?: number | null;
+  harga_beli?: number;
   stok?: number;
   status?: 'Aktif' | 'Nonaktif';
   deskripsi?: string | null;
@@ -209,6 +211,7 @@ export interface MenuStoreUpdate {
   kategori?: string | null;
   harga?: number;
   harga_promo?: number | null;
+  harga_beli?: number;
   stok?: number;
   status?: 'Aktif' | 'Nonaktif';
   deskripsi?: string | null;
@@ -443,9 +446,11 @@ export interface LaporanBiaya {
   hppCleaning: number;
   /** HPP from Repair services */
   hppRepair: number;
+  /** HPP from Store products */
+  hppProduk: number;
   /** Referral commissions paid */
   komisiReferral: number;
-  /** Total costs = hppCleaning + hppRepair + komisiReferral */
+  /** Total costs = hppCleaning + hppRepair + hppProduk + komisiReferral */
   total: number;
 }
 

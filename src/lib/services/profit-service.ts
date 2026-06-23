@@ -165,6 +165,17 @@ export async function getProfitSharingData(
     const menuStore = (menuStoreRaw || []) as MenuStoreRow[];
     const referrals = (referralsRaw || []) as ReferralRow[];
 
+    // Build HPP lookup maps for store products (harga_beli)
+    const hargaBeliProdukById: Record<string, number> = {};
+    const hargaBeliProdukByName: Record<string, number> = {};
+    for (const p of menuStore) {
+      const hb = (p as any).harga_beli || 0;
+      if (hb > 0) {
+        hargaBeliProdukById[p.id] = hb;
+        if (p.nama_produk) hargaBeliProdukByName[p.nama_produk.trim().toLowerCase()] = hb;
+      }
+    }
+
     if (!orders.length) {
       return {
         success: true,
@@ -303,6 +314,12 @@ export async function getProfitSharingData(
             }
           }
 
+          // Produk: jika tidak ada HPP dari keyword match, pakai harga_beli dari menu_store
+          if (itemHPP === 0 && (si.tipe === 'produk' || si.store_id)) {
+            const hb = si.store_id ? hargaBeliProdukById[si.store_id] : 0;
+            if (hb > 0) itemHPP = hb;
+          }
+
           parsedItems.push({ gross: grossItem, totalHPP: itemHPP * qty, jalur });
         }
       } else {
@@ -396,6 +413,12 @@ export async function getProfitSharingData(
                 break;
               }
             }
+          }
+
+          // Produk fallback: jika tidak ada HPP dari keyword match, pakai harga_beli dari menu_store
+          if (itemHPP === 0) {
+            const hb = hargaBeliProdukByName[remainingName] || 0;
+            if (hb > 0) itemHPP = hb;
           }
 
           parsedItems.push({ gross: grossItem, totalHPP: itemHPP * qty, jalur });
@@ -899,6 +922,17 @@ export async function getLaporanLabaRugi(
       if (item.nama_produk) storeNames.add(item.nama_produk.trim().toLowerCase());
     }
 
+    // Build HPP lookup maps for store products (harga_beli)
+    const hargaBeliProdukById: Record<string, number> = {};
+    const hargaBeliProdukByName: Record<string, number> = {};
+    for (const p of menuStore) {
+      const hb = (p as any).harga_beli || 0;
+      if (hb > 0) {
+        hargaBeliProdukById[p.id] = hb;
+        if (p.nama_produk) hargaBeliProdukByName[p.nama_produk.trim().toLowerCase()] = hb;
+      }
+    }
+
     // ===== 3. Referral map =====
     const referralMap: Record<string, { komisiPct: number }> = {};
     for (const ref of referrals) {
@@ -928,6 +962,7 @@ export async function getLaporanLabaRugi(
     let pendapatanProduk = 0;
     let hppCleaning = 0;
     let hppRepair = 0;
+    let hppProduk = 0;
     let totalKomisi = 0;
 
     for (const order of selesaiOrders) {
@@ -978,6 +1013,12 @@ export async function getLaporanLabaRugi(
               itemHPP += configHPP[keyMatch].hpp * qty;
               rn = rn.replace(keyMatch, '').trim();
             }
+          }
+
+          // Produk: jika tidak ada HPP dari keyword match, pakai harga_beli dari menu_store
+          if (itemHPP === 0 && category === 'produk') {
+            const hb = si.store_id ? hargaBeliProdukById[si.store_id] : hargaBeliProdukByName[itemName] || 0;
+            if (hb > 0) itemHPP = hb * qty;
           }
 
           itemCategories.push({ gross: grossItem, category, hpp: itemHPP });
@@ -1057,6 +1098,12 @@ export async function getLaporanLabaRugi(
             }
           }
 
+          // Produk fallback: jika masih 0 dan nama cocok dengan produk store, pakai harga_beli
+          if (itemHPP === 0 && category === 'produk') {
+            const hb = hargaBeliProdukByName[remainingName] || 0;
+            if (hb > 0) itemHPP = hb * qty;
+          }
+
           itemCategories.push({ gross: grossItem, category, hpp: itemHPP });
         }
 
@@ -1112,6 +1159,7 @@ export async function getLaporanLabaRugi(
             break;
           case 'produk':
             pendapatanProduk += discountedGross;
+            hppProduk += ic.hpp;
             break;
         }
       }
@@ -1145,7 +1193,7 @@ export async function getLaporanLabaRugi(
 
     const totalDistribusi = distribusi.reduce((s, d) => s + d.total, 0);
     const totalPendapatan = pendapatanCleaning + pendapatanRepair + pendapatanProduk;
-    const totalBiaya = hppCleaning + hppRepair + totalKomisi;
+    const totalBiaya = hppCleaning + hppRepair + hppProduk + totalKomisi;
     const labaBersih = totalPendapatan - totalBiaya;
 
     const laporan: LaporanLabaRugi = {
@@ -1159,6 +1207,7 @@ export async function getLaporanLabaRugi(
       biaya: {
         hppCleaning: Math.round(hppCleaning),
         hppRepair: Math.round(hppRepair),
+        hppProduk: Math.round(hppProduk),
         komisiReferral: Math.round(totalKomisi),
         total: Math.round(totalBiaya),
       },

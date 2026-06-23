@@ -110,6 +110,7 @@ const ProfitSharing: React.FC = () => {
       `BIAYA:`,
       `  HPP Cleaning        ${formatCurrency(b.hppCleaning)}`,
       `  HPP Repair          ${formatCurrency(b.hppRepair)}`,
+      `  HPP Produk          ${formatCurrency(b.hppProduk)}`,
       `  Komisi Referral     ${formatCurrency(b.komisiReferral)}`,
       `  TOTAL BIAYA         ${formatCurrency(b.total)}`,
       ``,
@@ -586,6 +587,12 @@ const ProfitSharing: React.FC = () => {
                           <tr className="row-item">
                             <td>HPP Repair</td>
                             <td className="cell-amount">- {formatCurrency(laporan.biaya.hppRepair)}</td>
+                          </tr>
+                        )}
+                        {laporan.biaya.hppProduk > 0 && (
+                          <tr className="row-item">
+                            <td>HPP Produk</td>
+                            <td className="cell-amount">- {formatCurrency(laporan.biaya.hppProduk)}</td>
                           </tr>
                         )}
                         {laporan.biaya.komisiReferral > 0 && (

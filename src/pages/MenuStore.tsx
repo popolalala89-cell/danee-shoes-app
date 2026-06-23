@@ -8,6 +8,7 @@ const emptyForm = {
   kategori: '',
   harga: 0,
   harga_promo: null as number | null,
+  harga_beli: 0,
   stok: 0,
   deskripsi: '',
   link_foto: '',
@@ -62,6 +63,7 @@ const MenuStore: React.FC = () => {
       kategori: item.kategori || '',
       harga: item.harga,
       harga_promo: item.harga_promo,
+      harga_beli: item.harga_beli,
       stok: item.stok,
       deskripsi: item.deskripsi || '',
       link_foto: item.link_foto || '',
@@ -75,7 +77,7 @@ const MenuStore: React.FC = () => {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: name === 'harga' || name === 'stok' || name === 'harga_promo' ? (value ? Number(value) : null) : value,
+      [name]: name === 'harga' || name === 'stok' || name === 'harga_promo' || name === 'harga_beli' ? (value ? Number(value) : null) : value,
     }));
   };
 
@@ -90,6 +92,7 @@ const MenuStore: React.FC = () => {
           kategori: form.kategori || null,
           harga: form.harga,
           harga_promo: form.harga_promo,
+          harga_beli: form.harga_beli,
           stok: form.stok,
           deskripsi: form.deskripsi || null,
           link_foto: form.link_foto || null,
@@ -102,6 +105,7 @@ const MenuStore: React.FC = () => {
           kategori: form.kategori || null,
           harga: form.harga,
           harga_promo: form.harga_promo,
+          harga_beli: form.harga_beli,
           stok: form.stok,
           deskripsi: form.deskripsi || null,
           link_foto: form.link_foto || null,
@@ -160,6 +164,7 @@ const MenuStore: React.FC = () => {
                 <th>Nama Produk</th>
                 <th>Kategori</th>
                 <th>Harga</th>
+                <th>Harga Beli</th>
                 <th>Stok</th>
                 <th>Status</th>
                 <th>Aksi</th>
@@ -174,6 +179,7 @@ const MenuStore: React.FC = () => {
                     <td style={{ fontWeight: 600 }}>{item.nama_produk}</td>
                     <td><span className="badge badge-proses">{item.kategori || '-'}</span></td>
                     <td>{formatCurrency(item.harga)}</td>
+                    <td>{formatCurrency(item.harga_beli ?? 0)}</td>
                     <td><span className={`badge ${(item.stok ?? 0) <= 3 ? 'badge-batal' : 'badge-selesai'}`}>{item.stok ?? 0}</span></td>
                     <td><span className={`badge ${item.status === 'Aktif' ? 'badge-selesai' : 'badge-batal'}`}>{item.status}</span></td>
                     <td>
@@ -214,6 +220,10 @@ const MenuStore: React.FC = () => {
                 <div className="form-group">
                   <label>Harga Promo (Rp) — opsional</label>
                   <input type="number" name="harga_promo" className="form-control" min={0} value={form.harga_promo ?? ''} onChange={handleChange} placeholder="Kosongkan jika tidak ada" />
+                </div>
+                <div className="form-group">
+                  <label>Harga Beli / Modal (Rp)</label>
+                  <input type="number" name="harga_beli" className="form-control" min={0} value={form.harga_beli || ''} onChange={handleChange} placeholder="0" />
                 </div>
                 <div className="form-group">
                   <label>Stok</label>

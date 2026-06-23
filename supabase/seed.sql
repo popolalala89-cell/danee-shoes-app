@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS menu_store (
   kategori VARCHAR(50),
   harga INTEGER NOT NULL,
   harga_promo INTEGER,
+  harga_beli INTEGER DEFAULT 0,
   stok INTEGER DEFAULT 0,
   status VARCHAR(20) DEFAULT 'Aktif' CHECK (status IN ('Aktif', 'Nonaktif')),
   deskripsi TEXT,
