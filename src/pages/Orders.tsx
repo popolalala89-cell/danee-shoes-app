@@ -5,6 +5,9 @@ import { getAll as getMenuJasa } from '../lib/services/menu-jasa-service';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { getSetting, saveSetting } from '../lib/services/settings-service';
 import type { OrderRow, OrderStatus, DiskonEventRow, MenuJasaRow, ReferralRow } from '../lib/types-supabase';
+import { Share } from '@capacitor/share';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
 
 const ORDER_STATUSES = ['Semua', 'Waiting', 'Checking', 'Proses Cleaning', 'Proses Repair', 'Proses Pengeringan', 'Ready', 'Selesai', 'Batal'] as const;
 const TERMINAL_STATUSES = ['Selesai', 'Batal'];
@@ -592,10 +595,11 @@ function Orders() {
     setShowQRISModal(true);
   }
 
-  function handleShareQRIS() {
+  /** Bagikan QRIS — native Capacitor di APK, Web Share API di browser */
+  async function handleShareQRIS() {
     if (!qrisImage) return;
 
-    // Helper: fallback ke copy QRIS info ke clipboard
+    // Helper: copy teks ke clipboard
     function fallbackClipboard() {
       try {
         const tmp = document.createElement('textarea');
@@ -604,49 +608,70 @@ function Orders() {
         tmp.select();
         document.execCommand('copy');
         document.body.removeChild(tmp);
-        alert('Teks QRIS sudah disalin. Silakan tempel di chat pelanggan.\n\nAtau screenshot QRIS ini langsung.');
+        alert('Teks QRIS sudah disalin ke clipboard. Silakan tempel di chat pelanggan.\n\nAtau screenshot QRIS ini langsung.');
       } catch (_) {
         alert('Silakan screenshot QRIS ini untuk dibagikan ke pelanggan.');
       }
     }
 
     try {
-      // Convert base64 → blob synchronously
       const parts = qrisImage.split(',');
       if (parts.length < 2) return;
       const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
-      const raw = atob(parts[1]);
+      const base64Data = parts[1];
+
+      const isNative = Capacitor.isNativePlatform();
+
+      /* ── jalur native: Capacitor Filesystem + Share ── */
+      if (isNative) {
+        try {
+          const fileName = `qris_${Date.now()}.png`;
+          const savedFile = await Filesystem.writeFile({
+            path: fileName,
+            data: base64Data,
+            directory: Directory.Cache,
+          });
+
+          const result = await Share.share({
+            title: 'QRIS Pembayaran Danee Shoes',
+            text: 'Pembayaran Danee Shoes Care — Scan QRIS',
+            files: [savedFile.uri],
+            dialogTitle: 'Bagikan QRIS ke Pelanggan',
+          });
+          // Kapasitor Share sukses — user sudah milih aplikasi share
+          return;
+        } catch (e: any) {
+          // User cancel share atau error → fallback ke web
+          if (e?.code !== 'canceled' && e?.message !== 'User cancelled share dialog') {
+            console.warn('Native share gagal, fallback ke web:', e);
+          } else {
+            return; // User cancel — diam aja
+          }
+        }
+      }
+
+      /* ── jalur web: Web Share API ── */
+      const raw = atob(base64Data);
       const arr = new Uint8Array(raw.length);
       for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
       const blob = new Blob([arr], { type: mime });
       const file = new File([blob], 'QRIS_Danee_Shoes.png', { type: mime });
 
-      // Fallback chain: file share → text share → clipboard → guide
-      function tryShareFile() {
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({
-            files: [file],
-            title: 'QRIS Pembayaran Danee Shoes',
-            text: 'Scan QRIS untuk pembayaran'
-          }).catch(() => tryShareText());
-        } else {
-          tryShareText();
-        }
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'QRIS Pembayaran Danee Shoes',
+          text: 'Scan QRIS untuk pembayaran',
+        });
+      } else if (navigator.share) {
+        await navigator.share({
+          title: 'QRIS Pembayaran Danee Shoes',
+          text: 'Scan QRIS Danee Shoes Care untuk pembayaran',
+          url: window.location.href,
+        });
+      } else {
+        fallbackClipboard();
       }
-
-      function tryShareText() {
-        if (navigator.share) {
-          navigator.share({
-            title: 'QRIS Pembayaran Danee Shoes',
-            text: 'Scan QRIS Danee Shoes Care untuk pembayaran',
-            url: window.location.href
-          }).catch(() => fallbackClipboard());
-        } else {
-          fallbackClipboard();
-        }
-      }
-
-      tryShareFile();
     } catch (e) {
       fallbackClipboard();
     }
