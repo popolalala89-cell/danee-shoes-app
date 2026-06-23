@@ -594,36 +594,45 @@ function Orders() {
 
   function handleShareQRIS() {
     if (!qrisImage) return;
-    // Try Web Share API (HP) — share image + text
-    fetch(qrisImage)
-      .then(r => r.blob())
-      .then(blob => {
-        const file = new File([blob], 'QRIS_Danee_Shoes.png', { type: blob.type });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({
-            files: [file],
-            title: 'QRIS Pembayaran Danee Shoes',
-            text: 'Silakan scan QRIS berikut untuk menyelesaikan pembayaran pesanan Anda.'
-          });
-        } else {
-          // Fallback: download
-          const a = document.createElement('a');
-          a.href = qrisImage;
-          a.download = 'QRIS_Danee_Shoes.png';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        }
-      })
-      .catch(() => {
-        // Fallback download
-        const a = document.createElement('a');
-        a.href = qrisImage;
-        a.download = 'QRIS_Danee_Shoes.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      });
+    try {
+      // Convert base64 → blob synchronously (works in both browser & Capacitor WebView)
+      const parts = qrisImage.split(',');
+      if (parts.length < 2) return;
+      const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+      const raw = atob(parts[1]);
+      const arr = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+      const blob = new Blob([arr], { type: mime });
+      const file = new File([blob], 'QRIS_Danee_Shoes.png', { type: mime });
+
+      // Try Web Share API with file (browser desktop/HP Android 12+)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: 'QRIS Pembayaran Danee Shoes',
+          text: 'Scan QRIS untuk pembayaran'
+        }).catch(() => {
+          // File share ditolak — fallback share teks
+          showQRISGuide();
+        });
+      } else if (navigator.share) {
+        // Share teks aja (works di Capacitor WebView / APK)
+        navigator.share({
+          title: 'QRIS Pembayaran Danee Shoes',
+          text: 'Scan QRIS Danee Shoes Care untuk pembayaran'
+        }).catch(() => {
+          // User cancel — abaikan
+        });
+      } else {
+        showQRISGuide();
+      }
+    } catch (e) {
+      showQRISGuide();
+    }
+  }
+
+  function showQRISGuide() {
+    alert('Silakan screenshot QRIS ini untuk dibagikan ke pelanggan.');
   }
 
   // Loading state
