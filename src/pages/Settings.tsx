@@ -838,7 +838,7 @@ const Settings: React.FC = () => {
                   return;
                 }
                 const uploadRes = await uploadImage(qrisImage, 'qris.png');
-                if (!uploadRes.success) { setError(uploadRes.error); return; }
+                if (!uploadRes.success) { setError(uploadRes.error || 'Gagal upload'); return; }
                 const res = await saveSetting('qris_image', uploadRes.data!.url);
                 if (res.success) {
                   setSuccess('Gambar QRIS berhasil disimpan!');
@@ -903,7 +903,7 @@ const Settings: React.FC = () => {
                   return;
                 }
                 const uploadRes = await uploadImage(logoImage, 'logo.png');
-                if (!uploadRes.success) { setError(uploadRes.error); return; }
+                if (!uploadRes.success) { setError(uploadRes.error || 'Gagal upload'); return; }
                 const res = await saveSetting('logo_image', uploadRes.data!.url);
                 if (res.success) {
                   setSuccess('Logo berhasil disimpan!');

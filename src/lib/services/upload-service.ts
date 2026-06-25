@@ -33,18 +33,14 @@ export async function uploadImage(
     // Generate unique filename if not provided
     const uniqueName = fileName || `upload_${Date.now()}_${Math.random().toString(36).substr(2, 6)}.${fileExt}`;
 
-    // Decode base64 to binary
+    // Decode base64 to binary — use minimal chunking to avoid TS strict type issues
     const byteChars = atob(base64Content);
-    const byteArrays: Uint8Array[] = [];
-    for (let offset = 0; offset < byteChars.length; offset += 512) {
-      const slice = byteChars.slice(offset, offset + 512);
-      const byteNumbers = new Array(slice.length);
-      for (let i = 0; i < slice.length; i++) {
-        byteNumbers[i] = slice.charCodeAt(i);
-      }
-      byteArrays.push(new Uint8Array(byteNumbers));
+    const len = byteChars.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = byteChars.charCodeAt(i);
     }
-    const blob = new Blob(byteArrays, { type: mimeType });
+    const blob = new Blob([bytes], { type: mimeType });
     const file = new File([blob], uniqueName, { type: mimeType });
 
     // Upload to Supabase Storage
@@ -57,7 +53,7 @@ export async function uploadImage(
 
     if (error) {
       // If bucket doesn't exist, try to create it
-      if (error.message?.includes('bucket') || error.statusCode === 404) {
+      if (error.message?.includes('bucket') || String(error.statusCode) === '404') {
         return { success: false, error: `Bucket '${BUCKET_NAME}' belum dibuat. Jalankan SQL migration di Supabase Dashboard > SQL Editor.` };
       }
       return { success: false, error: error.message };
