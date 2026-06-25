@@ -194,7 +194,7 @@ export async function getProfitSharingData(
     // ===== 2. Parse configuration =====
     const configHPP: Record<string, { hpp: number; kategori: string }> = {};
     let targetOmset = 0;
-    const configPct: Record<string, { clean: number; repair: number; baseGaji: number }> = {};
+    const configPct: Record<string, { persen: number; baseGaji: number }> = {};
 
     for (const row of settingsProfit) {
       const keyLayanan = row.nama_layanan.trim().toLowerCase();
@@ -207,10 +207,9 @@ export async function getProfitSharingData(
       if (row.peran) {
         const peran = row.peran.trim().toLowerCase();
         if (!configPct[peran]) {
-          configPct[peran] = { clean: 0, repair: 0, baseGaji: 0 };
+          configPct[peran] = { persen: 0, baseGaji: 0 };
         }
-        configPct[peran].clean = parsePercent(row.clean_pct);
-        configPct[peran].repair = parsePercent(row.repair_pct);
+        configPct[peran].persen = parsePercent(row.persen);
         configPct[peran].baseGaji = row.base_gaji || 0;
       }
     }
@@ -509,7 +508,7 @@ export async function getProfitSharingData(
         // Percentage-based distribution for above-target profit
         if (porsiKePersenNett !== 0) {
           for (const [peranKey, rateConfig] of Object.entries(configPct)) {
-            const rate = pItem.jalur === 'A' ? rateConfig.clean : rateConfig.repair;
+            const rate = rateConfig.persen;
             if (rate > 0) {
               const amount = porsiKePersenNett * rate;
               switch (peranKey) {
@@ -1383,24 +1382,23 @@ function createEmptyDompet(): Dompet {
 
 /**
  * Read ALL settings_profit rows and return:
- * - roles: { [peran]: { cleanPct, repairPct } }
+ * - roles: { [peran]: { persen, baseGaji } }
  * - targetOmset: sum of target_omset across rows
  */
-export async function getAllSettingsProfit(): Promise<ServiceResponse<{ roles: Record<string, { cleanPct: number; repairPct: number; baseGaji: number }>; targetOmset: number }>> {
+export async function getAllSettingsProfit(): Promise<ServiceResponse<{ roles: Record<string, { persen: number; baseGaji: number }>; targetOmset: number }>> {
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase.from('settings_profit').select('*');
     if (error) return { success: false, error: error.message };
 
-    const roles: Record<string, { cleanPct: number; repairPct: number; baseGaji: number }> = {};
+    const roles: Record<string, { persen: number; baseGaji: number }> = {};
     let targetOmset = 0;
 
     for (const row of data || []) {
       if (row.target_omset > 0) targetOmset += row.target_omset;
       if (row.peran) {
         roles[row.peran.trim().toLowerCase()] = {
-          cleanPct: row.clean_pct || 0,
-          repairPct: row.repair_pct || 0,
+          persen: row.persen || 0,
           baseGaji: row.base_gaji || 0,
         };
       }
@@ -1408,7 +1406,7 @@ export async function getAllSettingsProfit(): Promise<ServiceResponse<{ roles: R
 
     // Initialize empty for all known roles
     for (const peran of ['owner', 'kas', 'spesialis', 'admin', 'web', 'zakat', 'investor']) {
-      if (!roles[peran]) roles[peran] = { cleanPct: 0, repairPct: 0, baseGaji: 0 };
+      if (!roles[peran]) roles[peran] = { persen: 0, baseGaji: 0 };
     }
 
     return { success: true, data: { roles, targetOmset } };
@@ -1424,8 +1422,7 @@ export async function getAllSettingsProfit(): Promise<ServiceResponse<{ roles: R
 export async function saveSettingsProfitRole(
   peran: string,
   roleName: string,
-  cleanPct: number,
-  repairPct: number,
+  persen: number,
   targetOmset: number,
   baseGaji: number = 0
 ): Promise<ServiceResponse> {
@@ -1447,8 +1444,7 @@ export async function saveSettingsProfitRole(
       role_name: roleName,
       target_omset: peranKey === 'owner' ? targetOmset : 0, // Store target on owner row
       peran: peranKey,
-      clean_pct: cleanPct,
-      repair_pct: repairPct,
+      persen: persen,
       base_gaji: baseGaji,
     };
 

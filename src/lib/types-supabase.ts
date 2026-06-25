@@ -157,8 +157,7 @@ export interface SettingsProfitRow {
   role_name: string | null;
   target_omset: number;
   peran: string | null;
-  clean_pct: number;
-  repair_pct: number;
+  persen: number;
   base_gaji: number;
   created_at: string;
   updated_at: string;
