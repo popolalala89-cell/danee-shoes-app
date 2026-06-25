@@ -7,10 +7,23 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-/** Parse form input value to number (handles empty string, etc) */
+/** Parse form input value to number (handles comma & dot decimal) */
 export function parseFormNumber(val: string): number {
   if (!val || val.trim() === '') return 0;
-  const num = Number(val.replace(/[^0-9.,-]/g, '').replace(/\./g, ''));
+  // Keep only digits, dots, commas, minus
+  let normalized = val.replace(/[^0-9.,-]/g, '');
+  // Handle comma as decimal separator (Indonesian "0,5")
+  if (normalized.includes(',')) {
+    // Replace dots (thousands sep) then convert comma to dot
+    normalized = normalized.replace(/\./g, '').replace(',', '.');
+  } else if (normalized.includes('.')) {
+    // Multiple dots = thousands separator, keep only last dot
+    const parts = normalized.split('.');
+    if (parts.length > 2) {
+      normalized = parts.slice(0, -1).join('') + '.' + parts.slice(-1);
+    }
+  }
+  const num = Number(normalized);
   return isNaN(num) ? 0 : num;
 }
 

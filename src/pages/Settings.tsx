@@ -943,7 +943,7 @@ const Settings: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <div>
                     <label style={{ fontSize: '0.7rem', color: 'var(--text-gray)', fontWeight: 600 }}>Persen (%)</label>
-                    <input type="number" className="form-control" value={roleData.persen} onChange={(e) => updatePct(p.peran, e.target.value)} min={0} max={100} step={0.5} style={{ padding: '6px 8px', fontSize: '0.875rem' }} />
+                    <input type="text" inputMode="decimal" className="form-control" value={roleData.persen} onChange={(e) => updatePct(p.peran, e.target.value)} min={0} max={100} step={0.5} style={{ padding: '6px 8px', fontSize: '0.875rem' }} />
                   </div>
                   <div>
                     <label style={{ fontSize: '0.7rem', color: 'var(--text-gray)', fontWeight: 600 }}>Gaji Pokok (Rp)</label>
