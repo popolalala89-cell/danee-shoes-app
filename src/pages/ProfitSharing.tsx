@@ -8,8 +8,7 @@ const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', '
 const WALLET_GROUPS = [
   { role: 'Owner',            base: 'ownerBase',      pct: 'ownerPct',      color: '#8b5cf6', icon: 'badge' },
   { role: 'Kas (Operasional)', base: 'kasBase',        pct: 'kasPct',        color: '#3b82f6', icon: 'account_balance' },
-  { role: 'Spesialis Cuci',    base: 'cuciBase',       pct: 'cuciPct',       color: '#10b981', icon: 'soap' },
-  { role: 'Spesialis Repair',  base: null,             pct: 'repairPct',     color: '#f59e0b', icon: 'build' },
+  { role: 'Spesialis',         base: 'spesialisBase',  pct: 'spesialisPct',  color: '#10b981', icon: 'handyman' },
   { role: 'Admin (Marketing)', base: 'adminBase',      pct: 'adminPct',      color: '#ec4899', icon: 'support_agent' },
   { role: 'Engineer Web',      base: 'webBase',        pct: 'webPct',        color: '#6366f1', icon: 'code' },
   { role: 'Zakat (2.5%)',      base: null,             pct: 'zakatPct',      color: '#14b8a6', icon: 'volunteer_activism' },

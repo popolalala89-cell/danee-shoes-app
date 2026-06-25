@@ -615,29 +615,56 @@ function Orders() {
     }
 
     try {
-      const parts = qrisImage.split(',');
-      if (parts.length < 2) return;
-      const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
-      const base64Data = parts[1];
-
+      // Determine if it's a data URL or a regular URL
+      const isDataUrl = qrisImage.startsWith('data:');
       const isNative = Capacitor.isNativePlatform();
 
       /* ── jalur native: Capacitor Filesystem + Share ── */
       if (isNative) {
         try {
           const fileName = `qris_${Date.now()}.png`;
-          const savedFile = await Filesystem.writeFile({
-            path: fileName,
-            data: base64Data,
-            directory: Directory.Cache,
-          });
 
-          const result = await Share.share({
-            title: 'QRIS Pembayaran Danee Shoes',
-            text: 'Pembayaran Danee Shoes Care — Scan QRIS',
-            files: [savedFile.uri],
-            dialogTitle: 'Bagikan QRIS ke Pelanggan',
-          });
+          if (isDataUrl) {
+            const parts = qrisImage.split(',');
+            if (parts.length < 2) return;
+            const base64Data = parts[1];
+            const savedFile = await Filesystem.writeFile({
+              path: fileName,
+              data: base64Data,
+              directory: Directory.Cache,
+            });
+
+            const result = await Share.share({
+              title: 'QRIS Pembayaran Danee Shoes',
+              text: 'Pembayaran Danee Shoes Care — Scan QRIS',
+              files: [savedFile.uri],
+              dialogTitle: 'Bagikan QRIS ke Pelanggan',
+            });
+          } else {
+            // Regular URL — fetch and convert to base64
+            const response = await fetch(qrisImage);
+            const blob = await response.blob();
+            const base64Data = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const result = reader.result as string;
+                resolve(result.split(',')[1]);
+              };
+              reader.readAsDataURL(blob);
+            });
+            const savedFile = await Filesystem.writeFile({
+              path: fileName,
+              data: base64Data,
+              directory: Directory.Cache,
+            });
+
+            const result = await Share.share({
+              title: 'QRIS Pembayaran Danee Shoes',
+              text: 'Pembayaran Danee Shoes Care — Scan QRIS',
+              files: [savedFile.uri],
+              dialogTitle: 'Bagikan QRIS ke Pelanggan',
+            });
+          }
           // Kapasitor Share sukses — user sudah milih aplikasi share
           return;
         } catch (e: any) {
@@ -651,11 +678,21 @@ function Orders() {
       }
 
       /* ── jalur web: Web Share API ── */
-      const raw = atob(base64Data);
-      const arr = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-      const blob = new Blob([arr], { type: mime });
-      const file = new File([blob], 'QRIS_Danee_Shoes.png', { type: mime });
+      let blob: Blob;
+      if (isDataUrl) {
+        const parts = qrisImage.split(',');
+        if (parts.length < 2) return;
+        const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+        const base64Data = parts[1];
+        const raw = atob(base64Data);
+        const arr = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+        blob = new Blob([arr], { type: mime });
+      } else {
+        const response = await fetch(qrisImage);
+        blob = await response.blob();
+      }
+      const file = new File([blob], 'QRIS_Danee_Shoes.png', { type: blob.type || 'image/png' });
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({

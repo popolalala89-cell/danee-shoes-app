@@ -345,9 +345,8 @@ export interface DashboardSummary {
 export interface Dompet {
   ownerBase: number;
   ownerPct: number;
-  cuciBase: number;
-  cuciPct: number;
-  repairPct: number;
+  spesialisBase: number;
+  spesialisPct: number;
   adminBase: number;
   adminPct: number;
   webBase: number;

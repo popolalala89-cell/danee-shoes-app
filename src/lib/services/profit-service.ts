@@ -495,11 +495,11 @@ export async function getProfitSharingData(
 
             // Distribute base amounts when target is reached (from DB config)
             dompet.ownerBase = configPct['owner']?.baseGaji ?? 50000;
-            dompet.cuciBase = configPct['cuci']?.baseGaji ?? 50000;
+            dompet.spesialisBase = configPct['spesialis']?.baseGaji ?? 50000;
             dompet.adminBase = configPct['admin']?.baseGaji ?? 50000;
             dompet.webBase = configPct['web']?.baseGaji ?? 50000;
             const totalBase =
-              dompet.ownerBase + dompet.cuciBase + dompet.adminBase + dompet.webBase;
+              dompet.ownerBase + dompet.spesialisBase + dompet.adminBase + dompet.webBase;
             dompet.kasBase = Math.max(0, targetOmset - totalBase);
           }
         } else {
@@ -522,11 +522,9 @@ export async function getProfitSharingData(
                   break;
                 case 'spesialis cuci':
                 case 'cuci':
-                  dompet.cuciPct += amount;
-                  break;
                 case 'spesialis repair':
                 case 'repair':
-                  dompet.repairPct += amount;
+                  dompet.spesialisPct += amount;
                   break;
                 case 'admin':
                   dompet.adminPct += amount;
@@ -550,7 +548,7 @@ export async function getProfitSharingData(
 
     // ═══ Laba Ditahan = sisa laba dari target yang belum terdistribusi ═══
     const totalBaseTerpakai =
-      dompet.ownerBase + dompet.cuciBase + dompet.adminBase + dompet.webBase + dompet.kasBase;
+      dompet.ownerBase + dompet.spesialisBase + dompet.adminBase + dompet.webBase + dompet.kasBase;
     dompet.labaDitahan = Math.max(0, targetTerpenuhi - totalBaseTerpakai);
 
     const result: ProfitSharingData = {
@@ -1175,8 +1173,7 @@ export async function getLaporanLabaRugi(
     const WALLET_MAP: { role: string; baseKey: string | null; pctKey: string | null }[] = [
       { role: 'Owner', baseKey: 'ownerBase', pctKey: 'ownerPct' },
       { role: 'Kas (Operasional)', baseKey: 'kasBase', pctKey: 'kasPct' },
-      { role: 'Spesialis Cuci', baseKey: 'cuciBase', pctKey: 'cuciPct' },
-      { role: 'Spesialis Repair', baseKey: null, pctKey: 'repairPct' },
+      { role: 'Spesialis', baseKey: 'spesialisBase', pctKey: 'spesialisPct' },
       { role: 'Admin (Marketing)', baseKey: 'adminBase', pctKey: 'adminPct' },
       { role: 'Engineer Web', baseKey: 'webBase', pctKey: 'webPct' },
       { role: 'Zakat (2.5%)', baseKey: null, pctKey: 'zakatPct' },
@@ -1370,9 +1367,8 @@ function createEmptyDompet(): Dompet {
   return {
     ownerBase: 0,
     ownerPct: 0,
-    cuciBase: 0,
-    cuciPct: 0,
-    repairPct: 0,
+    spesialisBase: 0,
+    spesialisPct: 0,
     adminBase: 0,
     adminPct: 0,
     webBase: 0,
@@ -1411,7 +1407,7 @@ export async function getAllSettingsProfit(): Promise<ServiceResponse<{ roles: R
     }
 
     // Initialize empty for all known roles
-    for (const peran of ['owner', 'kas', 'cuci', 'repair', 'admin', 'web', 'zakat', 'investor']) {
+    for (const peran of ['owner', 'kas', 'spesialis', 'admin', 'web', 'zakat', 'investor']) {
       if (!roles[peran]) roles[peran] = { cleanPct: 0, repairPct: 0, baseGaji: 0 };
     }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getThemeSettings, saveThemeSettings, getWaNumber, saveSetting, getSetting } from '../lib/services/settings-service';
 import { getAllSettingsProfit, saveSettingsProfitRole } from '../lib/services/profit-service';
+import { uploadImage } from '../lib/services/upload-service';
 import * as adminUserService from '../lib/services/admin-user-service';
 import { useAuth } from '../lib/auth';
 import type { AdminUserRow } from '../lib/types-supabase';
@@ -20,8 +21,7 @@ const PRESET_COLORS = [
 const PERAN_LIST = [
   { peran: 'owner',       label: 'Owner',               icon: 'badge' },
   { peran: 'kas',         label: 'Kas (Operasional)',   icon: 'account_balance' },
-  { peran: 'cuci',        label: 'Spesialis Cuci',      icon: 'soap' },
-  { peran: 'repair',      label: 'Spesialis Repair',    icon: 'build' },
+  { peran: 'spesialis',   label: 'Spesialis',          icon: 'handyman' },
   { peran: 'admin',       label: 'Admin (Marketing)',   icon: 'support_agent' },
   { peran: 'web',         label: 'Engineer Web',        icon: 'code' },
   { peran: 'zakat',       label: 'Zakat (2.5%)',        icon: 'volunteer_activism' },
@@ -831,7 +831,15 @@ const Settings: React.FC = () => {
             <button
               className="btn btn-primary"
               onClick={async () => {
-                const res = await saveSetting('qris_image', qrisImage);
+                if (!qrisImage) {
+                  const res = await saveSetting('qris_image', '');
+                  if (res.success) { setSuccess('Gambar QRIS dihapus!'); setTimeout(() => setSuccess(null), 3000); }
+                  else { setError(res.error || 'Gagal menghapus QRIS.'); }
+                  return;
+                }
+                const uploadRes = await uploadImage(qrisImage, 'qris.png');
+                if (!uploadRes.success) { setError(uploadRes.error); return; }
+                const res = await saveSetting('qris_image', uploadRes.data!.url);
                 if (res.success) {
                   setSuccess('Gambar QRIS berhasil disimpan!');
                   setTimeout(() => setSuccess(null), 3000);
@@ -888,7 +896,15 @@ const Settings: React.FC = () => {
             <button
               className="btn btn-primary"
               onClick={async () => {
-                const res = await saveSetting('logo_image', logoImage);
+                if (!logoImage) {
+                  const res = await saveSetting('logo_image', '');
+                  if (res.success) { setSuccess('Logo dihapus!'); setTimeout(() => setSuccess(null), 3000); }
+                  else { setError(res.error || 'Gagal menghapus logo.'); }
+                  return;
+                }
+                const uploadRes = await uploadImage(logoImage, 'logo.png');
+                if (!uploadRes.success) { setError(uploadRes.error); return; }
+                const res = await saveSetting('logo_image', uploadRes.data!.url);
                 if (res.success) {
                   setSuccess('Logo berhasil disimpan!');
                   setTimeout(() => setSuccess(null), 3000);
