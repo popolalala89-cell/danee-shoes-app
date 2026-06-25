@@ -554,7 +554,7 @@ const Settings: React.FC = () => {
   const [logoImage, setLogoImage] = useState('');
 
   // Profit sharing percentages
-  const [profitRoles, setProfitRoles] = useState<Record<string, { persen: number; baseGaji: number }>>({});
+  const [profitRoles, setProfitRoles] = useState<Record<string, { persen: string; baseGaji: number }>>({});
   const [targetOmset, setTargetOmset] = useState(0);
 
   const isSuperAdmin = hasPermission('settings');
@@ -584,7 +584,11 @@ const Settings: React.FC = () => {
         setLogoImage(logoRes.data);
       }
       if (profitRes.success && profitRes.data) {
-        setProfitRoles(profitRes.data.roles);
+        const roles: Record<string, { persen: string; baseGaji: number }> = {};
+        for (const [key, val] of Object.entries(profitRes.data.roles)) {
+          roles[key] = { persen: String(val.persen), baseGaji: val.baseGaji };
+        }
+        setProfitRoles(roles);
         setTargetOmset(profitRes.data.targetOmset);
       }
     } catch (e: any) {
@@ -651,8 +655,8 @@ const Settings: React.FC = () => {
     setSuccess(null);
     try {
       for (const p of PERAN_LIST) {
-        const roleData = profitRoles[p.peran] || { persen: 0, baseGaji: 0 };
-        const res = await saveSettingsProfitRole(p.peran, p.label, roleData.persen, targetOmset, roleData.baseGaji);
+        const roleData = profitRoles[p.peran] || { persen: '0', baseGaji: 0 };
+        const res = await saveSettingsProfitRole(p.peran, p.label, parseFormNumber(roleData.persen), targetOmset, roleData.baseGaji);
         if (!res.success) {
           setError(res.error || `Gagal menyimpan ${p.label}`);
           setSaving(false);
@@ -669,10 +673,9 @@ const Settings: React.FC = () => {
   };
 
   const updatePct = (peran: string, val: string) => {
-    const num = parseFormNumber(val) || 0;
     setProfitRoles((prev) => ({
       ...prev,
-      [peran]: { ...(prev[peran] || { persen: 0, baseGaji: 0 }), persen: num },
+      [peran]: { ...(prev[peran] || { persen: '0', baseGaji: 0 }), persen: val },
     }));
   };
 
@@ -680,7 +683,7 @@ const Settings: React.FC = () => {
     const num = parseInt(val.replace(/\D/g, '')) || 0;
     setProfitRoles((prev) => ({
       ...prev,
-      [peran]: { ...(prev[peran] || { persen: 0, baseGaji: 0 }), baseGaji: num },
+      [peran]: { ...(prev[peran] || { persen: '0', baseGaji: 0 }), baseGaji: num },
     }));
   };
 
@@ -936,7 +939,7 @@ const Settings: React.FC = () => {
         {/* Per-role percentages */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-sm)', marginBottom: 'var(--space-md)' }}>
           {PERAN_LIST.map((p) => {
-            const roleData = profitRoles[p.peran] || { persen: 0, baseGaji: 0 };
+            const roleData = profitRoles[p.peran] || { persen: '0', baseGaji: 0 };
             return (
               <div key={p.peran} style={{ background: '#f8fafc', borderRadius: 'var(--radius-sm)', padding: 'var(--space-sm)' }}>
                 <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><span className="mat-icon" style={{ fontSize: 18 }}>{p.icon}</span> {p.label}</div>
