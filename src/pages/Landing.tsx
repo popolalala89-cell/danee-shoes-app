@@ -5,7 +5,6 @@ import { getAll as getAllKonten, getAllDiskon } from '../lib/services/konten-ser
 import { getWaNumber, getSetting } from '../lib/services/settings-service';
 import { trackOrder } from '../lib/services/order-service';
 import { formatCurrency } from '../lib/utils';
-import Settings from './Settings';
 import { useAuth } from '../lib/auth';
 import type { MenuJasaRow, MenuStoreRow, KontenWebRow, OrderRow, DiskonEventRow } from '../lib/types-supabase';
 
@@ -56,7 +55,7 @@ export default function Landing() {
   const [jasaList, setJasaList] = useState<MenuJasaRow[]>([]);
   const [storeList, setStoreList] = useState<MenuStoreRow[]>([]);
   const [kontenList, setKontenList] = useState<KontenWebRow[]>([]);
-  const [diskonList, setDiskonList] = useState<DiskonEventRow[]>([]);
+  const [_diskonList, setDiskonList] = useState<DiskonEventRow[]>([]);
   const [waNumber, setWaNumber] = useState('6285111619226');
 
   // Error states per section
@@ -79,10 +78,10 @@ export default function Landing() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   // Delivery modal (legacy — replaced by cart)
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalService, setModalService] = useState<MenuJasaRow | null>(null);
-  const [deliveryMethod, setDeliveryMethod] = useState<'antar' | 'jemput'>('antar');
-  const [pickupAddress, setPickupAddress] = useState('');
+  const [_modalOpen, setModalOpen] = useState(false);
+  const [_modalService, setModalService] = useState<MenuJasaRow | null>(null);
+  const [_deliveryMethod, setDeliveryMethod] = useState<'antar' | 'jemput'>('antar');
+  const [_pickupAddress, setPickupAddress] = useState('');
 
   // Lightbox
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -97,12 +96,12 @@ export default function Landing() {
   const [cartPaymentMethod, setCartPaymentMethod] = useState<'nanti' | 'qris'>('nanti');
 
   // Bottom nav tab
-  const [activeTab, setActiveTab] = useState<'beranda' | 'cleaning' | 'repair' | 'produk' | 'settings'>('beranda');
+  const [activeTab, setActiveTab] = useState<'beranda' | 'cleaning' | 'repair' | 'produk'>('beranda');
   const [tabKey, setTabKey] = useState(0);
   const [tabDirection, setTabDirection] = useState<'forward' | 'backward'>('forward');
   const prevTabRef = useRef<string>('beranda');
 
-  const tabIdOrder = ['beranda', 'cleaning', 'repair', 'produk', 'settings'];
+  const tabIdOrder = ['beranda', 'cleaning', 'repair', 'produk'];
   const handleSetActiveTab = (tab: typeof activeTab) => {
     const prevIdx = tabIdOrder.indexOf(prevTabRef.current);
     const currIdx = tabIdOrder.indexOf(tab);
@@ -282,25 +281,6 @@ export default function Landing() {
     setDeliveryMethod('antar');
     setPickupAddress('');
     setModalOpen(true);
-  };
-
-  const confirmOrder = () => {
-    if (!modalService) return;
-    const methodLabel =
-      deliveryMethod === 'antar'
-        ? 'Antar Sendiri (Drop-off)'
-        : 'Jemput (Pickup)';
-    let msg = `Halo Danee Shoes Care! Saya ingin order jasa berikut:\n\n`;
-    msg += `*Layanan:* ${modalService.nama_layanan}\n`;
-    msg += `*Harga:* ${formatCurrency(modalService.harga)}\n`;
-    msg += `*Metode Penyerahan:* ${methodLabel}\n`;
-    if (deliveryMethod === 'jemput' && pickupAddress.trim()) {
-      msg += `*Alamat Jemput:* ${pickupAddress.trim()}\n`;
-    }
-    msg += `\nTerima kasih.`;
-    window.open(`${WA_BASE}?text=${encodeURIComponent(msg)}`, '_blank');
-    setModalOpen(false);
-    setModalService(null);
   };
 
   /* ── Cart functions ───────────────────────────────────── */
@@ -1269,7 +1249,7 @@ Saya mau order layanan berikut:
           <div className={`settings-popup${menuOpen ? ' open' : ''}`}>
             <button onClick={() => {
               setMenuOpen(false);
-              handleSetActiveTab('settings');
+              window.location.href = '/admin/orders';
             }}>
               <span style={{ fontSize: '1.1rem' }}>⚙️</span> Pengaturan
             </button>
@@ -1760,11 +1740,8 @@ Saya mau order layanan berikut:
 
           </div>
         )}
-
         {activeTab === 'repair' && (
-          <div className={`tab-page page-slide-${tabDirection}`} key={tabKey}>
-      {/* ===== 5. DAFTAR REPAIR ===== */}
-      <section id="repair" className="shopee-section-bg" style={{ paddingTop: 8, paddingBottom: 4 }}>
+          <section id="repair" className="shopee-section-bg" style={{ paddingTop: 8, paddingBottom: 4 }}>
         <div className="shopee-section-header">
           <h2>🔧 Repair</h2>
           <a href={`${WA_BASE}?text=Halo%20Danee%20Shoes%20Care%20Saya%20mau%20order%20repair...`} target="_blank" rel="noopener noreferrer">Hubungi Kami</a>
@@ -1836,13 +1813,6 @@ Saya mau order layanan berikut:
         )}
       </section>
 
-          </div>
-        )}
-
-        {activeTab === 'settings' && (
-          <div className={`tab-page page-slide-${tabDirection}`} key={tabKey} style={{ padding: 0, background: '#f8fafc' }}>
-            <Settings />
-          </div>
         )}
       </div>
 

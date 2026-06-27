@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getProfitSharingData, getProfitHistorySummary, getAuditOrderDetails, getLaporanLabaRugi } from '../lib/services/profit-service';
 import { formatCurrency } from '../lib/utils';
-import type { ProfitSharingData, ProfitHistory, AuditOrderDetail, AuditOrderItem, LaporanLabaRugi } from '../lib/types-supabase';
+import type { ProfitSharingData, ProfitHistory, AuditOrderDetail, LaporanLabaRugi } from '../lib/types-supabase';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
@@ -416,10 +416,9 @@ const ProfitSharing: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {auditOrders.map((ao, idx) => {
+                        {auditOrders.map((ao, _idx) => {
                           const isOpen = expandedOrders.has(ao.kode);
-                          const totalSelisih = Math.abs(ao.gross - ao.alokasiHPP - ao.komisi - ao.nett);
-                          return (
+                                                    return (
                             <React.Fragment key={ao.kode}>
                               <tr
                                 onClick={() => toggleOrderExpand(ao.kode)}

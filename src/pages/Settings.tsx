@@ -5,7 +5,7 @@ import { uploadImage } from '../lib/services/upload-service';
 import * as adminUserService from '../lib/services/admin-user-service';
 import { useAuth } from '../lib/auth';
 import type { AdminUserRow } from '../lib/types-supabase';
-import { formatCurrency, parseFormNumber } from '../lib/utils';
+import { parseFormNumber } from '../lib/utils';
 
 const PRESET_COLORS = [
   { primary: '#034BB9', hover: '#023C94', label: 'Biru (Default)' },

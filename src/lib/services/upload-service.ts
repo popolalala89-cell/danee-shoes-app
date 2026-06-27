@@ -44,7 +44,7 @@ export async function uploadImage(
     const file = new File([blob], uniqueName, { type: mimeType });
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
+    const { data: _data, error } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(`public/${uniqueName}`, file, {
         cacheControl: '3600',

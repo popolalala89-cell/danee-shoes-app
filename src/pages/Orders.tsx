@@ -3,7 +3,7 @@ import { getAll as getOrders, create as createOrder, updateStatus as updateOrder
 import { getAllDiskon, getAllReferral } from '../lib/services/konten-service';
 import { getAll as getMenuJasa } from '../lib/services/menu-jasa-service';
 import { formatCurrency, formatDate } from '../lib/utils';
-import { getSetting, saveSetting } from '../lib/services/settings-service';
+import { getSetting } from '../lib/services/settings-service';
 import type { OrderRow, OrderStatus, DiskonEventRow, MenuJasaRow, ReferralRow } from '../lib/types-supabase';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -342,7 +342,6 @@ function Orders() {
     if (!o) return;
 
     const items = parseLayananItems(o.layanan || '');
-    const subtotal = items.reduce((s, i) => s + i.hargaSatuan * i.qty, 0);
     const diskonNominal = extractDiskonNominal(o.diskon_info || '');
     const total = o.harga ?? 0;
     const totalAsli = total + diskonNominal;
@@ -634,7 +633,7 @@ function Orders() {
               directory: Directory.Cache,
             });
 
-            const result = await Share.share({
+            await Share.share({
               title: 'QRIS Pembayaran Danee Shoes',
               text: 'Pembayaran Danee Shoes Care — Scan QRIS',
               files: [savedFile.uri],
@@ -658,8 +657,7 @@ function Orders() {
               directory: Directory.Cache,
             });
 
-            const result = await Share.share({
-              title: 'QRIS Pembayaran Danee Shoes',
+            await Share.share({title: 'QRIS Pembayaran Danee Shoes',
               text: 'Pembayaran Danee Shoes Care — Scan QRIS',
               files: [savedFile.uri],
               dialogTitle: 'Bagikan QRIS ke Pelanggan',
@@ -1276,7 +1274,6 @@ function Orders() {
               {/* Anda Hemat — include per-item + global diskon (seperti AppScript) */}
               {(() => {
                 const items = parseLayananItems(cetakStruk.layanan || '');
-                const subtotal = items.reduce((s, i) => s + i.hargaSatuan * i.qty, 0);
                 const diskonNominal = extractDiskonNominal(cetakStruk.diskon_info || '');
                 // Hitung total hemat: per-item (selisih normal - bayar) + global
                 let perItemHemat = 0;

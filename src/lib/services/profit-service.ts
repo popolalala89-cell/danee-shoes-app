@@ -13,8 +13,6 @@ import type {
   AuditOrderDetail,
   AuditOrderItem,
   LaporanLabaRugi,
-  LaporanPendapatan,
-  LaporanBiaya,
   LaporanDistribusiRole,
   Dompet,
   KomisiBreakdown,
@@ -349,7 +347,7 @@ export async function getProfitSharingData(
           if (!cleanStr) continue;
 
           // Remove brackets content
-          const noBrackets = cleanStr.replace(/[.*?]/g, '').trim();
+          const noBrackets = cleanStr.replace(/\[.*?\]/g, '').trim();
 
           // Extract quantity (Nx pattern)
           const qtyMatch = noBrackets.match(/\(?([0-9]+)\s*[xX]\s*\)?/i);
@@ -585,7 +583,7 @@ export async function getAuditOrderDetails(
 ): Promise<ServiceResponse<AuditOrderDetail[]>> {
   try {
     const supabase = getSupabase();
-    const { startDate, endDate, month: m, year: y } = getMonthRange(month, year);
+    const { startDate, endDate, month: _m, year: _y } = getMonthRange(month, year);
 
     // ===== 1. Fetch reference data =====
     const [

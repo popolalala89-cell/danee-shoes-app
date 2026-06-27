@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { getAll as getAllKonten, createKonten, updateKonten, deleteKonten } from '../lib/services/konten-service';
-import { formatDate } from '../lib/utils';
 import type { KontenWebRow } from '../lib/types-supabase';
 
 const KATEGORI_TABS = ['Semua', 'Edukasi', 'Testimoni', 'Instagram', 'YouTube'] as const;

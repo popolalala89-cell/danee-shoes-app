@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { getStoreInventory, getBahanInventory, stockOpname, stockOpnameBahan, purchaseStock, purchaseBahan, addBahan } from '../lib/services/inventory-service';
-import { formatCurrency } from '../lib/utils';
 import type { InventoryStoreRow, InventoryBahanRow } from '../lib/types-supabase';
 
 const Inventory: React.FC = () => {
