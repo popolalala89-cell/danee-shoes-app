@@ -1224,46 +1224,31 @@ Saya mau order layanan berikut:
           /* ─── Tracking ─── */
           .tracking-modern input { font-size: 0.95rem; padding: 12px 16px; }
 
-          /* ─── Footer ─── */
+          /* ─── Footer (centered on all screens) ─── */
           .footer-minimal {
             max-width: 1200px;
             margin: 0 auto;
             padding: 48px 40px;
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 12px 20px;
-            text-align: left;
-            align-items: start;
+            text-align: center;
           }
           .footer-minimal .fm-brand {
-            justify-content: flex-start;
+            justify-content: center;
             font-size: 1.2rem;
-            grid-row: 1;
-            grid-column: 1;
           }
           .footer-minimal .fm-tagline {
-            grid-column: 1;
-            grid-row: 2;
             font-size: 0.9rem;
           }
           .footer-minimal .fm-wa {
-            justify-self: end;
-            grid-row: 1;
-            grid-column: 2;
-            margin: 0;
+            margin: 0 auto 10px;
             font-size: 0.9rem;
             padding: 12px 28px;
           }
           .footer-minimal .fm-links {
-            justify-content: flex-start;
-            grid-column: 1;
-            grid-row: 3;
+            justify-content: center;
             gap: 20px;
             font-size: 0.85rem;
           }
           .footer-minimal .fm-copy {
-            grid-column: 1 / -1;
-            grid-row: 4;
             text-align: center;
             padding-top: 20px;
             border-top: 1px solid #eee;
