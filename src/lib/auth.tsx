@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanup = bootstrap();
     return () => {
       cancelled = true;
-      cleanup.then((fn) => fn?.());
+      cleanup.then((fn) => { if (typeof fn === 'function') fn(); });
     };
   }, []);
 

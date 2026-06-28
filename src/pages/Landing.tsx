@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getAll } from '../lib/services/menu-jasa-service';
 import { getAllActive } from '../lib/services/menu-store-service';
-import { getAll as getAllKonten, getAllDiskon } from '../lib/services/konten-service';
+import { getAll as getAllKonten } from '../lib/services/konten-service';
+import { getAllDiskon } from '../lib/services/discount-service';
 import { getWaNumber, getSetting } from '../lib/services/settings-service';
 import { trackOrder } from '../lib/services/order-service';
 import { formatCurrency } from '../lib/utils';
@@ -9,6 +10,11 @@ import { useAuth } from '../lib/auth';
 import type { MenuJasaRow, MenuStoreRow, KontenWebRow, OrderRow, DiskonEventRow } from '../lib/types-supabase';
 
 /* ── Helpers ─────────────────────────────────────────────────── */
+function stripHtml(str: string): string {
+  if (!str) return '';
+  return str.replace(/<[^>]*>/g, '').trim();
+}
+
 function getStatusBadgeClass(status: string): string {
   switch (status) {
     case 'Selesai': return 'badge-selesai';
@@ -1282,7 +1288,7 @@ Saya mau order layanan berikut:
                 ) : (
                   <div className="banner-slide no-img">
                     <h3>👟 {item.keterangan}</h3>
-                    <p>{item.isi_konten || 'Tips & edukasi perawatan sepatu dari Danee Shoes Care'}</p>
+                    <p>{stripHtml(item.isi_konten) || 'Tips & edukasi perawatan sepatu dari Danee Shoes Care'}</p>
                   </div>
                 )}
               </div>

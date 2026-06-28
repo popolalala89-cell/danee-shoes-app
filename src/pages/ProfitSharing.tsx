@@ -145,7 +145,7 @@ const ProfitSharing: React.FC = () => {
     }
   };
 
-  const penCapaian = data ? (data.omsetNett / (data.target || 1)) * 100 : 0;
+  const penCapaian = data ? (data.target > 0 ? (data.omsetNett / data.target) * 100 : 0) : 0;
   const modePersen = data ? data.omsetNett >= data.target : false;
 
   // Sistem Audit calculations (like AppScript)

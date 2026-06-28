@@ -1,36 +1,26 @@
-// Danee Shoes Care — Konten Service
-// Content management: konten_web CRUD only
+// Danee Shoes Care — Discount Service
+// Diskon event management: CRUD
 
 import { getSupabase } from '../supabase';
 import type {
-  KontenWebRow,
-  KontenWebCreate,
-  KontenWebUpdate,
+  DiskonEventRow,
+  DiskonEventCreate,
+  DiskonEventUpdate,
   ServiceResponse,
 } from '../types-supabase';
 
-// ===== KONTEN WEB =====
-
-const KONTEN_TABLE = 'konten_web';
+const DISKON_TABLE = 'diskon_event';
 
 /**
- * Get all konten web with optional kategori filter
+ * Get all diskon events
  */
-export async function getAll(
-  kategori?: string
-): Promise<ServiceResponse<KontenWebRow[]>> {
+export async function getAllDiskon(): Promise<ServiceResponse<DiskonEventRow[]>> {
   try {
     const supabase = getSupabase();
-    let query = supabase
-      .from(KONTEN_TABLE)
+    const { data, error } = await supabase
+      .from(DISKON_TABLE)
       .select('*')
       .order('created_at', { ascending: false });
-
-    if (kategori) {
-      query = query.eq('kategori', kategori);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       return { success: false, error: error.message };
@@ -38,20 +28,20 @@ export async function getAll(
 
     return { success: true, data: data || [] };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Gagal mengambil data konten' };
+    return { success: false, error: err.message || 'Gagal mengambil data diskon' };
   }
 }
 
 /**
- * Create new konten web
+ * Create new diskon event
  */
-export async function createKonten(
-  payload: KontenWebCreate
-): Promise<ServiceResponse<KontenWebRow>> {
+export async function createDiskon(
+  payload: DiskonEventCreate
+): Promise<ServiceResponse<DiskonEventRow>> {
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
-      .from(KONTEN_TABLE)
+      .from(DISKON_TABLE)
       .insert(payload)
       .select()
       .single();
@@ -62,21 +52,21 @@ export async function createKonten(
 
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Gagal membuat konten' };
+    return { success: false, error: err.message || 'Gagal membuat event diskon' };
   }
 }
 
 /**
- * Update konten web
+ * Update diskon event
  */
-export async function updateKonten(
+export async function updateDiskon(
   id: string,
-  payload: KontenWebUpdate
-): Promise<ServiceResponse<KontenWebRow>> {
+  payload: DiskonEventUpdate
+): Promise<ServiceResponse<DiskonEventRow>> {
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
-      .from(KONTEN_TABLE)
+      .from(DISKON_TABLE)
       .update(payload)
       .eq('id', id)
       .select()
@@ -88,20 +78,20 @@ export async function updateKonten(
 
     return { success: true, data };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Gagal mengupdate konten' };
+    return { success: false, error: err.message || 'Gagal mengupdate event diskon' };
   }
 }
 
 /**
- * Delete konten web (hard delete by row)
+ * Delete diskon event (hard delete)
  */
-export async function deleteKonten(
+export async function deleteDiskon(
   id: string
 ): Promise<ServiceResponse> {
   try {
     const supabase = getSupabase();
     const { error } = await supabase
-      .from(KONTEN_TABLE)
+      .from(DISKON_TABLE)
       .delete()
       .eq('id', id);
 
@@ -111,6 +101,6 @@ export async function deleteKonten(
 
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Gagal menghapus konten' };
+    return { success: false, error: err.message || 'Gagal menghapus event diskon' };
   }
 }

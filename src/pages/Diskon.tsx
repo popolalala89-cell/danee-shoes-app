@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAllDiskon, createDiskon, updateDiskon, deleteDiskon } from '../lib/services/konten-service';
+import { getAllDiskon, createDiskon, updateDiskon, deleteDiskon } from '../lib/services/discount-service';
 import { formatCurrency } from '../lib/utils';
 import type { DiskonEventRow } from '../lib/types-supabase';
 

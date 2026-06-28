@@ -60,12 +60,6 @@ export async function getRingkasan(period?: string): Promise<ServiceResponse<Das
       (o) => o.status !== 'Selesai' && o.status !== 'Batal'
     );
 
-    // Orders by status
-    const statusCounts: Record<string, number> = {};
-    for (const o of orders) {
-      statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
-    }
-
     return {
       success: true,
       data: {
@@ -75,7 +69,6 @@ export async function getRingkasan(period?: string): Promise<ServiceResponse<Das
         lowStock,
         topLayanan: calculateTopLayanan(orders, selectedPeriod),
         topProduk: calculateTopProduk(sales, selectedPeriod),
-        ...(statusCounts as any),
       },
     };
   } catch (err: any) {

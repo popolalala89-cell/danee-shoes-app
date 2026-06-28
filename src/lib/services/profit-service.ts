@@ -111,6 +111,194 @@ function parsePercent(val: number | string): number {
 }
 
 /**
+ * Shared helper: parse structured order_items or fallback text-based layanan
+ * for a single order. Returns parsed items with HPP, gross, and qty totals.
+ * Used by both profit-sharing engine and audit detail.
+ */
+function parseOrderItemsForOrder(
+  order: OrderRow,
+  orderItemsByOrder: Record<string, any[]>,
+  configHPP: Record<string, { hpp: number; kategori: string }>,
+  keysHPP: string[],
+  hargaAsliMenu: Record<string, number>,
+  hargaBeliProdukById: Record<string, number>,
+  hargaBeliProdukByName: Record<string, number>,
+): { items: AuditOrderItem[]; grossTotal: number; qtyTotal: number } {
+  const hargaFinalNota = order.harga;
+  const layananText = order.layanan || '';
+  let orderGrossTotal = 0;
+  let orderQtyTotal = 0;
+  const items: AuditOrderItem[] = [];
+
+  // ═══ Try structured order_items first (FASE 1) ═══
+  const structuredItems = orderItemsByOrder[order.id];
+  if (structuredItems && structuredItems.length > 0) {
+    for (const si of structuredItems) {
+      const qty = si.qty || 1;
+      const hargaSatuan = si.harga_satuan || 0;
+      const grossItem = hargaSatuan * qty;
+      orderGrossTotal += grossItem;
+      orderQtyTotal += qty;
+
+      const itemName = (si.nama_item || '').toLowerCase();
+      let itemHPP = 0;
+      let jalur: 'A' | 'B' = 'A';
+      let rn = itemName.replace(/\[.*?\]/g, '').trim();
+
+      // HPP via keyword matching (longest match first)
+      for (const keyMatch of keysHPP) {
+        if (!rn) break;
+        if (rn.includes(keyMatch)) {
+          itemHPP += configHPP[keyMatch].hpp;
+          if (configHPP[keyMatch].kategori === 'REPAIR') jalur = 'B';
+          rn = rn.replace(keyMatch, '').trim();
+        }
+      }
+
+      // Produk: if no HPP from keyword, use harga_beli from menu_store
+      if (itemHPP === 0 && (si.tipe === 'produk' || si.store_id)) {
+        const hb = si.store_id ? hargaBeliProdukById[si.store_id] : 0;
+        if (hb > 0) itemHPP = hb;
+      }
+
+      items.push({
+        nama: si.nama_item || '',
+        qty,
+        hargaSatuan,
+        gross: grossItem,
+        hpp: itemHPP * qty,
+        jalur,
+      });
+    }
+  } else {
+    // ═══ Fallback: parse from orders.layanan text (OLD orders) ═══
+    const textItems = layananText.split(/[,;\n]+/);
+
+    const cariHargaAsli = (namaOrder: string): number => {
+      const nama = namaOrder.trim().toLowerCase();
+      if (!nama) return 0;
+      if (hargaAsliMenu[nama] !== undefined) return hargaAsliMenu[nama];
+      const menuKeys = Object.keys(hargaAsliMenu);
+      for (const key of menuKeys) {
+        if (key.includes(nama)) return hargaAsliMenu[key];
+      }
+      for (const key of menuKeys) {
+        if (nama.includes(key)) return hargaAsliMenu[key];
+      }
+      return 0;
+    };
+
+    for (const itemStr of textItems) {
+      const cleanStr = itemStr.trim();
+      if (!cleanStr) continue;
+
+      const noBrackets = cleanStr.replace(/\[.*?\]/g, '').trim();
+      const qtyMatch = noBrackets.match(/\(?([0-9]+)\s*[xX]\s*\)?/i);
+      let qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+      if (qty < 1) qty = 1;
+
+      const remainingName = noBrackets
+        .replace(/\(?\s*[0-9]+\s*[xX]\s*\)?/gi, '')
+        .replace(/@\s*[Rr][Pp]\s*[0-9.]+/gi, '')
+        .replace(/[Rr][Pp]\s*[0-9.]+/gi, '')
+        .replace(/[•–—]/g, '')
+        .trim()
+        .toLowerCase();
+
+      let hargaAsliSatuan = cariHargaAsli(remainingName);
+      if (hargaAsliSatuan === 0) {
+        const prcMatch = cleanStr.match(/[Rr][Pp]\s*([0-9.]+)/i);
+        if (prcMatch) hargaAsliSatuan = parseInt(prcMatch[1].replace(/\./g, ''));
+      }
+
+      // Auto-detect quantity for single-item orders with price discrepancy
+      if (qty === 1 && textItems.length === 1 && hargaAsliSatuan > 0 && hargaFinalNota > 0) {
+        if (hargaFinalNota >= hargaAsliSatuan * 1.4) {
+          qty = Math.round(hargaFinalNota / hargaAsliSatuan);
+          if (qty < 2) qty = 2;
+        }
+      }
+
+      const grossItem = hargaAsliSatuan * qty;
+      orderGrossTotal += grossItem;
+      orderQtyTotal += qty;
+
+      // === HPP matching (longest match first) ===
+      let itemHPP = 0;
+      let jalur: 'A' | 'B' = 'A';
+      let rn = remainingName;
+
+      for (const keyMatch of keysHPP) {
+        if (!rn) break;
+        if (rn.includes(keyMatch)) {
+          itemHPP += configHPP[keyMatch].hpp;
+          if (configHPP[keyMatch].kategori === 'REPAIR') jalur = 'B';
+          rn = rn.replace(keyMatch, '').trim();
+        }
+      }
+
+      // Reverse matching
+      if (itemHPP === 0 && rn) {
+        for (const keyRev of keysHPP) {
+          if (keyRev.includes(rn)) {
+            itemHPP += configHPP[keyRev].hpp;
+            if (configHPP[keyRev].kategori === 'REPAIR') jalur = 'B';
+            break;
+          }
+        }
+      }
+
+      // Produk fallback: no HPP from keyword, use harga_beli from menu_store
+      if (itemHPP === 0) {
+        const hb = hargaBeliProdukByName[remainingName] || 0;
+        if (hb > 0) itemHPP = hb;
+      }
+
+      items.push({
+        nama: remainingName || cleanStr,
+        qty,
+        hargaSatuan: hargaAsliSatuan,
+        gross: grossItem,
+        hpp: itemHPP * qty,
+        jalur,
+      });
+    }
+
+    // === Scan notes (catatan) for repair keywords (OLD orders only) ===
+    const catatan = (order.catatan || '').toLowerCase();
+    if (catatan) {
+      for (const keyRepair of keysHPP) {
+        const cfg = configHPP[keyRepair];
+        if (cfg && cfg.kategori === 'REPAIR' && catatan.includes(keyRepair)) {
+          const alreadyInLayanan = layananText.toLowerCase().includes(keyRepair);
+          if (!alreadyInLayanan) {
+            let repairQty = 1;
+            if (/semua|2 pasang|3 pasang/i.test(catatan)) {
+              repairQty = orderQtyTotal > 0 ? orderQtyTotal : 1;
+            }
+            items.push({
+              nama: `[catatan] ${keyRepair}`,
+              qty: repairQty,
+              hargaSatuan: 0,
+              gross: 0,
+              hpp: cfg.hpp * repairQty,
+              jalur: 'B',
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Fallback: if gross couldn't be calculated but we have items, use order total
+  if (orderGrossTotal === 0 && items.length > 0 && hargaFinalNota > 0) {
+    orderGrossTotal = hargaFinalNota;
+  }
+
+  return { items, grossTotal: orderGrossTotal, qtyTotal: orderQtyTotal };
+}
+
+/**
  * Calculate profit sharing data for a given month/year
  *
  * Engine logic (ported from GAS):
@@ -276,174 +464,18 @@ export async function getProfitSharingData(
       if (oDate < sDate || oDate > eDate) continue;
 
       const hargaFinalNota = order.harga;
-      const layananText = order.layanan || '';
       let orderGrossTotal = 0;
-      let orderQtyTotal = 0;
-      const parsedItems: Array<{ gross: number; totalHPP: number; jalur: 'A' | 'B' }> = [];
-
-      // ═══ Try structured order_items first (FASE 1) ═══
-      const structuredItems = orderItemsByOrder[order.id];
-      if (structuredItems && structuredItems.length > 0) {
-        // Use structured data — HPP from configHPP lookup by nama_item
-        for (const si of structuredItems) {
-          const qty = si.qty || 1;
-          const hargaSatuan = si.harga_satuan || 0;
-          const grossItem = hargaSatuan * qty;
-          orderGrossTotal += grossItem;
-          orderQtyTotal += qty;
-
-          // HPP via keyword matching on nama_item (still needed for backward compat)
-          const itemName = (si.nama_item || '').toLowerCase();
-          let itemHPP = 0;
-          let jalur: 'A' | 'B' = 'A';
-          let rn = itemName;
-
-          // Remove discount label in brackets for HPP matching
-          const cleanForHPP = rn.replace(/\[.*?\]/g, '').trim();
-          rn = cleanForHPP;
-
-          for (const keyMatch of keysHPP) {
-            if (!rn) break;
-            if (rn.includes(keyMatch)) {
-              itemHPP += configHPP[keyMatch].hpp;
-              if (configHPP[keyMatch].kategori === 'REPAIR') jalur = 'B';
-              rn = rn.replace(keyMatch, '').trim();
-            }
-          }
-
-          // Produk: jika tidak ada HPP dari keyword match, pakai harga_beli dari menu_store
-          if (itemHPP === 0 && (si.tipe === 'produk' || si.store_id)) {
-            const hb = si.store_id ? hargaBeliProdukById[si.store_id] : 0;
-            if (hb > 0) itemHPP = hb;
-          }
-
-          parsedItems.push({ gross: grossItem, totalHPP: itemHPP * qty, jalur });
-        }
-      } else {
-        // ═══ Fallback: parse from orders.layanan text (OLD orders) ═══
-        const items = layananText.split(/[,;\n]+/);
-
-        // Helper: find original price
-        const cariHargaAsli = (namaOrder: string): number => {
-          const nama = namaOrder.trim().toLowerCase();
-          if (!nama) return 0;
-          if (hargaAsliMenu[nama] !== undefined) return hargaAsliMenu[nama];
-
-          const menuKeys = Object.keys(hargaAsliMenu);
-          // Forward match
-          for (const key of menuKeys) {
-            if (key.includes(nama)) return hargaAsliMenu[key];
-          }
-          // Reverse match
-          for (const key of menuKeys) {
-            if (nama.includes(key)) return hargaAsliMenu[key];
-          }
-          return 0;
-        };
-
-        // Parse each item from text
-        for (const itemStr of items) {
-          const cleanStr = itemStr.trim();
-          if (!cleanStr) continue;
-
-          // Remove brackets content
-          const noBrackets = cleanStr.replace(/\[.*?\]/g, '').trim();
-
-          // Extract quantity (Nx pattern)
-          const qtyMatch = noBrackets.match(/\(?([0-9]+)\s*[xX]\s*\)?/i);
-          let qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
-          if (qty < 1) qty = 1;
-
-          // Clean name from quantity markers and price annotations
-          const remainingName = noBrackets
-            .replace(/\(?\s*[0-9]+\s*[xX]\s*\)?/gi, '')
-            .replace(/@\s*[Rr][Pp]\s*[0-9.]+/gi, '')
-            .replace(/[Rr][Pp]\s*[0-9.]+/gi, '')
-            .replace(/[•–—]/g, '')
-            .trim()
-            .toLowerCase();
-
-          let hargaAsliSatuan = cariHargaAsli(remainingName);
-
-          // If not found, try extracting inline price
-          if (hargaAsliSatuan === 0) {
-            const prcMatch = cleanStr.match(/[Rr][Pp]\s*([0-9.]+)/i);
-            if (prcMatch) {
-              hargaAsliSatuan = parseInt(prcMatch[1].replace(/\./g, ''));
-            }
-          }
-
-          // Auto-detect quantity for single-item orders with price discrepancy
-          if (qty === 1 && items.length === 1 && hargaAsliSatuan > 0 && hargaFinalNota > 0) {
-            if (hargaFinalNota >= hargaAsliSatuan * 1.4) {
-              qty = Math.round(hargaFinalNota / hargaAsliSatuan);
-              if (qty < 2) qty = 2;
-            }
-          }
-
-          const grossItem = hargaAsliSatuan * qty;
-          orderGrossTotal += grossItem;
-          orderQtyTotal += qty;
-
-          // === HPP matching (longest match first) ===
-          let itemHPP = 0;
-          let jalur: 'A' | 'B' = 'A';
-          let matchedForward = false;
-          let rn = remainingName;
-
-          for (const keyMatch of keysHPP) {
-            if (!rn) break;
-            if (rn.includes(keyMatch)) {
-              itemHPP += configHPP[keyMatch].hpp;
-              if (configHPP[keyMatch].kategori === 'REPAIR') jalur = 'B';
-              rn = rn.replace(keyMatch, '').trim();
-              matchedForward = true;
-            }
-          }
-
-          // Reverse matching
-          if (!matchedForward && rn) {
-            for (const keyRev of keysHPP) {
-              if (keyRev.includes(rn)) {
-                itemHPP += configHPP[keyRev].hpp;
-                if (configHPP[keyRev].kategori === 'REPAIR') jalur = 'B';
-                break;
-              }
-            }
-          }
-
-          // Produk fallback: jika tidak ada HPP dari keyword match, pakai harga_beli dari menu_store
-          if (itemHPP === 0) {
-            const hb = hargaBeliProdukByName[remainingName] || 0;
-            if (hb > 0) itemHPP = hb;
-          }
-
-          parsedItems.push({ gross: grossItem, totalHPP: itemHPP * qty, jalur });
-        }
-
-        // === Scan notes (catatan) for repair keywords (OLD orders only) ===
-        const catatan = (order.catatan || '').toLowerCase();
-        if (catatan) {
-          for (const keyRepair of keysHPP) {
-            const cfg = configHPP[keyRepair];
-            if (cfg && cfg.kategori === 'REPAIR' && catatan.includes(keyRepair)) {
-              const alreadyInLayanan = layananText.toLowerCase().includes(keyRepair);
-              if (!alreadyInLayanan) {
-                let repairQty = 1;
-                if (/semua|2 pasang|3 pasang/i.test(catatan)) {
-                  repairQty = orderQtyTotal > 0 ? orderQtyTotal : 1;
-                }
-                parsedItems.push({ gross: 0, totalHPP: cfg.hpp * repairQty, jalur: 'B' });
-              }
-            }
-          }
-        }
-      }
-
-      // Fallback: if gross couldn't be calculated but we have items, use order total
-      if (orderGrossTotal === 0 && parsedItems.length > 0 && hargaFinalNota > 0) {
-        orderGrossTotal = hargaFinalNota;
-      }
+      // Parse structured or text-based items (shared logic)
+      const parseResult = parseOrderItemsForOrder(
+        order, orderItemsByOrder, configHPP, keysHPP, hargaAsliMenu,
+        hargaBeliProdukById, hargaBeliProdukByName,
+      );
+      const parsedItems = parseResult.items.map(i => ({
+        gross: i.gross,
+        totalHPP: i.hpp,
+        jalur: i.jalur,
+      }));
+      orderGrossTotal = parseResult.grossTotal;
       if (orderGrossTotal === 0) continue;
 
       // === Referral commission ===
@@ -627,6 +659,17 @@ export async function getAuditOrderDetails(
       if (item.nama_produk) hargaAsliMenu[item.nama_produk.trim().toLowerCase()] = item.harga;
     }
 
+    // Build harga_beli lookup maps (for Produk fallback HPP)
+    const hargaBeliProdukById: Record<string, number> = {};
+    const hargaBeliProdukByName: Record<string, number> = {};
+    for (const p of menuStore) {
+      const hb = (p as any).harga_beli || 0;
+      if (hb > 0) {
+        hargaBeliProdukById[p.id] = hb;
+        if (p.nama_produk) hargaBeliProdukByName[p.nama_produk.trim().toLowerCase()] = hb;
+      }
+    }
+
     const referralMap: Record<string, { nama: string; komisiPct: number }> = {};
     for (const ref of referrals) {
       if (ref.kode) {
@@ -664,159 +707,15 @@ export async function getAuditOrderDetails(
       const oDate = new Date(order.tanggal);
       if (oDate < sDate || oDate > eDate) continue;
 
+      // Parse structured or text-based items (shared logic)
+      const parseResult = parseOrderItemsForOrder(
+        order, orderItemsByOrder, configHPP, keysHPP, hargaAsliMenu,
+        hargaBeliProdukById, hargaBeliProdukByName,
+      );
       const hargaFinalNota = order.harga;
       const layananText = order.layanan || '';
-      let orderGrossTotal = 0;
-      let orderQtyTotal = 0;
-      const auditItems: AuditOrderItem[] = [];
-
-      // Try structured order_items first
-      const structuredItems = orderItemsByOrder[order.id];
-      if (structuredItems && structuredItems.length > 0) {
-        for (const si of structuredItems) {
-          const qty = si.qty || 1;
-          const hargaSatuan = si.harga_satuan || 0;
-          const grossItem = hargaSatuan * qty;
-          orderGrossTotal += grossItem;
-          orderQtyTotal += qty;
-
-          const itemName = (si.nama_item || '').toLowerCase();
-          let itemHPP = 0;
-          let jalur: 'A' | 'B' = 'A';
-          let rn = itemName.replace(/\[.*?\]/g, '').trim();
-
-          for (const keyMatch of keysHPP) {
-            if (!rn) break;
-            if (rn.includes(keyMatch)) {
-              itemHPP += configHPP[keyMatch].hpp;
-              if (configHPP[keyMatch].kategori === 'REPAIR') jalur = 'B';
-              rn = rn.replace(keyMatch, '').trim();
-            }
-          }
-
-          auditItems.push({
-            nama: si.nama_item || '',
-            qty,
-            hargaSatuan,
-            gross: grossItem,
-            hpp: itemHPP * qty,
-            jalur,
-          });
-        }
-      } else {
-        // Fallback parse from layanan text
-        const items = layananText.split(/[,;\n]+/);
-
-        const cariHargaAsli = (namaOrder: string): number => {
-          const nama = namaOrder.trim().toLowerCase();
-          if (!nama) return 0;
-          if (hargaAsliMenu[nama] !== undefined) return hargaAsliMenu[nama];
-          for (const key of Object.keys(hargaAsliMenu)) {
-            if (key.includes(nama)) return hargaAsliMenu[key];
-          }
-          for (const key of Object.keys(hargaAsliMenu)) {
-            if (nama.includes(key)) return hargaAsliMenu[key];
-          }
-          return 0;
-        };
-
-        for (const itemStr of items) {
-          const cleanStr = itemStr.trim();
-          if (!cleanStr) continue;
-
-          const noBrackets = cleanStr.replace(/[.*?]/g, '').trim();
-          const qtyMatch = noBrackets.match(/\(?([0-9]+)\s*[xX]\s*\)?/i);
-          let qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
-          if (qty < 1) qty = 1;
-
-          const remainingName = noBrackets
-            .replace(/\(?\s*[0-9]+\s*[xX]\s*\)?/gi, '')
-            .replace(/@\s*[Rr][Pp]\s*[0-9.]+/gi, '')
-            .replace(/[Rr][Pp]\s*[0-9.]+/gi, '')
-            .replace(/[•–—]/g, '')
-            .trim()
-            .toLowerCase();
-
-          let hargaAsliSatuan = cariHargaAsli(remainingName);
-          if (hargaAsliSatuan === 0) {
-            const prcMatch = cleanStr.match(/[Rr][Pp]\s*([0-9.]+)/i);
-            if (prcMatch) hargaAsliSatuan = parseInt(prcMatch[1].replace(/\./g, ''));
-          }
-
-          if (qty === 1 && items.length === 1 && hargaAsliSatuan > 0 && hargaFinalNota > 0) {
-            if (hargaFinalNota >= hargaAsliSatuan * 1.4) {
-              qty = Math.round(hargaFinalNota / hargaAsliSatuan);
-              if (qty < 2) qty = 2;
-            }
-          }
-
-          const grossItem = hargaAsliSatuan * qty;
-          orderGrossTotal += grossItem;
-          orderQtyTotal += qty;
-
-          let itemHPP = 0;
-          let jalur: 'A' | 'B' = 'A';
-          let rn = remainingName;
-
-          for (const keyMatch of keysHPP) {
-            if (!rn) break;
-            if (rn.includes(keyMatch)) {
-              itemHPP += configHPP[keyMatch].hpp;
-              if (configHPP[keyMatch].kategori === 'REPAIR') jalur = 'B';
-              rn = rn.replace(keyMatch, '').trim();
-            }
-          }
-
-          if (itemHPP === 0 && rn) {
-            for (const keyRev of keysHPP) {
-              if (keyRev.includes(rn)) {
-                itemHPP += configHPP[keyRev].hpp;
-                if (configHPP[keyRev].kategori === 'REPAIR') jalur = 'B';
-                break;
-              }
-            }
-          }
-
-          auditItems.push({
-            nama: remainingName || cleanStr,
-            qty,
-            hargaSatuan: hargaAsliSatuan,
-            gross: grossItem,
-            hpp: itemHPP * qty,
-            jalur,
-          });
-        }
-
-        // Scan notes for repair keywords
-        const catatan = (order.catatan || '').toLowerCase();
-        if (catatan) {
-          for (const keyRepair of keysHPP) {
-            const cfg = configHPP[keyRepair];
-            if (cfg && cfg.kategori === 'REPAIR' && catatan.includes(keyRepair)) {
-              const alreadyInLayanan = layananText.toLowerCase().includes(keyRepair);
-              if (!alreadyInLayanan) {
-                let repairQty = 1;
-                if (/semua|2 pasang|3 pasang/i.test(catatan)) {
-                  repairQty = orderQtyTotal > 0 ? orderQtyTotal : 1;
-                }
-                auditItems.push({
-                  nama: `[catatan] ${keyRepair}`,
-                  qty: repairQty,
-                  hargaSatuan: 0,
-                  gross: 0,
-                  hpp: cfg.hpp * repairQty,
-                  jalur: 'B',
-                });
-              }
-            }
-          }
-        }
-      }
-
-      // Fallback gross
-      if (orderGrossTotal === 0 && auditItems.length > 0 && hargaFinalNota > 0) {
-        orderGrossTotal = hargaFinalNota;
-      }
+      const orderGrossTotal = parseResult.grossTotal;
+      const auditItems = parseResult.items;
       if (orderGrossTotal === 0) continue;
 
       // Referral commission

@@ -96,6 +96,11 @@ function getActiveTabId(pathname: string): string {
   return '__more__';
 }
 
+function getPageTitle(pathname: string, showingMore: boolean): string {
+  if (showingMore) return 'Lainnya';
+  return pageTitles[pathname] || 'Ringkasan';
+}
+
 /* ------------------------------------------------------------------ */
 /*  Component                                                         */
 /* ------------------------------------------------------------------ */
@@ -267,12 +272,7 @@ export default function AdminLayout() {
   const activeTabId = showMore ? '__more__' : getActiveTabId(location.pathname);
 
   const userEmail = user?.email || 'Admin';
-  const userInitial = (userEmail as string).charAt(0).toUpperCase();
-
-  function getPageTitle(pathname: string, showingMore: boolean): string {
-    if (showingMore) return 'Lainnya';
-    return pageTitles[pathname] || 'Ringkasan';
-  }
+  const userInitial = userEmail.charAt(0).toUpperCase();
 
   /* ================================================================== */
   /*  Render                                                            */

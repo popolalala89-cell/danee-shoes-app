@@ -319,13 +319,17 @@ export interface DiskonEventUpdate {
 }
 
 export interface ReferralCreate {
+  kode: string;
   nama_referral: string;
+  link?: string | null;
   komisi_pct: number;
   status?: 'Aktif' | 'Nonaktif';
 }
 
 export interface ReferralUpdate {
+  kode?: string;
   nama_referral?: string;
+  link?: string | null;
   komisi_pct?: number;
   status?: 'Aktif' | 'Nonaktif';
 }

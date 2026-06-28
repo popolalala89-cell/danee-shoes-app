@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getAll as getOrders, create as createOrder, updateStatus as updateOrderStatus, update as updateOrder, trackOrder } from '../lib/services/order-service';
-import { getAllDiskon, getAllReferral } from '../lib/services/konten-service';
+import { getAllDiskon } from '../lib/services/discount-service';
+import { getAllReferral } from '../lib/services/referral-service';
 import { getAll as getMenuJasa } from '../lib/services/menu-jasa-service';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { getSetting } from '../lib/services/settings-service';
+import { useSnackbar } from '../components/ui/Snackbar';
 import type { OrderRow, OrderStatus, DiskonEventRow, MenuJasaRow, ReferralRow } from '../lib/types-supabase';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -137,6 +139,8 @@ function Orders() {
   const [editCatatan, setEditCatatan] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
 
+  const { showSnackbar } = useSnackbar();
+
   useEffect(() => { fetchOrders(); }, []);
 
   // Load QRIS image from database settings
@@ -174,16 +178,15 @@ function Orders() {
 
   async function fetchOrders() {
     setLoading(true);
-    setError(null);
     try {
       const res = await getOrders();
       if (res.success) {
         setOrders(res.data || []);
       } else {
-        setError(res.error || 'Gagal mengambil data pesanan');
+        showSnackbar(res.error || 'Gagal mengambil data pesanan', 'error');
       }
     } catch (err: any) {
-      setError(err?.message || 'Gagal mengambil data pesanan');
+      showSnackbar(err?.message || 'Gagal mengambil data pesanan', 'error');
     } finally {
       setLoading(false);
     }
@@ -218,7 +221,7 @@ function Orders() {
       await updateOrderStatus(orderId, newStatus);
       await fetchOrders();
     } catch (err: any) {
-      setError(err?.message || 'Gagal memperbarui status');
+      showSnackbar(err?.message || 'Gagal memperbarui status', 'error');
     }
   }
 
@@ -526,10 +529,10 @@ function Orders() {
           }
           fetchOrders();
         } else {
-          setError(res.error || 'Gagal menambah order');
+          showSnackbar(res.error || 'Gagal menambah order', 'error');
         }
       })
-      .catch((err: any) => setError(err?.message || 'Gagal menambah order'))
+      .catch((err: any) => showSnackbar(err?.message || 'Gagal menambah order', 'error'))
       .finally(() => setSubmitting(false));
   }
 
@@ -581,10 +584,10 @@ function Orders() {
         setEditOrder(null);
         await fetchOrders();
       } else {
-        setError(res.error || 'Gagal mengupdate order');
+        showSnackbar(res.error || 'Gagal mengupdate order', 'error');
       }
     } catch (err: any) {
-      setError(err?.message || 'Gagal mengupdate order');
+      showSnackbar(err?.message || 'Gagal mengupdate order', 'error');
     } finally {
       setEditSubmitting(false);
     }
@@ -743,11 +746,8 @@ function Orders() {
       </div>
 
       {error && (
-        <div className="alert alert-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-sm)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span className="mat-icon" style={{ fontSize: 18 }}>error_outline</span>
-            <span>{error}</span>
-          </div>
+        <div className="alert alert-danger" style={{ padding: 'var(--space-sm) var(--space-md)', marginBottom: 'var(--space-md)', color: 'var(--danger)', fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{error}</span>
           <button className="btn btn-sm btn-white" onClick={() => setError(null)} style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 8, minHeight: 28 }}>
             <span className="mat-icon" style={{ fontSize: 16 }}>close</span>
           </button>
@@ -1183,9 +1183,13 @@ function Orders() {
                 <tbody>
                   {(() => {
                     const items = parseLayananItems(cetakStruk.layanan || '');
-                    const subtotal = items.reduce((s, i) => s + i.hargaSatuan * i.qty, 0);
                     const diskonNominal = extractDiskonNominal(cetakStruk.diskon_info || '');
-                    const total = cetakStruk.harga ?? 0;
+                    // Hitung subtotal original (sebelum diskon per-item)
+                    const subtotalOriginal = items.reduce((s, i) => {
+                      const svc = layananList.find((l) => l.nama_layanan === i.namaMurni);
+                      const hargaNormal = svc ? svc.harga : i.hargaSatuan;
+                      return s + hargaNormal * i.qty;
+                    }, 0);
                     return (
                       <>
                         {items.map((item, idx) => {
@@ -1200,7 +1204,7 @@ function Orders() {
                               <tr>
                                 <td style={{ verticalAlign: 'top', paddingRight: 8, paddingBottom: isPromo ? 2 : 6 }}>
                                   <div>{item.namaMurni} ({item.qty}x)</div>
-                                  <span style={{ fontSize: '0.72rem', color: '#666' }}>@ {formatCurrency(item.hargaSatuan)}</span>
+                                  <span style={{ fontSize: '0.72rem', color: '#666' }}>@ {formatCurrency(normalSatuan)}</span>
                                   {item.promoLabel && <span style={{ fontSize: '0.72rem', fontStyle: 'italic', color: '#16a34a' }}> [{item.promoLabel}]</span>}
                                 </td>
                                 <td style={{ textAlign: 'right', verticalAlign: 'top', paddingBottom: isPromo ? 2 : 6, whiteSpace: 'nowrap' }}>
@@ -1210,7 +1214,7 @@ function Orders() {
                                       <span style={{ fontWeight: 600 }}>{formatCurrency(bayarTotal)}</span>
                                     </>
                                   ) : (
-                                    formatCurrency(bayarTotal)
+                                    formatCurrency(normalTotal)
                                   )}
                                 </td>
                               </tr>
@@ -1232,7 +1236,7 @@ function Orders() {
                           <tr>
                             <td style={{ paddingTop: 8, borderTop: '1px dashed #ccc', fontWeight: 600 }}>Subtotal</td>
                             <td style={{ textAlign: 'right', paddingTop: 8, borderTop: '1px dashed #ccc', fontWeight: 600 }}>
-                              {formatCurrency(subtotal)}
+                              {formatCurrency(subtotalOriginal)}
                             </td>
                           </tr>
                         )}

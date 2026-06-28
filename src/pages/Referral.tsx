@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAllReferral, createReferral, updateReferral, deleteReferral } from '../lib/services/konten-service';
+import { getAllReferral, createReferral, updateReferral, nonaktifkanReferral } from '../lib/services/referral-service';
 import { formatCurrency } from '../lib/utils';
 import type { ReferralRow } from '../lib/types-supabase';
 
@@ -63,14 +63,18 @@ const Referral: React.FC = () => {
     try {
       if (editingId) {
         const res = await updateReferral(editingId, {
+          kode: form.kode.trim(),
           nama_referral: form.nama_referral,
+          link: form.link.trim() || null,
           status: form.status as 'Aktif' | 'Nonaktif',
           komisi_pct: form.komisi_pct,
         });
         if (!res.success) { setError(res.error ?? null); setSaving(false); return; }
       } else {
         const res = await createReferral({
+          kode: form.kode.trim(),
           nama_referral: form.nama_referral,
+          link: form.link.trim() || null,
           status: form.status as 'Aktif' | 'Nonaktif',
           komisi_pct: form.komisi_pct,
         });
@@ -88,7 +92,7 @@ const Referral: React.FC = () => {
   const handleDelete = async (id: string, nama: string) => {
     if (!window.confirm(`Nonaktifkan referral "${nama}"?`)) return;
     try {
-      const res = await deleteReferral(id);
+      const res = await nonaktifkanReferral(id);
       if (!res.success) { setError(res.error ?? null); return; }
       await fetchData();
     } catch (e: any) {
