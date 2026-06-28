@@ -2315,9 +2315,14 @@ textarea.form-control {
     display: none !important;
   }
 
+  /* Hide bottom navigation on desktop */
+  .bottom-nav {
+    display: none;
+  }
+
   .admin-content {
     margin-left: 260px;
-    padding-bottom: var(--space-lg);
+    padding-bottom: var(--safe-bottom);
   }
 
   .admin-main {

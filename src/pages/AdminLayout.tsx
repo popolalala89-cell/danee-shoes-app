@@ -59,6 +59,24 @@ const bottomNavItems: NavItem[] = [
 ];
 
 /* ------------------------------------------------------------------ */
+/*  Sidebar items (all pages, no "__more__" wrapper)                 */
+/* ------------------------------------------------------------------ */
+const sidebarNavItems: NavItem[] = [
+  { id: 'ringkasan',     label: 'Ringkasan',     icon: 'dashboard',          route: '/admin' },
+  { id: 'pesanan',       label: 'Pesanan',       icon: 'receipt_long',       route: '/admin/orders' },
+  { id: 'inventory',     label: 'Inventory',     icon: 'inventory_2',        route: '/admin/inventory' },
+  { id: 'keuangan',      label: 'Keuangan',      icon: 'account_balance',    route: '/admin/cashflow' },
+  { id: 'menu-jasa',     label: 'Menu Jasa',     icon: 'cleaning_services',  route: '/admin/menu-jasa' },
+  { id: 'menu-store',    label: 'Menu Store',    icon: 'storefront',         route: '/admin/menu-store' },
+  { id: 'penjualan',     label: 'Penjualan',     icon: 'payments',           route: '/admin/penjualan' },
+  { id: 'profit-sharing',label: 'Profit Sharing',icon: 'handshake',          route: '/admin/profit-sharing' },
+  { id: 'konten',        label: 'Konten Web',    icon: 'public',             route: '/admin/konten' },
+  { id: 'diskon',        label: 'Diskon',        icon: 'local_offer',        route: '/admin/diskon' },
+  { id: 'referral',      label: 'Referral',      icon: 'link',               route: '/admin/referral' },
+  { id: 'settings',      label: 'Pengaturan',    icon: 'settings',           route: '/admin/settings' },
+];
+
+/* ------------------------------------------------------------------ */
 /*  "Lainnya" grid items                                              */
 /* ------------------------------------------------------------------ */
 interface MoreItem {
@@ -110,6 +128,7 @@ export default function AdminLayout() {
   const { user, logout, hasPermission } = useAuth();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [pageKey, setPageKey] = useState(0);
   const [navDirection, setNavDirection] = useState<'forward' | 'backward'>('forward');
@@ -156,6 +175,7 @@ export default function AdminLayout() {
 
   const handleLogout = async () => {
     setMenuOpen(false);
+    setSidebarOpen(false);
     await logout();
     navigate('/login');
   };
@@ -182,6 +202,13 @@ export default function AdminLayout() {
   const handleMoreItemClick = (item: MoreItem) => {
     setShowMore(false);
     navigate(item.route);
+  };
+
+  /* ── Sidebar navigation click ────────────────────────────────── */
+  const handleSidebarNav = (route: string) => {
+    setSidebarOpen(false);
+    setShowMore(false);
+    navigate(route);
   };
 
   /* ── Swipe gesture: geser kiri/kanan untuk ganti tab ──────────── */
@@ -265,6 +292,11 @@ export default function AdminLayout() {
     [hasPermission]
   );
 
+  const permittedSidebarItems = useMemo(
+    () => sidebarNavItems.filter((item) => hasPermission(item.id)),
+    [hasPermission]
+  );
+
   const today = new Date();
   const dateStr = formatDateIndonesian(today);
   const pageTitle = getPageTitle(location.pathname, showMore);
@@ -284,17 +316,23 @@ export default function AdminLayout() {
         ============================================================ */}
       <header className="top-app-bar">
         <div className="topbar-left">
-          {/* Hamburger */}
+          {/* Hamburger — toggles sidebar on mobile */}
           <button
             className="hamburger-admin ripple ripple-light"
-            onClick={() => setMenuOpen((o) => !o)}
+            onClick={() => setSidebarOpen((o) => !o)}
             aria-label="Menu"
           >
             <span className="mat-icon">menu</span>
           </button>
 
-          {/* User avatar */}
-          <div className="topbar-avatar">{userInitial}</div>
+          {/* User avatar — toggles dropdown on click */}
+          <div
+            className="topbar-avatar"
+            style={{ cursor: 'pointer' }}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            {userInitial}
+          </div>
 
           {/* Icon + Title */}
           <span className="mat-icon topbar-page-icon">{pageIcon}</span>
@@ -304,7 +342,7 @@ export default function AdminLayout() {
         <div className="topbar-right">
           <span className="topbar-date">{dateStr}</span>
 
-          {/* Hamburger dropdown */}
+          {/* Avatar dropdown menu */}
           {menuOpen && (
             <div ref={menuRef} className="dropdown-menu">
               {/* User info */}
@@ -319,23 +357,11 @@ export default function AdminLayout() {
 
               <div className="dropdown-item ripple" onClick={() => {
                 setMenuOpen(false);
-                setShowMore(false);
-                navigate('/');
+                navigate('/admin/settings');
               }}>
-                <span className="mat-icon">public</span>
-                <span>Kembali ke Website</span>
+                <span className="mat-icon">settings</span>
+                <span>Pengaturan</span>
               </div>
-
-              {hasPermission('settings') && (
-                <div className="dropdown-item ripple" onClick={() => {
-                  setMenuOpen(false);
-                  setShowMore(false);
-                  navigate('/admin/settings');
-                }}>
-                  <span className="mat-icon">settings</span>
-                  <span>Pengaturan</span>
-                </div>
-              )}
 
               <div className="dropdown-divider" />
 
@@ -347,6 +373,66 @@ export default function AdminLayout() {
           )}
         </div>
       </header>
+
+      {/* ============================================================
+         SIDEBAR (overlay drawer on mobile, permanent on desktop)
+        ============================================================ */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <aside className={`admin-sidebar${sidebarOpen ? ' open' : ''}`}>
+        {/* Brand header */}
+        <div className="sidebar-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: '1.5rem' }}>👟</span>
+            <div>
+              <div style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                Danee Shoes
+              </div>
+              <div style={{ fontSize: '0.7rem', fontWeight: 400, color: '#94a3b8', lineHeight: 1.2 }}>
+                Care Management
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="sidebar-nav">
+          {permittedSidebarItems.map((item) => {
+            const isActive = location.pathname === item.route;
+            return (
+              <button
+                key={item.id}
+                className={`nav-item ripple${isActive ? ' active' : ''}`}
+                onClick={() => handleSidebarNav(item.route)}
+              >
+                <span className="mat-icon">{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Bottom links */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: 'var(--space-sm) 0' }}>
+          <button className="nav-item ripple" onClick={() => {
+            setSidebarOpen(false);
+            navigate('/');
+          }}>
+            <span className="mat-icon">public</span>
+            <span>Kembali ke Website</span>
+          </button>
+          <button
+            className="nav-item ripple"
+            onClick={handleLogout}
+            style={{ color: '#ef4444' }}
+          >
+            <span className="mat-icon">logout</span>
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
 
       {/* ============================================================
          MAIN CONTENT

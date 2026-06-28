@@ -919,6 +919,48 @@ Saya mau order layanan berikut:
         .shopee-section-bg { background: #f5f5f5; }
         .shopee-section-white { background: #fff; }
 
+        /* Desktop horizontal navigation (hidden on mobile) */
+        .desktop-nav-landing {
+          display: none;
+          background: #fff;
+          border-bottom: 1px solid #e8e8e8;
+          padding: 0 48px;
+          gap: 0;
+          position: sticky;
+          top: 0;
+          z-index: 99;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .dn-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 14px 24px;
+          background: none;
+          border: none;
+          border-bottom: 3px solid transparent;
+          font-family: inherit;
+          font-size: 0.9rem;
+          font-weight: 500;
+          color: var(--text-gray);
+          cursor: pointer;
+          white-space: nowrap;
+          transition: color 0.15s, border-color 0.15s;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .dn-item:hover {
+          color: var(--primary);
+          background: #f8f9ff;
+        }
+        .dn-item:active {
+          opacity: 0.7;
+        }
+        .dn-item.active {
+          color: var(--primary);
+          border-bottom-color: var(--primary);
+          font-weight: 600;
+        }
+
         /* Gear menu popup */
         .hamburger-landing {
           display: flex;
@@ -1042,15 +1084,65 @@ Saya mau order layanan berikut:
         }
         @media (min-width: 900px) {
           .shopee-grid { grid-template-columns: repeat(4, 1fr); }
-          .konten-grid { grid-template-columns: repeat(3, 1fr); }
-          .shopee-topbar { padding: 12px 48px; }
-          .banner-carousel-wrap { margin: 16px 48px; max-width: 900px; margin-left: auto; margin-right: auto; }
-          .category-grid { max-width: 900px; margin: 0 auto 16px; }
-          .shopee-section-header { max-width: 900px; margin: 0 auto; padding-left: 0; padding-right: 0; }
-          .shopee-grid { max-width: 900px; margin: 0 auto; padding-left: 0; padding-right: 0; }
-          .konten-grid { max-width: 900px; margin: 0 auto; padding-left: 0; padding-right: 0; }
-          .flashsale-row { max-width: 900px; margin: 0 auto; padding-left: 0; padding-right: 0; }
-          .tracking-modern { margin: 0 auto 20px; }
+          .konten-grid { grid-template-columns: repeat(4, 1fr); }
+          .shopee-topbar {
+            position: relative;
+            box-shadow: none;
+            border-bottom: 1px solid #f0f0f0;
+            padding: 8px 48px;
+          }
+          .banner-carousel-wrap { margin: 24px auto; max-width: 1200px; border-radius: 16px; }
+          .banner-slide { aspect-ratio: 21/9; min-height: 340px; }
+          .category-grid { max-width: 1200px; margin: 0 auto 20px; grid-template-columns: repeat(6, 1fr); }
+          .shopee-section-header { max-width: 1200px; margin: 0 auto; padding-left: 0; padding-right: 0; }
+          .shopee-section-header h2 { font-size: 1.15rem; }
+          .shopee-grid { max-width: 1200px; margin: 0 auto; padding-left: 0; padding-right: 0; }
+          .konten-grid { max-width: 1200px; margin: 0 auto; padding-left: 0; padding-right: 0; }
+          .flashsale-row { max-width: 1200px; margin: 0 auto; padding-left: 0; padding-right: 0; }
+          .tracking-modern { max-width: 600px; margin: 0 auto 24px; }
+          .testimoni-grid { padding: 0 0 20px; max-width: 700px; margin: 0 auto; }
+          .floating-cart-btn { bottom: 24px; right: 32px; }
+
+          /* App layout: natural page flow on desktop */
+          .app-layout { height: auto; min-height: 100vh; overflow: visible; }
+          .tab-content { overflow-y: visible; padding-bottom: 0; }
+
+          /* Hide mobile bottom nav, show desktop nav */
+          .bottom-nav-shopee { display: none !important; }
+          .desktop-nav-landing { display: flex !important; }
+
+          /* Footer multi-column layout */
+          .footer-minimal {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 0;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 12px;
+            text-align: left;
+            align-items: start;
+          }
+          .footer-minimal .fm-brand {
+            justify-content: flex-start;
+            font-size: 1.1rem;
+          }
+          .footer-minimal .fm-tagline {
+            grid-column: 1;
+          }
+          .footer-minimal .fm-wa {
+            justify-self: start;
+            margin-bottom: 6px;
+          }
+          .footer-minimal .fm-links {
+            justify-content: flex-start;
+            grid-column: 1;
+          }
+          .footer-minimal .fm-copy {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+          }
         }
 
         /* ===== Bottom Navigation (Android App style) ===== */
