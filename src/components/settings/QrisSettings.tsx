@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { saveSetting } from '../../lib/services/settings-service';
 import { uploadImage } from '../../lib/services/upload-service';
-import { formatCurrency } from '../../lib/utils';
 
 interface BrandingSettingsProps {
   initialQris: string;
