@@ -451,6 +451,8 @@ Saya mau order layanan berikut:
           font-size: inherit;
           position: relative;
         }
+        /* Button text label — hidden on mobile, shown on desktop */
+        .tb-label { display: none; }
         .shopee-badge-dot {
           position: absolute;
           top: 0;
@@ -919,6 +921,22 @@ Saya mau order layanan berikut:
         .shopee-section-bg { background: #f5f5f5; }
         .shopee-section-white { background: #fff; }
 
+        /* ===== App Layout (mobile-first: fixed viewport) ===== */
+        .app-layout {
+          display: flex;
+          flex-direction: column;
+          height: 100dvh;
+          overflow: hidden;
+        }
+        .tab-content {
+          flex: 1;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+          padding: 0 0 0;
+          min-height: 0;
+        }
+
         /* Desktop horizontal navigation (hidden on mobile) */
         .desktop-nav-landing {
           display: none;
@@ -1089,19 +1107,58 @@ Saya mau order layanan berikut:
           .shopee-grid { grid-template-columns: repeat(4, 1fr); gap: 18px; padding: 0 0 32px; }
           .konten-grid { grid-template-columns: repeat(4, 1fr); gap: 18px; padding: 0 0 28px; }
 
-          /* ─── Topbar ─── */
+          /* ─── Topbar (Desktop Professional) ─── */
           .shopee-topbar {
             position: relative;
-            box-shadow: none;
-            border-bottom: 1px solid #f0f0f0;
-            padding: 12px 48px;
-            max-width: 1200px;
-            margin: 0 auto;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            border-bottom: 1px solid #e8e8e8;
+            padding: 0 48px;
+            max-width: none;
           }
-          .shopee-topbar-logo { font-size: 1.3rem; }
-          .shopee-topbar-logo span { font-size: 1.6rem; }
-          .shopee-search { max-width: 320px; }
-          .shopee-search input { font-size: 0.9rem; padding: 10px 40px 10px 16px; border-radius: 24px; }
+          .shopee-topbar-logo {
+            font-size: 1.4rem;
+            gap: 10px;
+          }
+          .shopee-topbar-logo span { font-size: 1.8rem; }
+          .shopee-search { max-width: 360px; }
+          .shopee-search input {
+            font-size: 0.9rem;
+            padding: 10px 44px 10px 16px;
+            border-radius: 24px;
+            background: #f1f3f5;
+            border: 1px solid transparent;
+            transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+          }
+          .shopee-search input:focus {
+            background: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(13,110,253,0.1);
+          }
+          .shopee-topbar-icons { gap: 4px; }
+          .shopee-topbar-icons button {
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-dark);
+            transition: background 0.15s;
+          }
+          .shopee-topbar-icons button:hover {
+            background: #f0f0f0;
+          }
+          .tb-label { display: inline; }
+          /* Hamburger: keep for admin, but more compact on desktop */
+          .hamburger-landing {
+            width: 32px;
+            height: 32px;
+            font-size: 1.1rem;
+            border-radius: 6px;
+          }
+          .hamburger-landing:hover { background: #f0f0f0; }
 
           /* ─── Banner ─── */
           .banner-carousel-wrap { margin: 28px auto; max-width: 1200px; border-radius: 16px; }
@@ -1208,7 +1265,7 @@ Saya mau order layanan berikut:
         }
 
         @media (min-width: 1200px) {
-          .shopee-topbar { padding: 14px 0; }
+          .shopee-topbar { padding: 0 48px; }
           .desktop-nav-landing { padding: 0; }
           .banner-slide { min-height: 480px; padding: 48px 80px; }
           .banner-slide.no-img h3 { font-size: 2.4rem; }
@@ -1216,21 +1273,6 @@ Saya mau order layanan berikut:
           .category-circle { width: 64px; height: 64px; font-size: 1.8rem; }
         }
 
-        /* ===== Bottom Navigation (Android App style) ===== */
-        .app-layout {
-          display: flex;
-          flex-direction: column;
-          height: 100dvh;
-          overflow: hidden;
-        }
-        .tab-content {
-          flex: 1;
-          overflow-y: auto;
-          -webkit-overflow-scrolling: touch;
-          overscroll-behavior: contain;
-          padding: 0 0 0;
-          min-height: 0;
-        }
         .bottom-nav-shopee {
           flex-shrink: 0;
           height: calc(64px + env(safe-area-inset-bottom, 0px));
@@ -1295,7 +1337,7 @@ Saya mau order layanan berikut:
           .shopee-topbar { padding: calc(4px + env(safe-area-inset-top, 0px)) 24px 4px; }
         }
         @media (min-width: 900px) {
-          .shopee-topbar { padding: calc(6px + env(safe-area-inset-top, 0px)) 48px 6px; }
+          .shopee-topbar { padding: 0 48px; }
         }
 
         /* ===== Floating Cart Button ===== */
@@ -1396,11 +1438,12 @@ Saya mau order layanan berikut:
         </div>
         <div className="shopee-topbar-icons">
           <button onClick={() => scrollTo('tracking')} title="Cek order">
-            📋
+            📋<span className="tb-label"> Cek Order</span>
           </button>
           <button onClick={() => window.open(WA_BASE, '_blank')} title="Hubungi kami">
             <span>💬</span>
             <span className="shopee-badge-dot" />
+            <span className="tb-label"> Hubungi</span>
           </button>
         </div>
 
