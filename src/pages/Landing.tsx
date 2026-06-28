@@ -663,7 +663,7 @@ Saya mau order layanan berikut:
           border-radius: 8px;
           overflow: hidden;
           box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-          transition: box-shadow 0.15s;
+          transition: box-shadow 0.15s, transform 0.2s;
           display: flex;
           flex-direction: column;
         }
@@ -1090,7 +1090,11 @@ Saya mau order layanan berikut:
             box-shadow: none;
             border-bottom: 1px solid #f0f0f0;
             padding: 8px 48px;
+            max-width: 1200px;
+            margin: 0 auto;
           }
+          .shopee-search { max-width: 360px; }
+          .shopee-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.10); transform: translateY(-2px); }
           .banner-carousel-wrap { margin: 24px auto; max-width: 1200px; border-radius: 16px; }
           .banner-slide { aspect-ratio: 21/9; min-height: 340px; }
           .category-grid { max-width: 1200px; margin: 0 auto 20px; grid-template-columns: repeat(6, 1fr); }
@@ -1109,7 +1113,7 @@ Saya mau order layanan berikut:
 
           /* Hide mobile bottom nav, show desktop nav */
           .bottom-nav-shopee { display: none !important; }
-          .desktop-nav-landing { display: flex !important; }
+          .desktop-nav-landing { display: flex !important; max-width: 1200px; margin: 0 auto; }
 
           /* Footer multi-column layout */
           .footer-minimal {
@@ -1357,6 +1361,34 @@ Saya mau order layanan berikut:
           </div>
         )}
       </header>
+
+      {/* ===== DESKTOP NAV ===== */}
+      <nav className="desktop-nav-landing">
+        <button
+          className={`dn-item${activeTab === 'beranda' ? ' active' : ''}`}
+          onClick={() => handleSetActiveTab('beranda')}
+        >
+          <span>🏠</span> Beranda
+        </button>
+        <button
+          className={`dn-item${activeTab === 'cleaning' ? ' active' : ''}`}
+          onClick={() => handleSetActiveTab('cleaning')}
+        >
+          <span>👟</span> Cleaning
+        </button>
+        <button
+          className={`dn-item${activeTab === 'repair' ? ' active' : ''}`}
+          onClick={() => handleSetActiveTab('repair')}
+        >
+          <span>🔧</span> Repair
+        </button>
+        <button
+          className={`dn-item${activeTab === 'produk' ? ' active' : ''}`}
+          onClick={() => handleSetActiveTab('produk')}
+        >
+          <span>🛍️</span> Produk
+        </button>
+      </nav>
 
       <div className="tab-content" onTouchStart={handleTabTouchStart} onTouchEnd={handleTabTouchEnd}>
         {activeTab === 'beranda' && (
