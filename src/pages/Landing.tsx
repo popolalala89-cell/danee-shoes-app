@@ -1070,83 +1070,150 @@ Saya mau order layanan berikut:
 
         /* Responsive */
         @media (min-width: 600px) {
-          .shopee-grid { grid-template-columns: 1fr 1fr 1fr; }
-          .konten-grid { grid-template-columns: 1fr 1fr 1fr; }
+          .shopee-grid { grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+          .konten-grid { grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
           .testimoni-grid { padding: 0 24px 20px; max-width: 500px; margin: 0 auto; }
           .category-grid { grid-template-columns: repeat(4, 1fr); padding: 16px 24px; margin: 0 24px 16px; }
-          .banner-carousel-wrap { margin: 12px 24px; }
+          .banner-carousel-wrap { margin: 14px 24px; }
+          .banner-slide { min-height: 260px; }
           .tracking-modern { margin: 0 24px 20px; max-width: 600px; }
           .shopee-topbar { padding: 10px 24px; }
-          .shopee-section-header { padding: 18px 24px 10px; }
-          .shopee-grid { padding: 0 24px 20px; }
-          .konten-grid { padding: 0 24px 20px; }
-          .flashsale-row { padding: 0 24px 16px; }
+          .shopee-section-header { padding: 20px 24px 12px; }
+          .shopee-section-header h2 { font-size: 1.1rem; }
+          .shopee-grid { padding: 0 24px 24px; }
+          .konten-grid { padding: 0 24px 24px; }
+          .flashsale-row { padding: 0 24px 18px; }
         }
         @media (min-width: 900px) {
-          .shopee-grid { grid-template-columns: repeat(4, 1fr); }
-          .konten-grid { grid-template-columns: repeat(4, 1fr); }
+          /* ─── Grid columns ─── */
+          .shopee-grid { grid-template-columns: repeat(4, 1fr); gap: 18px; padding: 0 0 32px; }
+          .konten-grid { grid-template-columns: repeat(4, 1fr); gap: 18px; padding: 0 0 28px; }
+
+          /* ─── Topbar ─── */
           .shopee-topbar {
             position: relative;
             box-shadow: none;
             border-bottom: 1px solid #f0f0f0;
-            padding: 8px 48px;
+            padding: 12px 48px;
             max-width: 1200px;
             margin: 0 auto;
           }
-          .shopee-search { max-width: 360px; }
-          .shopee-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.10); transform: translateY(-2px); }
-          .banner-carousel-wrap { margin: 24px auto; max-width: 1200px; border-radius: 16px; }
-          .banner-slide { aspect-ratio: 21/9; min-height: 340px; }
-          .category-grid { max-width: 1200px; margin: 0 auto 20px; grid-template-columns: repeat(6, 1fr); }
-          .shopee-section-header { max-width: 1200px; margin: 0 auto; padding-left: 0; padding-right: 0; }
-          .shopee-section-header h2 { font-size: 1.15rem; }
+          .shopee-topbar-logo { font-size: 1.3rem; }
+          .shopee-topbar-logo span { font-size: 1.6rem; }
+          .shopee-search { max-width: 320px; }
+          .shopee-search input { font-size: 0.9rem; padding: 10px 40px 10px 16px; border-radius: 24px; }
+
+          /* ─── Banner ─── */
+          .banner-carousel-wrap { margin: 28px auto; max-width: 1200px; border-radius: 16px; }
+          .banner-slide { aspect-ratio: 21/8; min-height: 420px; padding: 40px 60px; }
+          .banner-slide.no-img { gap: 12px; }
+          .banner-slide.no-img h3 { font-size: 2rem; }
+          .banner-slide.no-img p { font-size: 1rem; max-width: 500px; line-height: 1.6; }
+          .banner-dots { bottom: 14px; gap: 8px; }
+          .banner-dot { width: 8px; height: 8px; }
+          .banner-dot.active { width: 24px; }
+
+          /* ─── Category ─── */
+          .category-grid { max-width: 1200px; margin: 0 auto 24px; grid-template-columns: repeat(6, 1fr); gap: 20px 16px; padding: 20px 0; }
+          .category-circle { width: 56px; height: 56px; font-size: 1.6rem; }
+          .category-label { font-size: 0.8rem; }
+
+          /* ─── Section headers ─── */
+          .shopee-section-header { max-width: 1200px; margin: 0 auto; padding: 28px 0 14px; }
+          .shopee-section-header h2 { font-size: 1.35rem; }
+          .shopee-section-header a { font-size: 0.85rem; font-weight: 600; }
+          .shopee-section-header a:hover { color: var(--primary-dark); text-decoration: underline; }
           .shopee-grid { max-width: 1200px; margin: 0 auto; padding-left: 0; padding-right: 0; }
           .konten-grid { max-width: 1200px; margin: 0 auto; padding-left: 0; padding-right: 0; }
-          .flashsale-row { max-width: 1200px; margin: 0 auto; padding-left: 0; padding-right: 0; }
-          .tracking-modern { max-width: 600px; margin: 0 auto 24px; }
-          .testimoni-grid { padding: 0 0 20px; max-width: 700px; margin: 0 auto; }
-          .floating-cart-btn { bottom: 24px; right: 32px; }
+          .flashsale-row { max-width: 1200px; margin: 0 auto; padding: 0 0 24px; gap: 16px; }
+          .tracking-modern { max-width: 600px; margin: 0 auto 28px; padding: 24px; }
+          .testimoni-grid { padding: 0 0 28px; max-width: 800px; margin: 0 auto; gap: 18px; }
 
-          /* App layout: natural page flow on desktop */
+          /* ─── Cards ─── */
+          .shopee-card { border-radius: 12px; }
+          .shopee-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.10); transform: translateY(-3px); }
+          .shopee-service-top { padding: 24px 20px 0; }
+          .shopee-service-icon { font-size: 3rem; margin-bottom: 8px; }
+          .shopee-service-name { font-size: 1rem; }
+          .shopee-service-desc { font-size: 0.85rem; }
+          .shopee-service-price { font-size: 1.1rem; }
+          .shopee-card-footer { padding: 0 16px 16px; gap: 8px; }
+          .shopee-card-footer button { font-size: 0.85rem; padding: 10px 0; border-radius: 6px; }
+          .shopee-store-img { border-radius: 12px 12px 0 0; }
+          .shopee-store-img-placeholder { font-size: 2.8rem; }
+          .shopee-store-info { padding: 12px 14px 14px; }
+          .shopee-store-name { font-size: 1rem; }
+          .shopee-store-price { font-size: 1.05rem; }
+
+          /* ─── Flash sale ─── */
+          .flashsale-card { min-width: 150px; padding: 14px; border-radius: 10px; }
+          .flashsale-card .fs-icon { font-size: 2.2rem; }
+          .flashsale-card .fs-name { font-size: 0.85rem; }
+
+          /* ─── Floating cart ─── */
+          .floating-cart-btn { bottom: 32px; right: 40px; width: 60px; height: 60px; font-size: 1.5rem; }
+
+          /* ─── App layout: natural page flow ─── */
           .app-layout { height: auto; min-height: 100vh; overflow: visible; }
           .tab-content { overflow-y: visible; padding-bottom: 0; }
+          .shopee-section-bg,
+          .shopee-section-white { padding-top: 0 !important; padding-bottom: 0 !important; }
 
-          /* Hide mobile bottom nav, show desktop nav */
+          /* ─── Hide mobile bottom nav, show desktop nav ─── */
           .bottom-nav-shopee { display: none !important; }
           .desktop-nav-landing { display: flex !important; max-width: 1200px; margin: 0 auto; }
+          .dn-item { padding: 16px 28px; font-size: 0.95rem; }
 
-          /* Footer multi-column layout */
+          /* ─── Tracking ─── */
+          .tracking-modern input { font-size: 0.95rem; padding: 12px 16px; }
+
+          /* ─── Footer ─── */
           .footer-minimal {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 32px 0;
+            padding: 48px 0;
             display: grid;
             grid-template-columns: 2fr 1fr;
-            gap: 12px;
+            gap: 20px;
             text-align: left;
             align-items: start;
           }
           .footer-minimal .fm-brand {
             justify-content: flex-start;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
           }
           .footer-minimal .fm-tagline {
             grid-column: 1;
+            font-size: 0.9rem;
           }
           .footer-minimal .fm-wa {
             justify-self: start;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            padding: 12px 28px;
           }
           .footer-minimal .fm-links {
             justify-content: flex-start;
             grid-column: 1;
+            gap: 20px;
+            font-size: 0.85rem;
           }
           .footer-minimal .fm-copy {
             grid-column: 1 / -1;
             text-align: center;
-            padding-top: 16px;
+            padding-top: 20px;
             border-top: 1px solid #eee;
+            font-size: 0.8rem;
           }
+        }
+
+        @media (min-width: 1200px) {
+          .shopee-topbar { padding: 14px 0; }
+          .desktop-nav-landing { padding: 0; }
+          .banner-slide { min-height: 480px; padding: 48px 80px; }
+          .banner-slide.no-img h3 { font-size: 2.4rem; }
+          .banner-slide.no-img p { font-size: 1.1rem; }
+          .category-circle { width: 64px; height: 64px; font-size: 1.8rem; }
         }
 
         /* ===== Bottom Navigation (Android App style) ===== */
