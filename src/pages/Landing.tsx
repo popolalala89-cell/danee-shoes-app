@@ -1228,35 +1228,42 @@ Saya mau order layanan berikut:
           .footer-minimal {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 48px 0;
+            padding: 48px 40px;
             display: grid;
             grid-template-columns: 2fr 1fr;
-            gap: 20px;
+            gap: 12px 20px;
             text-align: left;
             align-items: start;
           }
           .footer-minimal .fm-brand {
             justify-content: flex-start;
             font-size: 1.2rem;
+            grid-row: 1;
+            grid-column: 1;
           }
           .footer-minimal .fm-tagline {
             grid-column: 1;
+            grid-row: 2;
             font-size: 0.9rem;
           }
           .footer-minimal .fm-wa {
-            justify-self: start;
-            margin-bottom: 8px;
+            justify-self: end;
+            grid-row: 1;
+            grid-column: 2;
+            margin: 0;
             font-size: 0.9rem;
             padding: 12px 28px;
           }
           .footer-minimal .fm-links {
             justify-content: flex-start;
             grid-column: 1;
+            grid-row: 3;
             gap: 20px;
             font-size: 0.85rem;
           }
           .footer-minimal .fm-copy {
             grid-column: 1 / -1;
+            grid-row: 4;
             text-align: center;
             padding-top: 20px;
             border-top: 1px solid #eee;
