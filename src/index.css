@@ -458,7 +458,7 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
   left: 0;
   width: 280px;
   height: 100vh;
-  background: var(--dark);
+  background: var(--primary);
   color: var(--white);
   display: flex;
   flex-direction: column;
@@ -503,7 +503,7 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
   align-items: center;
   gap: 12px;
   padding: 12px var(--space-lg);
-  color: #b0bec5;
+  color: rgba(255,255,255,0.7);
   cursor: pointer;
   transition: var(--transition-fast);
   font-size: 0.9375rem;
@@ -519,9 +519,9 @@ h5 { font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
 }
 
 .nav-item.active {
-  background: rgba(3, 75, 185, 0.2);
+  background: rgba(255,255,255,0.12);
   color: var(--white);
-  border-left-color: var(--primary);
+  border-left-color: rgba(255,255,255,0.85);
   font-weight: 500;
 }
 
